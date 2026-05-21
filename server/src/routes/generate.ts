@@ -5,6 +5,7 @@ import { getBrandLawSnippet, getCreativeKit } from "../lib/qoyod-brand-law.js";
 import { getCustomerVoiceSnippet } from "../lib/customer-voice.js";
 import { getZatcaSnippet } from "../lib/zatca-watcher.js";
 import { getPatternLibrarySnippet } from "../lib/pattern-library.js";
+import { getKnowledgeSnippet } from "../lib/knowledge-base.js";
 
 const router = Router();
 
@@ -301,6 +302,7 @@ router.post("/generate", async (req, res) => {
     skip_customer_voice = false,
     skip_zatca = false,
     skip_pattern_library = false,
+    skip_knowledge = false,
     persona,
     creative_kit = false,
   } = req.body ?? {};
@@ -316,15 +318,22 @@ router.post("/generate", async (req, res) => {
   //   3. Competitor context  — what rivals shipped this week (auto-refreshed Sunday)
   //   4. Customer voice (D2) — real pain quotes from App Store / Play Store / X
   //   5. ZATCA intel (D3)    — recent regulatory news + opportunities
+  //   6. Pattern library     — WIN-tagged hypotheses as few-shot examples (D1)
+  //   7. Knowledge base      — accumulated ICP signals, proven hooks, sector patterns,
+  //                            anti-patterns extracted from every weekly monitor run.
+  //                            This layer COMPOUNDS over time — unlike 3-6 which are
+  //                            weekly snapshots, this grows indefinitely.
   // All can be opted out per request for non-creative endpoints.
   const lawSnippet = skip_brand_law ? "" : `\n\n${getBrandLawSnippet(persona)}\n\n`;
   const kitSnippet = creative_kit ? `\n\n${getCreativeKit()}\n\n` : "";
   const ctxSnippet = skip_competitor_context ? "" : getContextSnippet();
   const voiceSnippet = skip_customer_voice ? "" : getCustomerVoiceSnippet();
   const zatcaSnippet = skip_zatca ? "" : getZatcaSnippet();
-  // Pattern library is async (reads Sheet) — only fetch when caller wants it,
-  // since most generations don't need few-shot examples and we save the round-trip.
-  const patternSnippet = skip_pattern_library ? "" : await getPatternLibrarySnippet();
+  // Pattern library + Knowledge base are both async (read Sheet)
+  const [patternSnippet, knowledgeSnippet] = await Promise.all([
+    skip_pattern_library ? Promise.resolve("") : getPatternLibrarySnippet(),
+    skip_knowledge ? Promise.resolve("") : getKnowledgeSnippet(),
+  ]);
   const enrichedSystem =
     lawSnippet +
     String(system) +
@@ -332,7 +341,8 @@ router.post("/generate", async (req, res) => {
     ctxSnippet +
     voiceSnippet +
     zatcaSnippet +
-    patternSnippet;
+    patternSnippet +
+    knowledgeSnippet;
 
   const totalLength = enrichedSystem.length + String(user).length;
   if (totalLength > MAX_PROMPT_CHARS) {

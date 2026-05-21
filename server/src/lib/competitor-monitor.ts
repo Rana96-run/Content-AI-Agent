@@ -24,6 +24,7 @@ import {
 import { sheetsAppendCompetitorPosts, sheetsHealthCheck } from "./sheets-client.js";
 import type { CompetitorPost } from "./content-library.js";
 import { buildContextPrompt, renderContextMarkdown, saveContext } from "./competitor-context.js";
+import { extractKnowledgeFromMonitor } from "./knowledge-base.js";
 import { renderWeeklyDocHtml } from "./competitor-doc-renderer.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
 import { createWeeklySlidesPresentation } from "./competitor-slides-renderer.js";
@@ -284,6 +285,20 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     logger.warn(
       { err: err instanceof Error ? err.message : String(err) },
       "monitor: context synthesis failed (non-fatal)",
+    );
+  }
+
+  // 4c. Extract and accumulate new knowledge entries from this week's data.
+  //     This is the self-learning loop: every week the system gets smarter.
+  //     New ICPs, proven hooks, sector patterns, anti-patterns → all saved to
+  //     the "Knowledge Base" Google Sheet tab and injected into future prompts.
+  try {
+    await extractKnowledgeFromMonitor(diffs, ai, weekLabel);
+    logger.info({ week: weekLabel }, "monitor: knowledge base updated");
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "monitor: knowledge extraction failed (non-fatal)",
     );
   }
 

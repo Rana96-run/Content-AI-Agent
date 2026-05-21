@@ -286,6 +286,73 @@ export async function sheetsAppendBrief(brief: {
   ]]);
 }
 
+/** Append knowledge base entries to the "Knowledge Base" tab.
+ *  Schema: week | type | sector | channel | insight | source | confidence | added_at
+ */
+export async function sheetsAppendKnowledge(entries: Array<{
+  week: string;
+  type: string;
+  sector: string;
+  channel: string;
+  insight: string;
+  source: string;
+  confidence: string;
+  added_at: string;
+}>): Promise<void> {
+  if (entries.length === 0) return;
+  await appendRows("Knowledge Base", entries.map((e) => [
+    e.week,
+    e.type,
+    e.sector,
+    e.channel,
+    e.insight,
+    e.source,
+    e.confidence,
+    e.added_at,
+  ]));
+}
+
+/** Read recent knowledge base entries (all types), newest first.
+ *  Returns last `limit` rows from the "Knowledge Base" tab.
+ */
+export async function sheetsReadKnowledge(limit = 40): Promise<Array<{
+  week: string;
+  type: string;
+  sector: string;
+  channel: string;
+  insight: string;
+  source: string;
+  confidence: string;
+  added_at: string;
+}>> {
+  if (!SPREADSHEET_ID) return [];
+  try {
+    const s = getSheetsClient();
+    const r = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Knowledge Base'!A2:H", // skip header row
+    });
+    const rows = r.data.values ?? [];
+    return rows
+      .filter((row) => row[0] && row[4]) // must have week + insight
+      .sort((a, b) => (b[7] || "").localeCompare(a[7] || "")) // newest first by added_at
+      .slice(0, limit)
+      .map((row) => ({
+        week: row[0] || "",
+        type: row[1] || "content_insight",
+        sector: row[2] || "All",
+        channel: row[3] || "All",
+        insight: row[4] || "",
+        source: row[5] || "market",
+        confidence: row[6] || "medium",
+        added_at: row[7] || "",
+      }));
+  } catch (e) {
+    logger.warn({ err: String(e) }, "sheets-client: read knowledge failed");
+    return [];
+  }
+}
+
 /** Health check — returns true if the sheet is reachable. */
 export async function sheetsHealthCheck(): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!SPREADSHEET_ID) return { ok: false, error: "GOOGLE_SHEETS_ID not configured" };
