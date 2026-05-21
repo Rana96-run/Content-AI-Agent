@@ -688,6 +688,91 @@ export default function CreativeOS(){
   const[liveAdsErr,setLiveAdsErr]=useState("");
   const[liveAdsBillingLimit,setLiveAdsBillingLimit]=useState(false);
 
+  /* ── Agent Dashboard ── */
+  const[agentStatus,setAgentStatus]=useState(null);       // GET /api/agent/status
+  const[agentTasks,setAgentTasks]=useState([]);            // GET /api/agent/tasks
+  const[agentPersonas,setAgentPersonas]=useState([]);      // GET /api/agent/personas
+  const[agentSchedules,setAgentSchedules]=useState([]);    // GET /api/agent/schedules
+  const[agentCtx,setAgentCtx]=useState(null);             // GET /api/competitor-ads/context
+  const[agentPatStats,setAgentPatStats]=useState(null);   // GET /api/hypothesis/stats
+  const[agentRunPrompt,setAgentRunPrompt]=useState("");
+  const[agentRunPersona,setAgentRunPersona]=useState("orchestrator");
+  const[agentRunning,setAgentRunning]=useState(false);
+  const[agentRunErr,setAgentRunErr]=useState("");
+  const[agentRunResult,setAgentRunResult]=useState(null);
+  const[agentExpandedTask,setAgentExpandedTask]=useState(null);
+  const[agentTaskDetail,setAgentTaskDetail]=useState(null);
+
+  // Fetch agent dashboard data when tab is opened
+  useEffect(()=>{
+    if(tab!=="agent")return;
+    let cancelled=false;
+    const fetchAll=async()=>{
+      try{
+        const[st,tk,pe,sc,cx,ps]=await Promise.allSettled([
+          fetch("/api/agent/status").then(r=>r.json()),
+          fetch("/api/agent/tasks?").then(r=>r.json()),
+          fetch("/api/agent/personas").then(r=>r.json()),
+          fetch("/api/agent/schedules").then(r=>r.json()),
+          fetch("/api/competitor-ads/context").then(r=>r.json()),
+          fetch("/api/hypothesis/stats").then(r=>r.json()),
+        ]);
+        if(cancelled)return;
+        if(st.status==="fulfilled")setAgentStatus(st.value);
+        if(tk.status==="fulfilled")setAgentTasks(tk.value?.tasks||[]);
+        if(pe.status==="fulfilled")setAgentPersonas(pe.value?.personas||[]);
+        if(sc.status==="fulfilled")setAgentSchedules(sc.value?.schedules||sc.value||[]);
+        if(cx.status==="fulfilled")setAgentCtx(cx.value);
+        if(ps.status==="fulfilled")setAgentPatStats(ps.value);
+      }catch{/* silent */}
+    };
+    fetchAll();
+    // Poll tasks faster when any are active
+    const pollTasks=async()=>{
+      try{
+        const[st,tk]=await Promise.all([
+          fetch("/api/agent/status").then(r=>r.json()),
+          fetch("/api/agent/tasks").then(r=>r.json()),
+        ]);
+        if(!cancelled){setAgentStatus(st);setAgentTasks(tk?.tasks||[]);}
+      }catch{/* silent */}
+    };
+    const active=()=>agentTasks.some(t=>t.status==="running"||t.status==="thinking"||t.status==="queued");
+    const id=setInterval(()=>pollTasks(),active()?3000:12000);
+    return()=>{cancelled=true;clearInterval(id);};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[tab]);
+
+  const runAgent=useCallback(async()=>{
+    if(!agentRunPrompt.trim())return;
+    setAgentRunning(true);setAgentRunErr("");setAgentRunResult(null);
+    try{
+      const r=await fetch("/api/agent/run",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({title:agentRunPrompt.slice(0,80),body:agentRunPrompt,persona:agentRunPersona,source:"ui"}),
+      });
+      const j=await r.json();
+      if(j.task_id){
+        setAgentRunResult({task_id:j.task_id});
+        setAgentRunPrompt("");
+        // Refresh tasks immediately
+        const tk=await fetch("/api/agent/tasks").then(r2=>r2.json());
+        setAgentTasks(tk?.tasks||[]);
+      } else setAgentRunErr(j.error||"Unknown error");
+    }catch(e){setAgentRunErr(String(e));}
+    setAgentRunning(false);
+  },[agentRunPrompt,agentRunPersona]);
+
+  const loadTaskDetail=useCallback(async(id)=>{
+    if(agentExpandedTask===id){setAgentExpandedTask(null);setAgentTaskDetail(null);return;}
+    setAgentExpandedTask(id);setAgentTaskDetail(null);
+    try{
+      const r=await fetch(`/api/agent/tasks/${id}`);
+      const j=await r.json();
+      setAgentTaskDetail(j);
+    }catch{/* silent */}
+  },[agentExpandedTask]);
+
   /* ── Hypothesis logging (D1 — Pattern Library foundation) ── */
   const[hypModalOpen,setHypModalOpen]=useState(false);
   const[hypText,setHypText]=useState("");
@@ -1052,6 +1137,7 @@ export default function CreativeOS(){
     ["market",  T("مراقبة السوق","Market Watch")],
     ["library", T("مكتبة الإعلانات","Ad Library")],
     ["icp",     T("شرائح العملاء","ICP")],
+    ["agent",   T("لوحة الوكلاء","Agent Dashboard")],
   ];
 
   const SH=({title,sub})=><div style={{marginBottom:15,paddingBottom:11,borderBottom:"1px solid rgba(1,53,90,.45)"}}><h2 style={{fontSize:13.5,fontWeight:700,marginBottom:2}}>{title}</h2><p style={{fontSize:11,color:"#2e5468"}}>{sub}</p></div>;
@@ -1976,6 +2062,228 @@ export default function CreativeOS(){
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════
+            AGENT DASHBOARD TAB
+            ══════════════════════════════════════════════════ */}
+        {tab==="agent"&&(
+          <div style={{animation:"qrise .3s ease both"}}>
+
+            {/* ── Health bar ── */}
+            {agentStatus&&(
+              <div style={{...card,marginBottom:10}}>
+                <div style={{...cHead,paddingTop:10,paddingBottom:10}}>
+                  <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("حالة النظام","System Health")}</span>
+                  <span style={{fontSize:9.5,color:"#2e5468"}}>{T(`${agentStatus.tasks_in_memory} مهمة محفوظة`,`${agentStatus.tasks_in_memory} tasks stored`)}</span>
+                </div>
+                <div style={{...cBody,display:"flex",flexWrap:"wrap",gap:8}}>
+                  {[
+                    {label:"Claude AI",   ok:agentStatus.configured?.anthropic},
+                    {label:"Gemini",      ok:agentStatus.configured?.gemini},
+                    {label:"Drive",       ok:agentStatus.configured?.drive},
+                    {label:"Slack",       ok:agentStatus.configured?.slack_reply},
+                    {label:"HubSpot",     ok:agentStatus.configured?.hubspot},
+                  ].map(s=>(
+                    <div key={s.label} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,border:`1px solid ${s.ok?"rgba(93,200,122,.25)":"rgba(240,112,112,.2)"}`,background:s.ok?"rgba(93,200,122,.04)":"rgba(240,112,112,.04)"}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:s.ok?"#5dc87a":"#f07070",flexShrink:0}}/>
+                      <span style={{fontSize:10,fontWeight:600,color:s.ok?"#5dc87a":"#f07070"}}>{s.label}</span>
+                    </div>
+                  ))}
+                  {agentCtx?.ok&&(
+                    <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,border:`1px solid ${agentCtx.age_hours<168?"rgba(23,163,164,.25)":"rgba(245,166,35,.25)"}`,background:`rgba(23,163,164,.04)`}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:agentCtx.age_hours<168?"#17a3a3":"#f5a623",flexShrink:0}}/>
+                      <span style={{fontSize:10,fontWeight:600,color:agentCtx.age_hours<168?"#17a3a3":"#f5a623"}}>
+                        {T(`سياق المنافسين · منذ ${agentCtx.age_hours}س`,`Competitor ctx · ${agentCtx.age_hours}h ago`)}
+                      </span>
+                    </div>
+                  )}
+                  {agentPatStats?.ok&&(
+                    <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,border:"1px solid rgba(245,166,35,.25)",background:"rgba(245,166,35,.04)"}}>
+                      <span style={{fontSize:10,fontWeight:600,color:"#f5a623"}}>
+                        {T(`مكتبة الأنماط · ${agentPatStats.win_count} فائز`,`Pattern Library · ${agentPatStats.win_count} wins`)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Two-column: Run + Schedules ── */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+
+              {/* Manual Run */}
+              <div style={card}>
+                <div style={cHead}>
+                  <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("تشغيل يدوي","Run Agent")}</span>
+                </div>
+                <div style={cBody}>
+                  <Fld label={T("الشخصية","Persona")}>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                      {(agentPersonas.length?agentPersonas:[
+                        {id:"orchestrator",label:"المنسق",label_en:"Orchestrator"},
+                        {id:"social_media",label:"السوشيال",label_en:"Social"},
+                        {id:"content_creator",label:"المحتوى",label_en:"Content"},
+                        {id:"cro",label:"الإعلانات",label_en:"Paid Media"},
+                        {id:"email_lifecycle",label:"البريد",label_en:"Email"},
+                        {id:"editor_qa",label:"المدقق",label_en:"Editor QA"},
+                      ]).map(p=>(
+                        <button key={p.id} onClick={()=>setAgentRunPersona(p.id)} style={{padding:"4px 9px",borderRadius:5,fontFamily:"inherit",fontSize:10,cursor:"pointer",border:`1px solid ${agentRunPersona===p.id?"rgba(23,163,164,.5)":"rgba(1,53,90,.45)"}`,background:agentRunPersona===p.id?"rgba(23,163,164,.1)":"transparent",color:agentRunPersona===p.id?"#17a3a3":"#6a96aa",fontWeight:agentRunPersona===p.id?600:400,transition:"all .12s"}}>
+                          {lang==="ar"?p.label:p.label_en}
+                        </button>
+                      ))}
+                    </div>
+                  </Fld>
+                  <Fld label={T("المهمة","Task")}>
+                    <textarea
+                      value={agentRunPrompt}
+                      onChange={e=>setAgentRunPrompt(e.target.value)}
+                      rows={4}
+                      dir={dir}
+                      placeholder={T("مثال: اكتب 3 كابشن إنستغرام لـ QFlavours زاوية الخوف من ZATCA","e.g. Write 3 Instagram captions for QFlavours with ZATCA fear angle")}
+                      style={{width:"100%",fontFamily:"inherit",fontSize:11.5,padding:"8px 10px",borderRadius:6,border:"1px solid rgba(1,53,90,.45)",background:"#0a1f3d",color:"#ddeef4",resize:"vertical",textAlign:lang==="ar"?"right":"left"}}
+                    />
+                  </Fld>
+                  {agentRunErr&&<ErrBox msg={agentRunErr}/>}
+                  {agentRunResult&&(
+                    <div style={{padding:"7px 10px",borderRadius:6,background:"rgba(93,200,122,.06)",border:"1px solid rgba(93,200,122,.2)",fontSize:10.5,color:"#5dc87a",marginBottom:8}}>
+                      {T("✓ قيد التنفيذ — Task ID: ","✓ Running — Task ID: ")}{agentRunResult.task_id}
+                    </div>
+                  )}
+                  <Btn ch={agentRunning?T("يعمل...","Running..."):T("تشغيل الوكيل","Run Agent")} onClick={runAgent} dis={agentRunning||!agentRunPrompt.trim()} full/>
+                </div>
+              </div>
+
+              {/* Scheduled Jobs */}
+              <div style={card}>
+                <div style={cHead}>
+                  <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("المهام المجدولة","Scheduled Jobs")}</span>
+                  <span style={{fontSize:9.5,color:"#2e5468"}}>{agentSchedules.length} {T("جدول","jobs")}</span>
+                </div>
+                <div style={cBody}>
+                  {/* Fixed system jobs */}
+                  {[
+                    {name:T("رصد المنافسين الأسبوعي","Weekly Competitor Monitor"),when:T("الأحد 09:00 UTC","Sunday 09:00 UTC"),action:()=>fetch("/api/competitor-ads/run-monitor-now",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postToSlack:false})}).then(r=>r.json()).then(j=>alert(j.week||j.error))},
+                    {name:T("ملخص Slack اليومي","Daily Slack Digest"),when:T("يومياً","Daily"),action:()=>fetch("/api/agent/weekly-digest/run-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Sent":"Failed: "+j.error))},
+                    {name:T("مسح المنافسين","Competitor Poll"),when:T("كل ساعة","Hourly"),action:()=>fetch("/api/agent/competitor/poll-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Done":"Failed: "+j.error))},
+                  ].map((j,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<2?"1px solid rgba(1,53,90,.25)":"none"}}>
+                      <div>
+                        <p style={{fontSize:11,fontWeight:600,color:"#ddeef4",margin:0}}>{j.name}</p>
+                        <p style={{fontSize:9.5,color:"#2e5468",margin:0}}>{j.when}</p>
+                      </div>
+                      <button onClick={j.action} style={{padding:"4px 9px",borderRadius:5,fontFamily:"inherit",fontSize:10,cursor:"pointer",border:"1px solid rgba(23,163,164,.3)",background:"rgba(23,163,164,.08)",color:"#17a3a3",fontWeight:600}}>
+                        {T("شغّل","Run")}
+                      </button>
+                    </div>
+                  ))}
+                  {/* Dynamic schedules */}
+                  {agentSchedules.length>0&&(
+                    <div style={{marginTop:10}}>
+                      <p style={{fontSize:9.5,color:"#2e5468",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>{T("مجدولة ديناميكية","Dynamic Schedules")}</p>
+                      {agentSchedules.slice(0,4).map(s=>(
+                        <div key={s.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(1,53,90,.2)"}}>
+                          <div>
+                            <p style={{fontSize:10.5,fontWeight:600,color:"#ddeef4",margin:0}}>{s.name}</p>
+                            {s.next_run_at&&<p style={{fontSize:9,color:"#2e5468",margin:0}}>{T("التالي: ","Next: ")}{new Date(s.next_run_at).toLocaleTimeString()}</p>}
+                          </div>
+                          <div style={{width:8,height:8,borderRadius:"50%",background:s.active?"#5dc87a":"#f07070"}}/>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Task Feed ── */}
+            <div style={card}>
+              <div style={cHead}>
+                <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("سجل المهام","Task Feed")}</span>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {agentTasks.some(t=>["running","thinking","queued"].includes(t.status))&&(
+                    <div style={{display:"flex",alignItems:"center",gap:4,fontSize:9.5,color:"#17a3a3"}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:"#17a3a3",animation:"qspin 1.5s linear infinite"}}/>
+                      {T("نشط","Live")}
+                    </div>
+                  )}
+                  <span style={{fontSize:9.5,color:"#2e5468"}}>{agentTasks.length} {T("مهمة","tasks")}</span>
+                </div>
+              </div>
+              <div style={cBody}>
+                {agentTasks.length===0&&(
+                  <p style={{fontSize:11,color:"#2e5468",textAlign:"center",padding:"20px 0"}}>{T("لا توجد مهام بعد — استخدم 'تشغيل يدوي' أعلاه","No tasks yet — use the Run panel above")}</p>
+                )}
+                {agentTasks.map(t=>{
+                  const statusColor={queued:"#f5a623",thinking:"#17a3a3",running:"#17a3a3",done:"#5dc87a",error:"#f07070"}[t.status]||"#6a96aa";
+                  const statusLabel={queued:T("في الانتظار","Queued"),thinking:T("يفكر","Thinking"),running:T("يعمل","Running"),done:T("منتهية","Done"),error:T("خطأ","Error")}[t.status]||t.status;
+                  const isLive=t.status==="running"||t.status==="thinking";
+                  const isExpanded=agentExpandedTask===t.id;
+                  return(
+                    <div key={t.id}>
+                      <div
+                        onClick={()=>loadTaskDetail(t.id)}
+                        style={{display:"flex",alignItems:"flex-start",gap:10,padding:"9px 0",borderBottom:"1px solid rgba(1,53,90,.25)",cursor:"pointer",transition:"background .12s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(23,163,164,.03)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                      >
+                        <div style={{width:8,height:8,borderRadius:"50%",background:statusColor,flexShrink:0,marginTop:3,animation:isLive?"qspin 1.5s linear infinite":"none"}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                            <span style={{fontSize:10,fontWeight:600,color:statusColor,padding:"1px 5px",borderRadius:3,border:`1px solid ${statusColor}30`,background:`${statusColor}08`}}>{statusLabel}</span>
+                            {t.persona&&<span style={{fontSize:9.5,color:"#2e5468"}}>{t.persona}</span>}
+                            {t.steps>0&&<span style={{fontSize:9.5,color:"#2e5468"}}>{t.steps} {T("خطوة","steps")}</span>}
+                          </div>
+                          <p style={{fontSize:11.5,color:"#ddeef4",margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",direction:dir}}>{t.title||"(no title)"}</p>
+                          {t.summary&&!isExpanded&&<p style={{fontSize:10,color:"#6a96aa",margin:"2px 0 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",direction:"ltr"}}>{t.summary}</p>}
+                        </div>
+                        <span style={{fontSize:9,color:"#2e5468",flexShrink:0,marginTop:2}}>{new Date(t.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
+                      </div>
+
+                      {/* Expanded task detail */}
+                      {isExpanded&&(
+                        <div style={{background:"#050f22",borderRadius:6,margin:"0 0 4px 18px",padding:"10px 12px",fontSize:10.5,direction:"ltr"}}>
+                          {!agentTaskDetail&&<p style={{color:"#2e5468"}}>Loading…</p>}
+                          {agentTaskDetail&&agentTaskDetail.id===t.id&&(
+                            <>
+                              {agentTaskDetail.summary&&(
+                                <div style={{marginBottom:8,padding:"6px 8px",borderRadius:5,background:"rgba(93,200,122,.05)",border:"1px solid rgba(93,200,122,.15)"}}>
+                                  <p style={{fontSize:10,color:"#5dc87a",fontWeight:600,marginBottom:3}}>Summary</p>
+                                  <p style={{color:"#b0c8d4",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{agentTaskDetail.summary}</p>
+                                </div>
+                              )}
+                              {agentTaskDetail.error&&(
+                                <div style={{marginBottom:8,padding:"6px 8px",borderRadius:5,background:"rgba(240,112,112,.05)",border:"1px solid rgba(240,112,112,.15)"}}>
+                                  <p style={{fontSize:10,color:"#f07070",fontWeight:600,marginBottom:3}}>Error</p>
+                                  <p style={{color:"#f07070",lineHeight:1.5}}>{agentTaskDetail.error}</p>
+                                </div>
+                              )}
+                              {(agentTaskDetail.steps||[]).length>0&&(
+                                <div>
+                                  <p style={{fontSize:10,color:"#6a96aa",fontWeight:600,marginBottom:6}}>Steps ({agentTaskDetail.steps.length})</p>
+                                  {agentTaskDetail.steps.map((s,i)=>(
+                                    <div key={i} style={{display:"flex",gap:8,marginBottom:4,paddingBottom:4,borderBottom:"1px solid rgba(1,53,90,.2)"}}>
+                                      <span style={{fontSize:9,color:"#2e5468",flexShrink:0,marginTop:1}}>{new Date(s.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</span>
+                                      <div>
+                                        <span style={{fontSize:9.5,fontWeight:600,color:{think:"#f5a623",tool_use:"#17a3a3",tool_result:"#5dc87a",finish:"#5dc87a",error:"#f07070"}[s.kind]||"#6a96aa",marginRight:6}}>{s.kind}</span>
+                                        {s.tool&&<span style={{fontSize:9.5,color:"#2e5468"}}>[{s.tool}]</span>}
+                                        {s.message&&<p style={{margin:"2px 0 0",color:"#8aafc4",lineHeight:1.5,fontSize:10}}>{String(s.message).slice(0,200)}{s.message.length>200?"…":""}</p>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         )}
 

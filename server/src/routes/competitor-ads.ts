@@ -3,6 +3,7 @@ import { diffSnapshots, buildAIPrompt, formatSlackBlocks, type CompetitorSnapsho
 import { runMonitorOnce } from "../lib/competitor-monitor.js";
 import { createWeeklySlidesPresentation } from "../lib/competitor-slides-renderer.js";
 import { scrapeYoutubeChannel } from "../lib/youtube-scraper.js";
+import { loadContext } from "../lib/competitor-context.js";
 
 const router = Router();
 
@@ -905,5 +906,24 @@ function normalize(item: any, source: string) {
     };
   }
 }
+
+/* ─── GET /api/competitor-ads/context ───────────────────────────────────
+   Returns the latest synthesized competitor context doc (saved weekly by
+   the monitor). Used by the agent dashboard to show context freshness. */
+router.get("/competitor-ads/context", (_req, res) => {
+  const ctx = loadContext();
+  if (!ctx) {
+    res.status(200).json({ ok: false, context: null, age_hours: null });
+    return;
+  }
+  const genMatch  = ctx.markdown.match(/Generated:\s*([^\n]+)/);
+  const weekMatch = ctx.markdown.match(/Week:\s*([^\n]+)/);
+  res.status(200).json({
+    ok: true,
+    age_hours:    ctx.age_hours,
+    generated_at: genMatch  ? genMatch[1].trim()  : null,
+    week:         weekMatch ? weekMatch[1].trim() : null,
+  });
+});
 
 export default router;

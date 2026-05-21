@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sheetsAppendHypothesis } from "../lib/sheets-client.js";
+import { sheetsAppendHypothesis, sheetsReadWinners } from "../lib/sheets-client.js";
 import { bustPatternLibraryCache } from "../lib/pattern-library.js";
 import { logger } from "../lib/logger.js";
 
@@ -90,6 +90,22 @@ router.get("/hypothesis/help", (_req, res) => {
       funnel_stage: "TOF",
     },
   });
+});
+
+/* ─── GET /api/hypothesis/stats ──────────────────────────────────────────
+   Returns pattern-library win count for the agent dashboard. */
+router.get("/hypothesis/stats", async (_req, res) => {
+  try {
+    const winners = await sheetsReadWinners(100);
+    res.status(200).json({
+      ok: true,
+      win_count: winners.length,
+      last_id: winners[0]?.id ?? null,
+    });
+  } catch (err) {
+    // Non-fatal — sheets may not be configured
+    res.status(200).json({ ok: true, win_count: 0, last_id: null });
+  }
 });
 
 export default router;
