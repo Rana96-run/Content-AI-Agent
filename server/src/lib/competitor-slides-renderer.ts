@@ -254,13 +254,13 @@ function buildCoverSlide(slideId: string, weekLabel: string, totalActivity: numb
     reqSlideBackground(slideId, C.navy),
   ];
 
-  // Teal accent bar at top (full width, 8px)
+  // Teal accent bar at top (full width, 6px)
   const topBar = uid("topbar");
-  reqs.push(...reqRect(topBar, slideId, 0, 0, W, EMU * 0.08, C.teal));
+  reqs.push(...reqRect(topBar, slideId, 0, 0, W, EMU * 0.06, C.teal));
 
-  // Teal accent bar at bottom (full width, 8px)
+  // Teal accent bar at bottom (full width, 6px)
   const botBar = uid("botbar");
-  reqs.push(...reqRect(botBar, slideId, 0, H - EMU * 0.08, W, EMU * 0.08, C.teal));
+  reqs.push(...reqRect(botBar, slideId, 0, H - EMU * 0.35, W, EMU * 0.06, C.teal));
 
   // Main title
   const titleId = uid("title");
@@ -276,29 +276,34 @@ function buildCoverSlide(slideId: string, weekLabel: string, totalActivity: numb
     [{ text: weekLabel, fontSize: 20, colorHex: C.teal, align: "CENTER" }],
   ));
 
-  // Stats row — two boxes
+  // Stats row — two solid panels (Slides API only supports solid fills, no rgba)
   const statW = EMU * 3;
-  const statH = EMU * 0.9;
-  const statY = EMU * 3.8;
+  const statH = EMU * 1.0;
+  const statY = EMU * 3.7;
+  const statBg = "#0d2d5e"; // slightly lighter navy — visible on dark bg
 
-  const stat1 = uid("stat1");
-  reqs.push(...reqRect(stat1, slideId, W / 2 - statW - EMU * 0.3, statY, statW, statH, "rgba(255,255,255,0.08)"));
-  reqs.push(...reqTextBox(uid("s1t"), slideId,
-    W / 2 - statW - EMU * 0.3, statY, statW, statH,
-    [
-      { text: String(totalActivity), bold: true, fontSize: 28, colorHex: C.teal, align: "CENTER" },
-      { text: "\nنشاط رُصد هذا الأسبوع", fontSize: 11, colorHex: C.gray, align: "CENTER" },
-    ],
+  const stat1bg = uid("stat1bg");
+  reqs.push(...reqRect(stat1bg, slideId, W / 2 - statW - EMU * 0.3, statY, statW, statH, statBg, C.teal));
+  // Number (large, teal)
+  reqs.push(...reqTextBox(uid("s1num"), slideId,
+    W / 2 - statW - EMU * 0.3, statY + EMU * 0.05, statW, EMU * 0.6,
+    [{ text: String(totalActivity), bold: true, fontSize: 28, colorHex: C.teal, align: "CENTER" }],
+  ));
+  // Label (small, light gray)
+  reqs.push(...reqTextBox(uid("s1lbl"), slideId,
+    W / 2 - statW - EMU * 0.3, statY + EMU * 0.62, statW, EMU * 0.32,
+    [{ text: "نشاط رُصد هذا الأسبوع", fontSize: 10, colorHex: C.gray, align: "CENTER" }],
   ));
 
-  const stat2 = uid("stat2");
-  reqs.push(...reqRect(stat2, slideId, W / 2 + EMU * 0.3, statY, statW, statH, "rgba(255,255,255,0.08)"));
-  reqs.push(...reqTextBox(uid("s2t"), slideId,
-    W / 2 + EMU * 0.3, statY, statW, statH,
-    [
-      { text: String(competitorCount), bold: true, fontSize: 28, colorHex: C.teal, align: "CENTER" },
-      { text: "\nمنافس تحت المراقبة", fontSize: 11, colorHex: C.gray, align: "CENTER" },
-    ],
+  const stat2bg = uid("stat2bg");
+  reqs.push(...reqRect(stat2bg, slideId, W / 2 + EMU * 0.3, statY, statW, statH, statBg, C.teal));
+  reqs.push(...reqTextBox(uid("s2num"), slideId,
+    W / 2 + EMU * 0.3, statY + EMU * 0.05, statW, EMU * 0.6,
+    [{ text: String(competitorCount), bold: true, fontSize: 28, colorHex: C.teal, align: "CENTER" }],
+  ));
+  reqs.push(...reqTextBox(uid("s2lbl"), slideId,
+    W / 2 + EMU * 0.3, statY + EMU * 0.62, statW, EMU * 0.32,
+    [{ text: "منافس تحت المراقبة", fontSize: 10, colorHex: C.gray, align: "CENTER" }],
   ));
 
   // Footer brand
