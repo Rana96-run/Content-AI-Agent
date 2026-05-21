@@ -250,6 +250,7 @@ export function formatSlackBlocks(
   weekLabel: string,
   sheetUrl?: string,
   reportDocUrl?: string,
+  reportSlidesUrl?: string,
 ) {
   const totalNew = diffs.reduce(
     (s, d) => s + d.facebook_new + d.google_new + d.instagram_new_posts + d.youtube_new_videos,
@@ -396,14 +397,31 @@ export function formatSlackBlocks(
     blocks.push({ type: "divider" });
   }
 
-  // Links — sheet for raw data, doc for full visual report
-  const links: string[] = [];
-  if (reportDocUrl) links.push(`<${reportDocUrl}|التقرير الكامل بالصور (Google Doc)>`);
-  if (sheetUrl) links.push(`<${sheetUrl}|البيانات الخام في Google Sheet>`);
-  if (links.length > 0) {
+  // Primary CTA — Slides presentation (most shareable format)
+  if (reportSlidesUrl) {
     blocks.push({
       type: "section",
-      text: { type: "mrkdwn", text: links.join("\n") },
+      text: {
+        type: "mrkdwn",
+        text: `*عرض التقرير الكامل*\n<${reportSlidesUrl}|افتح العرض التقديمي (Google Slides)>`,
+      },
+      accessory: {
+        type: "button",
+        text: { type: "plain_text", text: "فتح Slides", emoji: false },
+        url: reportSlidesUrl,
+        style: "primary",
+      },
+    });
+  }
+
+  // Secondary links — Doc archive + raw Sheet
+  const secondaryLinks: string[] = [];
+  if (reportDocUrl) secondaryLinks.push(`<${reportDocUrl}|أرشيف Google Doc>`);
+  if (sheetUrl) secondaryLinks.push(`<${sheetUrl}|البيانات الخام في Google Sheet>`);
+  if (secondaryLinks.length > 0) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: secondaryLinks.join(" · ") }],
     });
   }
 

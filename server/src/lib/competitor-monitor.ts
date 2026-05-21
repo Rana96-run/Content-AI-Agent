@@ -26,6 +26,7 @@ import type { CompetitorPost } from "./content-library.js";
 import { buildContextPrompt, renderContextMarkdown, saveContext } from "./competitor-context.js";
 import { renderWeeklyDocHtml } from "./competitor-doc-renderer.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
+import { createWeeklySlidesPresentation } from "./competitor-slides-renderer.js";
 import { logger } from "./logger.js";
 
 // Tracked competitors — each entry is the COMPETITORS key from competitor-ads.ts
@@ -186,6 +187,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
   ai: any;
   slack_posted: boolean;
   report_doc_url?: string;
+  report_slides_url?: string;
   sheet_url?: string;
 }> {
   const competitors = opts.competitors || TRACKED;
@@ -313,8 +315,25 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     );
   }
 
-  // 7. Slack — narrative, human-readable format with link to Doc + Sheet
-  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, reportDocUrl);
+  // 7. Generate the Google Slides presentation (visual deck for team sharing)
+  let reportSlidesUrl: string | undefined;
+  try {
+    const slidesResult = await createWeeklySlidesPresentation(diffs, ai, weekLabel);
+    if (slidesResult.ok && slidesResult.link) {
+      reportSlidesUrl = slidesResult.link;
+      logger.info({ url: reportSlidesUrl }, "monitor: weekly slides presentation generated");
+    } else {
+      logger.warn({ error: slidesResult.error }, "monitor: slides generation failed (non-fatal)");
+    }
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "monitor: slides generation failed (non-fatal)",
+    );
+  }
+
+  // 8. Slack — narrative, human-readable format with links to Slides + Doc + Sheet
+  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, reportDocUrl, reportSlidesUrl);
   let slackPosted = false;
   if (opts.postToSlack !== false) {
     await postToSlack(blocks, ai.headline || `Competitor Intel — ${weekLabel}`);
@@ -329,6 +348,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     ai,
     slack_posted: slackPosted,
     report_doc_url: reportDocUrl,
+    report_slides_url: reportSlidesUrl,
     sheet_url: sheetUrl,
   };
 }
