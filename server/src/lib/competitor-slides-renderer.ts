@@ -122,10 +122,9 @@ function rect(
         fields: "shapeBackgroundFill,outline",
         shapeProperties: {
           shapeBackgroundFill: { solidFill: { color: { rgbColor: rgb(fill) } } },
-          outline: {
-            outlineFill: { solidFill: { color: { rgbColor: rgb(borderColor || fill) } } },
-            weight: pt(borderColor ? borderPt : 0),
-          },
+          outline: borderColor
+            ? { outlineFill: { solidFill: { color: { rgbColor: rgb(borderColor) } } }, weight: pt(borderPt) }
+            : { propertyState: "NOT_RENDERED" },
         },
       },
     },
