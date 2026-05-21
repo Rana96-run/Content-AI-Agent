@@ -2102,7 +2102,7 @@ export default function CreativeOS(){
                   {agentPatStats?.ok&&(
                     <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,border:"1px solid rgba(245,166,35,.25)",background:"rgba(245,166,35,.04)"}}>
                       <span style={{fontSize:10,fontWeight:600,color:"#f5a623"}}>
-                        {T(`مكتبة الأنماط · ${agentPatStats.win_count} فائز`,`Pattern Library · ${agentPatStats.win_count} wins`)}
+                        {T(`الدروس المستفادة · ${agentPatStats.win_count} فائز`,`Pattern Library · ${agentPatStats.win_count} wins`)}
                       </span>
                     </div>
                   )}
@@ -2166,7 +2166,7 @@ export default function CreativeOS(){
                   {[
                     {name:T("رصد المنافسين الأسبوعي","Weekly Competitor Monitor"),when:T("الأحد 09:00 UTC","Sunday 09:00 UTC"),action:()=>fetch("/api/competitor-ads/run-monitor-now",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postToSlack:false})}).then(r=>r.json()).then(j=>alert(j.week||j.error))},
                     {name:T("ملخص Slack اليومي","Daily Slack Digest"),when:T("يومياً","Daily"),action:()=>fetch("/api/agent/weekly-digest/run-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Sent":"Failed: "+j.error))},
-                    {name:T("مسح المنافسين","Competitor Poll"),when:T("كل ساعة","Hourly"),action:()=>fetch("/api/agent/competitor/poll-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Done":"Failed: "+j.error))},
+                    {name:T("تحليل المنافسين","Competitor Analysis"),when:T("كل ساعة","Hourly"),action:()=>fetch("/api/agent/competitor/poll-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Done":"Failed: "+j.error))},
                   ].map((j,i)=>(
                     <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<2?"1px solid rgba(1,53,90,.25)":"none"}}>
                       <div>
