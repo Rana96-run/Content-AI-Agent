@@ -991,6 +991,7 @@ export default function CreativeOS(){
     else if(ad._source==="tiktok"||ad._source==="tiktok_ads"||plats.includes("tiktok"))setMChan("TikTok");
     else if(ad._source==="snapchat"||plats.includes("snapchat"))setMChan("Snapchat");
     else if(ad._source==="google")setMChan("Google");
+    else if(ad._source==="linkedin"||ad._source==="linkedin_ads"||plats.includes("linkedin"))setMChan("LinkedIn");
   },[]);
 
   const genCounter=useCallback(async()=>{
@@ -1508,7 +1509,8 @@ export default function CreativeOS(){
                   <Btn ch="TikTok Ads" xs onClick={()=>loadLiveAds("tiktok_ads")} dis={liveAdsLd||!mComp}/>
                   <Btn ch="TikTok" xs onClick={()=>loadLiveAds("tiktok")} dis={liveAdsLd||!mComp}/>
                   <Btn ch="Snap" xs onClick={()=>loadLiveAds("snapchat")} dis={liveAdsLd||!mComp}/>
-                  {(()=>{const lc=COMPS.find(c=>c.en===mComp||c.n===mComp);return(<><button onClick={()=>lc&&window.open(`https://www.linkedin.com/company/${lc.id}/posts/`,"_blank")} disabled={!mComp} style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(10,102,194,.35)",background:"rgba(10,102,194,.08)",color:mComp?"#4a9fd4":"#2e5468",fontSize:9.5,cursor:mComp?"pointer":"default",fontFamily:"inherit",fontWeight:600,opacity:mComp?1:.4}} title="Opens LinkedIn in browser">🔗 LinkedIn</button><button onClick={()=>lc&&window.open(`https://www.linkedin.com/ad-library/search?q=${encodeURIComponent(lc.en)}`,"_blank")} disabled={!mComp} style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(10,102,194,.35)",background:"rgba(10,102,194,.08)",color:mComp?"#4a9fd4":"#2e5468",fontSize:9.5,cursor:mComp?"pointer":"default",fontFamily:"inherit",fontWeight:600,opacity:mComp?1:.4}} title="Opens LinkedIn Ad Library in browser">🔗 LI Ads</button></>);})()}
+                  <Btn ch="LI Posts" xs onClick={()=>loadLiveAds("linkedin")} dis={liveAdsLd||!mComp}/>
+                  <Btn ch="LI Ads" xs onClick={()=>loadLiveAds("linkedin_ads")} dis={liveAdsLd||!mComp}/>
                   <Btn ch="YouTube" xs onClick={()=>loadLiveAds("youtube")} dis={liveAdsLd||!mComp}/>
                 </div>
               </div>

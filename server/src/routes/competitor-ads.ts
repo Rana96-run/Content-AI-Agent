@@ -237,6 +237,56 @@ async function scrapeLinkedInAdsViaAPI(query: string): Promise<{
   }
 }
 
+/* ─── LinkedIn organic posts via r.jina.ai ───────────────────────────────
+   Fallback when LI_ACCESS_TOKEN is not configured. Scrapes the public
+   company posts page via jina reader. Results are limited but require no
+   auth — useful for a quick view of recent organic activity. */
+async function scrapeLinkedInOrganicViaJina(slug: string, count = 10): Promise<Array<{
+  page_name: string; hook: string; body: string; caption: string;
+  image_url: null; detail_url: string | null; platforms: string[]; started: string;
+}>> {
+  const target = `https://www.linkedin.com/company/${encodeURIComponent(slug)}/posts/`;
+  const url = `https://r.jina.ai/${target}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const r = await fetch(url, { headers: { Accept: "text/plain" }, signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!r.ok) return [];
+    const text = await r.text();
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    const posts: any[] = [];
+    let current: { hook: string; body: string } | null = null;
+    for (const line of lines) {
+      // Skip nav/header noise
+      if (line.startsWith("#") || line.startsWith("!") || line.length < 15) continue;
+      // New post heuristic: line following an empty block or starting a paragraph
+      if (!current) {
+        current = { hook: line.slice(0, 100), body: "" };
+      } else if (!current.body && line.length > 20) {
+        current.body = line.slice(0, 300);
+        posts.push({ ...current });
+        current = null;
+        if (posts.length >= count) break;
+      }
+    }
+    return posts.map(p => ({
+      page_name: slug,
+      hook: p.hook,
+      body: p.body,
+      caption: "LinkedIn Organic",
+      image_url: null,
+      detail_url: `https://www.linkedin.com/company/${encodeURIComponent(slug)}/posts/`,
+      platforms: ["LinkedIn"],
+      started: "",
+      _source: "linkedin",
+    }));
+  } catch {
+    clearTimeout(timeoutId);
+    return [];
+  }
+}
+
 /* ─── LinkedIn Ad Library scraper via r.jina.ai ──────────────────────────
    LinkedIn's ad library is publicly accessible at:
    https://www.linkedin.com/ad-library/search?q=KEYWORD
@@ -482,24 +532,39 @@ router.post("/competitor-ads", async (req, res) => {
       res.status(400).json({ error: `No LinkedIn company slug known for ${competitor}` });
       return;
     }
-    // LinkedIn REST API — uses LINKEDIN_TOKEN env var (OAuth2 bearer token)
+    // Try the REST API first; fall back to jina scrape if no token or API error
     const li = await scrapeLinkedInViaAPI(c.linkedin, cap);
-    if (!li.ok) {
-      res.status(502).json({ error: li.error, source: "linkedin", competitor: c.domain });
+    if (li.ok && li.posts.length > 0) {
+      const ads = li.posts.map((p: any) => normalizeLinkedIn(p));
+      res.status(200).json({ ok: true, source: "linkedin", competitor: c.domain, country, actor: "linkedin-api-v2", count: ads.length, ads });
       return;
     }
-    const ads = li.posts.map((p: any) => normalizeLinkedIn(p));
-    res.status(200).json({ ok: true, source: "linkedin", competitor: c.domain, country, actor: "linkedin-api-v2", count: ads.length, ads });
+    // Fallback: public company posts page via jina (no auth needed)
+    const jinaOrganic = await scrapeLinkedInOrganicViaJina(c.linkedin, cap);
+    res.status(200).json({
+      ok: true, source: "linkedin", competitor: c.domain, country,
+      actor: "linkedin-jina-fallback",
+      count: jinaOrganic.length,
+      ads: jinaOrganic,
+      note: li.error || "LI_ACCESS_TOKEN not set — showing public page extract via jina",
+    });
     return;
   } else if (source === "linkedin_ads") {
-    // LinkedIn Marketing API ad library search
+    // Try Marketing API first; fall back to public ad library via jina (no auth needed)
     const liAds = await scrapeLinkedInAdsViaAPI(c.linkedin || c.fb_query);
-    if (!liAds.ok) {
-      res.status(502).json({ error: liAds.error, source: "linkedin_ads", competitor: c.domain });
+    if (liAds.ok && liAds.ads.length > 0) {
+      const ads = liAds.ads.map((a: any) => normalizeLinkedInAd(a));
+      res.status(200).json({ ok: true, source: "linkedin_ads", competitor: c.domain, country, actor: "linkedin-marketing-api", count: ads.length, ads });
       return;
     }
-    const ads = liAds.ads.map((a: any) => normalizeLinkedInAd(a));
-    res.status(200).json({ ok: true, source: "linkedin_ads", competitor: c.domain, country, actor: "linkedin-marketing-api", count: ads.length, ads });
+    // Fallback: scrape public LinkedIn Ad Library via jina
+    const jinaAds = await scrapeLinkedInAdsViaJina(c.linkedin || c.fb_query);
+    res.status(200).json({
+      ok: true, source: "linkedin_ads", competitor: c.domain, country,
+      actor: "linkedin-ad-library-jina",
+      count: jinaAds.length,
+      ads: jinaAds,
+    });
     return;
   }
 
