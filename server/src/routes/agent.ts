@@ -2070,7 +2070,9 @@ router.get("/status", (_req, res) => {
       anthropic: !!process.env.ANTHROPIC_API_KEY,
       gemini: !!process.env.GEMINI_API_KEY,
       drive: !!(
-        process.env.GOOGLE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS
+        process.env.GOOGLE_SERVICE_ACCOUNT_B64 ||
+        process.env.GOOGLE_SERVICE_ACCOUNT_JSON ||
+        process.env.GOOGLE_APPLICATION_CREDENTIALS
       ),
       canva: !!(process.env.CANVA_CLIENT_ID && process.env.CANVA_CLIENT_SECRET),
       miro: !!(process.env.MIRO_CLIENT_ID || process.env.MIRO_ACCESS_TOKEN),
