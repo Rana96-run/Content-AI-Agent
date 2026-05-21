@@ -661,14 +661,22 @@ export async function createWeeklySlidesPresentation(
   try {
     const { slides, drive } = getSlidesClient();
 
-    // 1. Create blank presentation
-    const pres = await slides.presentations.create({
-      requestBody: { title: `رصد المنافسين — ${weekLabel}` },
+    // 1. Create blank presentation via Drive API (avoids Slides API permission
+    //    issues on some GCP org policies — Drive already has proven write access).
+    const driveFile = await drive.files.create({
+      requestBody: {
+        name: `رصد المنافسين — ${weekLabel}`,
+        mimeType: "application/vnd.google-apps.presentation",
+        parents: [FOLDER_ID],
+      },
+      supportsAllDrives: true,
+      fields: "id,webViewLink",
     });
-    const presId = pres.data.presentationId!;
+    const presId = driveFile.data.id!;
 
-    // 2. Delete the default blank slide that Google creates automatically
-    const defaultSlide = pres.data.slides?.[0];
+    // 2. Fetch the auto-created default blank slide so we can delete it
+    const presInfo = await slides.presentations.get({ presentationId: presId });
+    const defaultSlide = presInfo.data.slides?.[0];
     const deleteDefaultReqs = defaultSlide?.objectId
       ? [{ deleteObject: { objectId: defaultSlide.objectId } }]
       : [];
@@ -719,19 +727,8 @@ export async function createWeeklySlidesPresentation(
       requestBody: { requests: allRequests },
     });
 
-    // 5. Move to the Drive folder
-    const file = await drive.files.get({ fileId: presId, fields: "parents", supportsAllDrives: true });
-    const prevParents = (file.data.parents || []).join(",");
-    await drive.files.update({
-      fileId: presId,
-      addParents: FOLDER_ID,
-      removeParents: prevParents,
-      supportsAllDrives: true,
-      fields: "id,webViewLink",
-    });
-
-    const updated = await drive.files.get({ fileId: presId, fields: "webViewLink", supportsAllDrives: true });
-    const link = updated.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
+    // 5. Get the final webViewLink (file already in FOLDER_ID from creation)
+    const link = driveFile.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
 
     return { ok: true, link };
   } catch (err) {
