@@ -260,6 +260,14 @@ async function runActor(actor: string, input: object, token: string): Promise<{ 
 
     if (!r.ok) {
       const errText = await r.text().catch(() => "");
+      // Detect Apify monthly billing cap — return a sentinel so callers can
+      // show a user-friendly message instead of raw JSON.
+      if (
+        errText.includes("Monthly usage hard limit exceeded") ||
+        errText.includes("platform-feature-disabled")
+      ) {
+        return { ok: false, status: r.status, error: "APIFY_BILLING_LIMIT" };
+      }
       return { ok: false, status: r.status, error: errText.slice(0, 300) || `Apify ${r.status}` };
     }
 
@@ -454,6 +462,15 @@ router.post("/competitor-ads", async (req, res) => {
   if (!result.ok) {
     // eslint-disable-next-line no-console
     console.error(`[competitor-ads] ${source} failed`, result);
+    if (result.error === "APIFY_BILLING_LIMIT") {
+      // Return 200 with a structured flag so the client can render a friendly notice
+      res.status(200).json({
+        ok: false,
+        billing_limit: true,
+        error: "رصد المنافسين متوقف مؤقتاً — وصل حساب Apify لحد الاستخدام الشهري. يُعاد التشغيل تلقائياً في أول الشهر القادم.",
+      });
+      return;
+    }
     res.status(502).json({ error: result.error, source, competitor: c.domain, actor });
     return;
   }

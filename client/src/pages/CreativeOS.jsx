@@ -686,6 +686,7 @@ export default function CreativeOS(){
   const[liveAds,setLiveAds]=useState([]);
   const[liveAdsLd,setLiveAdsLd]=useState(false);
   const[liveAdsErr,setLiveAdsErr]=useState("");
+  const[liveAdsBillingLimit,setLiveAdsBillingLimit]=useState(false);
 
   /* ── Hypothesis logging (D1 — Pattern Library foundation) ── */
   const[hypModalOpen,setHypModalOpen]=useState(false);
@@ -870,11 +871,15 @@ export default function CreativeOS(){
 
   const loadLiveAds=useCallback(async(source)=>{
     if(!mComp){setLiveAdsErr(T("اختر منافساً أولاً","Select a competitor first"));return;}
-    setLiveAdsLd(true);setLiveAdsErr("");setLiveAds([]);
+    setLiveAdsLd(true);setLiveAdsErr("");setLiveAdsBillingLimit(false);setLiveAds([]);
     try{
       // Apify scrapers can take 30-60s to spin up — generous timeout
       const r=await fetchWithTimeout("/api/competitor-ads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source,competitor:mComp,country:"SA",limit:10})},120000);
       const j=await r.json().catch(()=>({}));
+      if(j.billing_limit){
+        setLiveAdsBillingLimit(true);
+        return;
+      }
       if(!r.ok||j.error){
         setLiveAdsErr(j.error||T("فشل تحميل الإعلانات","Failed to load ads"));
         return;
@@ -1423,8 +1428,15 @@ export default function CreativeOS(){
               </div>
               <div style={cBody}>
                 {liveAdsLd&&<div style={{padding:"10px",fontSize:10.5,color:"#17a3a3",direction:"rtl",textAlign:"right"}}>{T("⏳ يجلب الإعلانات من Apify... قد يستغرق 30-60 ثانية","⏳ Fetching ads via Apify... may take 30-60 seconds")}</div>}
+                {liveAdsBillingLimit&&<div style={{padding:"10px 14px",borderRadius:6,background:"rgba(23,163,163,.07)",border:"1px solid rgba(23,163,163,.2)",fontSize:10.5,color:"#6a96aa",direction:"rtl",textAlign:"right",marginBottom:8,lineHeight:1.6}}>
+                  <span style={{fontWeight:700,color:"#17a3a3",display:"block",marginBottom:4}}>رصد المنافسين متوقف مؤقتاً</span>
+                  {T("وصل حساب Apify لحد الاستخدام الشهري. يُعاد التشغيل تلقائياً في أول الشهر القادم.","Apify monthly usage limit reached. Scraping resumes automatically on the 1st of next month.")}
+                  <span style={{display:"block",marginTop:6,fontSize:10,color:"#4a9fd4"}}>
+                    {T("يمكنك الاستمرار في التحليل يدوياً — الصق رابط البوست أو نص الإعلان في النموذج أدناه.","You can still analyze manually — paste a post URL or ad text in the form below.")}
+                  </span>
+                </div>}
                 {liveAdsErr&&<div style={{padding:"6px 10px",borderRadius:5,background:"rgba(245,166,35,.06)",border:"1px solid rgba(245,166,35,.25)",fontSize:10.5,color:"#f5a623",direction:"rtl",textAlign:"right",marginBottom:8}}>{liveAdsErr}</div>}
-                {!liveAdsLd&&liveAds.length===0&&!liveAdsErr&&<p style={{fontSize:10.5,color:"#6a96aa",direction:"rtl",textAlign:"right"}}>{T("اختر منافساً ثم اضغط أي قناة — Ads = مدفوع · Organic/IG/TikTok/Snap/YT = Organic","Pick a competitor then tap a channel — Ads = Paid · Organic/IG/TikTok/Snap/YT = Organic")}</p>}
+                {!liveAdsLd&&!liveAdsBillingLimit&&liveAds.length===0&&!liveAdsErr&&<p style={{fontSize:10.5,color:"#6a96aa",direction:"rtl",textAlign:"right"}}>{T("اختر منافساً ثم اضغط أي قناة — Ads = مدفوع · Organic/IG/TikTok/Snap/YT = Organic","Pick a competitor then tap a channel — Ads = Paid · Organic/IG/TikTok/Snap/YT = Organic")}</p>}
                 {liveAds.length>0&&(
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
                     {[...liveAds].sort((a,b)=>{const ta=a.started?new Date(typeof a.started==="number"?a.started*1000:a.started).getTime():0;const tb=b.started?new Date(typeof b.started==="number"?b.started*1000:b.started).getTime():0;return tb-ta;}).map((ad,i)=>{const isPaid=["facebook","google","tiktok_ads","linkedin_ads"].includes(ad._source);return(
