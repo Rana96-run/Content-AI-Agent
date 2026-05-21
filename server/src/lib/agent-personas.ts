@@ -47,6 +47,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "analyze_metrics_report",
       "translate_copy",
       "save_to_drive",
+      "content_library_save",
+      "content_library_read",
       "brand_fact_lookup",
     ],
     prompt: `ROLE: Social Media Specialist (organic).
@@ -93,6 +95,8 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "translate_copy",
       "generate_hashtags",
       "save_to_drive",
+      "content_library_save",
+      "content_library_read",
       "brand_fact_lookup",
     ],
     prompt: `ROLE: Content Creator. Arabic-first Saudi-dialect copywriter.
