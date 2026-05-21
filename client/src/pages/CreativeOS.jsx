@@ -2251,7 +2251,7 @@ export default function CreativeOS(){
                             <>
                               {agentTaskDetail.summary&&(
                                 <div style={{marginBottom:8,padding:"6px 8px",borderRadius:5,background:"rgba(93,200,122,.05)",border:"1px solid rgba(93,200,122,.15)"}}>
-                                  <p style={{fontSize:10,color:"#5dc87a",fontWeight:600,marginBottom:3}}>Summary</p>
+                                  <p style={{fontSize:10,color:"#5dc87a",fontWeight:600,marginBottom:3}}>{T("الملخص","Summary")}</p>
                                   <p style={{color:"#b0c8d4",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{agentTaskDetail.summary}</p>
                                 </div>
                               )}
@@ -2263,13 +2263,13 @@ export default function CreativeOS(){
                               )}
                               {(agentTaskDetail.steps||[]).length>0&&(
                                 <div>
-                                  <p style={{fontSize:10,color:"#6a96aa",fontWeight:600,marginBottom:6}}>Steps ({agentTaskDetail.steps.length})</p>
+                                  <p style={{fontSize:10,color:"#6a96aa",fontWeight:600,marginBottom:6}}>{T(`الخطوات (${agentTaskDetail.steps.length})`,`Steps (${agentTaskDetail.steps.length})`)}</p>
                                   {agentTaskDetail.steps.map((s,i)=>(
                                     <div key={i} style={{display:"flex",gap:8,marginBottom:4,paddingBottom:4,borderBottom:"1px solid rgba(1,53,90,.2)"}}>
                                       <span style={{fontSize:9,color:"#2e5468",flexShrink:0,marginTop:1}}>{new Date(s.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</span>
                                       <div>
-                                        <span style={{fontSize:9.5,fontWeight:600,color:{think:"#f5a623",tool_use:"#17a3a3",tool_result:"#5dc87a",finish:"#5dc87a",error:"#f07070"}[s.kind]||"#6a96aa",marginRight:6}}>{s.kind}</span>
-                                        {s.tool&&<span style={{fontSize:9.5,color:"#2e5468"}}>[{s.tool}]</span>}
+                                        <span style={{fontSize:9.5,fontWeight:600,color:{think:"#f5a623",tool_use:"#17a3a3",tool_result:"#5dc87a",finish:"#5dc87a",error:"#f07070"}[s.kind]||"#6a96aa",marginRight:6}}>{T({think:"تفكير",tool_use:"استخدام أداة",tool_result:"نتيجة الأداة",finish:"اكتمل",error:"خطأ"}[s.kind]||s.kind,s.kind)}</span>
+                                        {s.tool&&<span style={{fontSize:9.5,color:"#2e5468"}}>[{T({generate_content:"توليد محتوى",content_library_save:"حفظ في المكتبة",content_library_read:"قراءة المكتبة",save_to_drive:"حفظ في درايف",analyze_competitor_content:"تحليل المنافس",build_content_calendar:"بناء كالندر",generate_hashtags:"هاشتاقات",generate_video_script:"سكريبت فيديو",analyze_metrics_report:"تحليل الأداء",translate_copy:"ترجمة",brand_fact_lookup:"معلومات العلامة",memory_read:"قراءة ذاكرة",memory_write:"حفظ ذاكرة",slack_post:"نشر سلاك",publish_hubspot:"نشر هب سبوت",review_copy:"مراجعة نسخة"}[s.tool]||s.tool,s.tool)}]</span>}
                                         {s.message&&<p style={{margin:"2px 0 0",color:"#8aafc4",lineHeight:1.5,fontSize:10}}>{String(s.message).slice(0,200)}{s.message.length>200?"…":""}</p>}
                                       </div>
                                     </div>
