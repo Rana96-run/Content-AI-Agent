@@ -52,6 +52,36 @@ function getSheetsClient() {
   return google.sheets({ version: "v4", auth: getAuth() });
 }
 
+/* ── Ensure a sheet tab exists, create it with a header row if not ─── */
+async function ensureTab(tabName: string, headerRow: string[]): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  try {
+    const s = getSheetsClient();
+    const meta = await s.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const exists = (meta.data.sheets || []).some(
+      (sh) => sh.properties?.title === tabName,
+    );
+    if (!exists) {
+      await s.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: tabName } } }],
+        },
+      });
+      // Write header row
+      await s.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `'${tabName}'!A1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [headerRow] },
+      });
+      logger.info({ tab: tabName }, "sheets-client: tab created");
+    }
+  } catch (e) {
+    logger.warn({ tab: tabName, err: String(e) }, "sheets-client: ensureTab failed (non-fatal)");
+  }
+}
+
 /* ── Generic append ───────────────────────────────────────────── */
 async function appendRows(tab: string, rows: (string | number | null)[][]): Promise<void> {
   if (!SPREADSHEET_ID) {
@@ -289,6 +319,8 @@ export async function sheetsAppendBrief(brief: {
 /** Append knowledge base entries to the "Knowledge Base" tab.
  *  Schema: week | type | sector | channel | insight | source | confidence | added_at
  */
+const KB_HEADER = ["week", "type", "sector", "channel", "insight", "source", "confidence", "added_at"];
+
 export async function sheetsAppendKnowledge(entries: Array<{
   week: string;
   type: string;
@@ -300,6 +332,7 @@ export async function sheetsAppendKnowledge(entries: Array<{
   added_at: string;
 }>): Promise<void> {
   if (entries.length === 0) return;
+  await ensureTab("Knowledge Base", KB_HEADER);
   await appendRows("Knowledge Base", entries.map((e) => [
     e.week,
     e.type,
