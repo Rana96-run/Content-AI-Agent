@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { diffSnapshots, buildAIPrompt, formatSlackBlocks, type CompetitorSnapshot } from "../lib/competitor-weekly-report.js";
 import { runMonitorOnce } from "../lib/competitor-monitor.js";
+import { createWeeklySlidesPresentation } from "../lib/competitor-slides-renderer.js";
 import { scrapeYoutubeChannel } from "../lib/youtube-scraper.js";
 
 const router = Router();
@@ -17,6 +18,49 @@ router.post("/competitor-ads/run-monitor-now", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+/* ─── POST /api/competitor-ads/test-slides ──────────────────────────────
+   Diagnostic endpoint — creates a minimal test slides presentation and
+   returns the link or the exact error (surface what monitor swallows). */
+router.post("/competitor-ads/test-slides", async (_req, res) => {
+  const mockDiffs = [{
+    competitor: "Test Competitor",
+    facebook_new: 2, facebook_paused: 0,
+    google_new: 1, google_paused: 0,
+    instagram_new_posts: 3,
+    youtube_new_videos: 1,
+    tiktok_new_videos: 0,
+    snapchat_new_posts: 0,
+    linkedin_new_posts: 1,
+    notable_angles: ["زيادة الإنتاجية بدون جهد إضافي", "تكامل سلس مع الجهات الحكومية"],
+    proven_winners: [],
+    top_samples: [{
+      page_name: "Test",
+      hook: "هذا بوست تجريبي لاختبار الشرائح",
+      body: "نص تفصيلي عن المنتج والميزات المقدمة للعملاء في السوق السعودي",
+      image_url: null,
+      detail_url: "https://www.instagram.com/p/test/",
+      platforms: ["Instagram"],
+      started: "",
+      source: "instagram" as const,
+    }],
+  }];
+  const mockAi = {
+    headline: "اختبار تقرير المنافسين الأسبوعي",
+    competitors: [{
+      name: "Test Competitor",
+      summary: "نشاط تجريبي لاختبار منظومة الشرائح",
+      good: ["تصميم جذاب", "رسائل واضحة"],
+      bad: ["لا يبرزون ZATCA", "ضعف في المحتوى التعليمي"],
+      qoyod_advantage: "قيود الوحيد المعتمد من هيئة الزكاة منذ 2018",
+    }],
+    tasks: [{ title: "أنشئ منشور يبرز ميزة ZATCA", owner: "Content Writer", deadline: "هذا الأسبوع", why: "المنافسون لا يذكرونها" }],
+    alert: null,
+  };
+
+  const result = await createWeeklySlidesPresentation(mockDiffs as any, mockAi, "Test — May 2026");
+  res.status(200).json(result);
 });
 
 const APIFY_TIMEOUT_MS = 90_000;
