@@ -81,7 +81,7 @@ fine and only shows up as black screens to the user.
 
 - **Server**: `server/` — Express + TypeScript, port 8080
 - **Client**: `client/` — React (Vite), proxied through server in prod
-- **Live URL**: https://claude-code-ai-agent-production.up.railway.app
+- **Live URL**: https://somaa-ai-agent-production.up.railway.app
 - **Repo**: https://github.com/Rana96-run/Content-AI-Agent
 
 ## Key files
