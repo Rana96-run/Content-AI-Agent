@@ -415,7 +415,7 @@ function marketActivitySlide(slideId: string, diffs: WeekDiff[], weekLabel: stri
   R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.navy));
   R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
   R.push(...txt(slideId, IN * 0.3, IN * 0.12, W * 0.6, IN * 0.48,
-    "نشاط المنافسين — توزيع المنصات",
+    "نشاط المنافسين — المحتوى الأورجانيك",
     { bold: true, size: 19, color: C.white },
   ));
   R.push(...txt(slideId, W * 0.62, IN * 0.16, W * 0.35, IN * 0.38,
@@ -423,13 +423,13 @@ function marketActivitySlide(slideId: string, diffs: WeekDiff[], weekLabel: stri
   ));
 
   // Platform breakdown per competitor — horizontal stacked bars
+  // Organic channels only — Google Ads excluded from visual (paid intel stays in Exec Summary text)
   const platforms = [
-    { key: "facebook_new",        label: "Meta",     color: C.royalBlue },
-    { key: "google_new",          label: "Google",   color: C.brightBlue },
-    { key: "instagram_new_posts", label: "IG",       color: C.skyBlue },
-    { key: "youtube_new_videos",  label: "YouTube",  color: C.redSolid },
-    { key: "tiktok_new_videos",   label: "TikTok",   color: "#1A1A1A" },
-    { key: "linkedin_new_posts",  label: "LinkedIn", color: C.amberSolid },
+    { key: "instagram_new_posts", label: "Instagram", color: C.skyBlue },
+    { key: "tiktok_new_videos",   label: "TikTok",    color: "#1A1A1A" },
+    { key: "youtube_new_videos",  label: "YouTube",   color: C.redSolid },
+    { key: "linkedin_new_posts",  label: "LinkedIn",  color: C.amberSolid },
+    { key: "snapchat_new_posts",  label: "Snapchat",  color: C.amberBdr },
   ] as const;
 
   // Legend
@@ -471,11 +471,11 @@ function marketActivitySlide(slideId: string, diffs: WeekDiff[], weekLabel: stri
     R.push(...box(eid(), slideId, barAreaX, ry, barAreaW, barH, C.cardBg));
 
     // Stacked segments
-    const total = d.facebook_new + d.google_new + d.instagram_new_posts +
-      d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
+    const total = d.instagram_new_posts + d.tiktok_new_videos +
+      d.youtube_new_videos + d.linkedin_new_posts + d.snapchat_new_posts;
     const values = [
-      d.facebook_new, d.google_new, d.instagram_new_posts,
-      d.youtube_new_videos, d.tiktok_new_videos, d.linkedin_new_posts,
+      d.instagram_new_posts, d.tiktok_new_videos,
+      d.youtube_new_videos, d.linkedin_new_posts, d.snapchat_new_posts,
     ];
 
     let segX = barAreaX;
