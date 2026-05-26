@@ -383,8 +383,8 @@ function execSummarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel
     }
   }
 
-  // Recommended actions
-  const actions = (ai.recommended_actions || []).slice(0, 3);
+  // Recommendations — derived from ai.tasks (top 3 titles)
+  const actions = (ai.tasks || []).slice(0, 3);
   if (actions.length > 0) {
     const acy = IN * 4.1;
     R.push(...box(eid(), slideId, IN * 0.3, acy, W - IN * 0.6, IN * 0.3, C.navy));
@@ -399,7 +399,7 @@ function execSummarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel
         String(i + 1), { bold: true, size: 10, color: C.white, align: "CENTER" },
       ));
       R.push(...txt(slideId, IN * 0.7, aY, W - IN * 1.0, IN * 0.26,
-        actions[i], { size: 10, color: C.textDark },
+        actions[i].title, { size: 10, color: C.textDark },
       ));
     }
   }
@@ -859,7 +859,6 @@ export interface AIOutput {
     good?: string[]; bad?: string[]; qoyod_advantage?: string;
   }>;
   tasks?: Array<{ title: string; owner: string; deadline?: string; why?: string }>;
-  recommended_actions?: string[];
   alert?: string | null;
 }
 
@@ -918,7 +917,7 @@ export async function createWeeklySlidesPresentation(
     // 5. Knowledge insights (top 8 from notable angles + recommended actions)
     const insights = [
       ...diffs.flatMap(d => (d.notable_angles || []).map(a => `${d.competitor}: ${a}`)),
-      ...(ai.recommended_actions || []),
+      ...(ai.tasks || []).map(t => t.title),
     ].filter(Boolean).slice(0, 8);
     if (insights.length > 0) {
       requests.push(...knowledgeSlide(eid("slide"), insights));
@@ -930,7 +929,7 @@ export async function createWeeklySlidesPresentation(
     }
 
     // 7. Closing — Qoyod's move
-    requests.push(...closingSlide(eid("slide"), ai.recommended_actions || [], weekLabel));
+    requests.push(...closingSlide(eid("slide"), (ai.tasks || []).map(t => t.title), weekLabel));
 
     await slides.presentations.batchUpdate({ presentationId: presId, requestBody: { requests } });
 
