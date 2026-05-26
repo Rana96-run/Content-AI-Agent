@@ -1,45 +1,53 @@
 /**
- * Competitor Weekly Social Listening Report — Google Slides renderer.
+ * Competitor Weekly Report — Google Slides renderer (v2 revamp)
  *
- * Design language (from Qoyod brand deck):
- *   Primary dark  #162560  deep navy
- *   Mid blue      #1C4587  royal blue (headers, accents)
- *   Bright blue   #2F75F2  CTA / highlight color
- *   Card bg       #F4F5F7  light gray
- *   White         #FFFFFF
- *   Font          Lama Sans (Arabic + Latin)
- *   NO turquoise / teal anywhere
+ * Slide deck structure:
+ *   1. Cover          — full-bleed navy, week label, total activity stat
+ *   2. Executive Summary — 3 key numbers + AI headline + opportunity signal
+ *   3. Market Activity  — horizontal activity bars across all competitors
+ *   4. Competitor × N  — per-competitor deep-dive (analysis + post preview)
+ *   5. Knowledge Insights — top extracted insights from this week's KB extraction
+ *   6. Action Plan      — team tasks with priority indicators
+ *   7. Closing          — Qoyod's move this week (3 actions)
+ *
+ * Palette: navy #162560 · royalBlue #1C4587 · brightBlue #2F75F2
+ * Font: Lama Sans · NO turquoise anywhere
  */
 
 import { google } from "googleapis";
 import type { WeekDiff } from "./competitor-weekly-report.js";
 
-// ─── Dimensions ──────────────────────────────────────────────────────────────
+// ─── Canvas ───────────────────────────────────────────────────────────────────
 const W  = 9_144_000;   // 10 in
 const H  = 5_143_500;   // 5.625 in
-const IN = 914_400;     // 1 inch in EMU
+const IN = 914_400;
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
   navy:       "#162560",
-  navyMid:    "#1C3A7A",   // slightly lighter navy for cards on dark bg
+  navyLight:  "#1E3070",
   royalBlue:  "#1C4587",
   brightBlue: "#2F75F2",
+  skyBlue:    "#4A90D9",
   cardBg:     "#F4F5F7",
   cardBorder: "#DDE3EE",
   white:      "#FFFFFF",
+  offWhite:   "#F8F9FC",
   textDark:   "#162560",
-  textMid:    "#3A3A3A",
-  textLight:  "#6B7280",
+  textMid:    "#374151",
+  textLight:  "#9CA3AF",
   green:      "#166534",
   greenBg:    "#DCFCE7",
   greenBdr:   "#86EFAC",
+  greenSolid: "#16A34A",
   red:        "#991B1B",
   redBg:      "#FEE2E2",
   redBdr:     "#FCA5A5",
+  redSolid:   "#DC2626",
   amber:      "#92400E",
   amberBg:    "#FEF3C7",
   amberBdr:   "#FCD34D",
+  amberSolid: "#D97706",
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -48,8 +56,8 @@ function getClients() {
     "https://www.googleapis.com/auth/presentations",
     "https://www.googleapis.com/auth/drive",
   ];
-  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64;
   let credentials: object | undefined;
+  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64;
   if (b64) {
     try { credentials = JSON.parse(Buffer.from(b64, "base64").toString("utf8")); } catch { /**/ }
   }
@@ -68,7 +76,7 @@ function getClients() {
   };
 }
 
-// ─── Low-level helpers ────────────────────────────────────────────────────────
+// ─── Primitives ───────────────────────────────────────────────────────────────
 function rgb(hex: string) {
   const h = hex.replace(/^#/, "");
   if (h.length !== 6) return { red: 0, green: 0, blue: 0 };
@@ -78,32 +86,31 @@ function rgb(hex: string) {
     blue:  parseInt(h.slice(4, 6), 16) / 255,
   };
 }
-const pt = (n: number) => ({ magnitude: n, unit: "PT" as const });
+const pt  = (n: number) => ({ magnitude: n, unit: "PT" as const });
+const emu = (w: number, h: number) => ({
+  width:  { magnitude: w, unit: "EMU" as const },
+  height: { magnitude: h, unit: "EMU" as const },
+});
+const pos = (x: number, y: number) => ({
+  scaleX: 1, scaleY: 1, translateX: x, translateY: y, unit: "EMU" as const,
+});
 
 let _seq = 0;
 const eid = (p = "e") => `${p}_${++_seq}_${Date.now() % 1_000_000}`;
 
-function emu(w: number, h: number) {
-  return { width: { magnitude: w, unit: "EMU" as const }, height: { magnitude: h, unit: "EMU" as const } };
-}
-function pos(x: number, y: number) {
-  return { scaleX: 1, scaleY: 1, translateX: x, translateY: y, unit: "EMU" as const };
+function newSlide(id: string): any {
+  return { createSlide: { objectId: id, slideLayoutReference: { predefinedLayout: "BLANK" } } };
 }
 
-// Slide background
 function setBg(slideId: string, hex: string): any {
   return {
     updatePageProperties: {
-      objectId: slideId,
-      fields: "pageBackgroundFill",
-      pageProperties: {
-        pageBackgroundFill: { solidFill: { color: { rgbColor: rgb(hex) } } },
-      },
+      objectId: slideId, fields: "pageBackgroundFill",
+      pageProperties: { pageBackgroundFill: { solidFill: { color: { rgbColor: rgb(hex) } } } },
     },
   };
 }
 
-// Filled rectangle — borderColor optional
 function box(
   id: string, slideId: string,
   x: number, y: number, w: number, h: number,
@@ -131,22 +138,22 @@ function box(
   ];
 }
 
-// Text block type
 interface TB {
-  text:   string;
-  size?:  number;
-  color?: string;
-  bold?:  boolean;
+  text:    string;
+  size?:   number;
+  color?:  string;
+  bold?:   boolean;
   italic?: boolean;
-  align?: "START" | "CENTER" | "END";
-  link?:  string;
+  align?:  "START" | "CENTER" | "END";
+  link?:   string;
+  lh?:     number; // lineSpacing override
 }
 
-// Text box with Lama Sans font
 function textBox(
   id: string, slideId: string,
   x: number, y: number, w: number, h: number,
   blocks: TB[],
+  dir: "RIGHT_TO_LEFT" | "LEFT_TO_RIGHT" = "RIGHT_TO_LEFT",
 ): any[] {
   const R: any[] = [
     {
@@ -157,8 +164,7 @@ function textBox(
     },
     {
       updateShapeProperties: {
-        objectId: id,
-        fields: "shapeBackgroundFill,outline",
+        objectId: id, fields: "shapeBackgroundFill,outline",
         shapeProperties: {
           shapeBackgroundFill: { propertyState: "NOT_RENDERED" },
           outline: { propertyState: "NOT_RENDERED" },
@@ -176,7 +182,6 @@ function textBox(
     const len = b.text.length;
     const fields = ["foregroundColor", "fontSize", "bold", "italic", "fontFamily"];
     if (b.link) fields.push("link");
-
     R.push({
       updateTextStyle: {
         objectId: id,
@@ -192,219 +197,209 @@ function textBox(
         },
       },
     });
-
     R.push({
       updateParagraphStyle: {
         objectId: id,
         textRange: { type: "FIXED_RANGE", startIndex: cursor, endIndex: cursor + len },
         fields: "alignment,direction,spaceAbove,spaceBelow,lineSpacing",
         style: {
-          alignment: b.align || "END",
-          direction: "RIGHT_TO_LEFT",
+          alignment: b.align || (dir === "RIGHT_TO_LEFT" ? "END" : "START"),
+          direction: dir,
           spaceAbove: pt(0),
           spaceBelow: pt(2),
-          lineSpacing: 125,
+          lineSpacing: b.lh ?? 120,
         },
       },
     });
-
     cursor += len + (i < blocks.length - 1 ? 1 : 0);
   }
   return R;
 }
 
-// Single-block text box shorthand
 function txt(
-  slideId: string,
-  x: number, y: number, w: number, h: number,
+  slideId: string, x: number, y: number, w: number, h: number,
   text: string, opts: Omit<TB, "text"> = {},
+  dir: "RIGHT_TO_LEFT" | "LEFT_TO_RIGHT" = "RIGHT_TO_LEFT",
 ): any[] {
-  return textBox(eid("t"), slideId, x, y, w, h, [{ text, ...opts }]);
+  return textBox(eid("t"), slideId, x, y, w, h, [{ text, ...opts }], dir);
 }
 
-// Image
-function image(slideId: string, url: string, x: number, y: number, w: number, h: number): any {
-  return {
-    createImage: {
-      objectId: eid("img"), url,
-      elementProperties: { pageObjectId: slideId, size: emu(w, h), transform: pos(x, y) },
-    },
-  };
-}
-
-// New blank slide
-function newSlide(slideId: string): any {
-  return { createSlide: { objectId: slideId, slideLayoutReference: { predefinedLayout: "BLANK" } } };
-}
-
-// ─── COVER SLIDE ─────────────────────────────────────────────────────────────
-// Layout: Full navy bg · large right-side decorative block · title left-aligned
-function coverSlide(
-  slideId: string, weekLabel: string, total: number, compCount: number,
-): any[] {
+// ─── SLIDE 1: COVER ───────────────────────────────────────────────────────────
+function coverSlide(slideId: string, weekLabel: string, total: number, compCount: number): any[] {
   const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
 
-  // Right-side royal blue decorative panel (40% width, full height)
-  R.push(...box(eid("rpanel"), slideId, W * 0.62, 0, W * 0.38, H, C.royalBlue));
+  // Large decorative circle top-right (simulated with overlapping boxes)
+  R.push(...box(eid(), slideId, W * 0.72, -IN * 1.2, IN * 3.0, IN * 3.0, C.navyLight));
 
-  // Bright blue accent strip at bottom of right panel
-  R.push(...box(eid("bstrip"), slideId, W * 0.62, H - IN * 0.28, W * 0.38, IN * 0.28, C.brightBlue));
+  // Accent right panel
+  R.push(...box(eid(), slideId, W - IN * 0.08, 0, IN * 0.08, H, C.brightBlue));
 
-  // Diagonal divider — a rotated rectangle to create a slant effect
-  // Simulate with a narrow bright-blue strip at the boundary
-  R.push(...box(eid("divider"), slideId, W * 0.60, 0, IN * 0.18, H, C.brightBlue));
+  // Bottom accent strip
+  R.push(...box(eid(), slideId, 0, H - IN * 0.06, W, IN * 0.06, C.brightBlue));
 
-  // Left content area
-  // Week label (small, above title)
-  R.push(...txt(slideId, IN * 0.5, IN * 1.1, IN * 5.5, IN * 0.42,
-    weekLabel,
-    { size: 14, color: C.brightBlue, align: "START" },
+  // Left bright stripe
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.06, H, C.brightBlue));
+
+  // Week label pill background
+  R.push(...box(eid(), slideId, IN * 0.55, IN * 0.75, IN * 2.2, IN * 0.38, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.55, IN * 0.76, IN * 2.2, IN * 0.36,
+    weekLabel, { size: 10, color: C.white, bold: true, align: "CENTER" },
   ));
 
-  // Main title
-  R.push(...txt(slideId, IN * 0.5, IN * 1.6, IN * 5.5, IN * 1.5,
+  // Main Arabic title
+  R.push(...txt(slideId, IN * 0.55, IN * 1.28, IN * 6.0, IN * 1.8,
     "رصد المنافسين\nالأسبوعي",
-    { bold: true, size: 42, color: C.white, align: "START" },
+    { bold: true, size: 48, color: C.white, lh: 115 },
   ));
-
-  // Horizontal rule
-  R.push(...box(eid("hr"), slideId, IN * 0.5, IN * 3.3, IN * 3.5, IN * 0.04, C.brightBlue));
 
   // Subtitle
-  R.push(...txt(slideId, IN * 0.5, IN * 3.45, IN * 5.5, IN * 0.38,
-    "تقرير رصد وسائل التواصل الاجتماعي للمنافسين",
-    { size: 12, color: "#B0BDDE", align: "START" },
+  R.push(...txt(slideId, IN * 0.55, IN * 3.28, IN * 6.0, IN * 0.42,
+    "تقرير ذكاء المنافسين — فريق التسويق الإبداعي",
+    { size: 12, color: "#8BA5CC" },
   ));
 
-  // Stat boxes (bottom left)
-  const bx = IN * 0.5;
-  const by = H - IN * 1.25;
-  const bw = IN * 2.0;
-  const bh = IN * 0.92;
-  const gap = IN * 0.22;
+  // Horizontal rule below title
+  R.push(...box(eid(), slideId, IN * 0.55, IN * 3.18, IN * 2.5, IN * 0.04, C.brightBlue));
 
-  // Box 1 — total activity
-  R.push(...box(eid("b1"), slideId, bx, by, bw, bh, C.navyMid, C.brightBlue));
-  R.push(...txt(slideId, bx, by + IN * 0.06, bw, IN * 0.5,
+  // Stat block — total activity
+  const sx = IN * 0.55;
+  const sy = H - IN * 1.35;
+  const sw = IN * 2.2;
+  const sh = IN * 1.05;
+
+  R.push(...box(eid(), slideId, sx, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
+  R.push(...txt(slideId, sx, sy + IN * 0.1, sw, IN * 0.62,
     String(total),
-    { bold: true, size: 28, color: C.white, align: "CENTER" },
+    { bold: true, size: 36, color: C.white, align: "CENTER" },
   ));
-  R.push(...txt(slideId, bx, by + IN * 0.54, bw, IN * 0.3,
-    "نشاط رُصد",
-    { size: 9, color: "#B0BDDE", align: "CENTER" },
+  R.push(...txt(slideId, sx, sy + IN * 0.7, sw, IN * 0.28,
+    "نشاط رُصد هذا الأسبوع",
+    { size: 9, color: "#8BA5CC", align: "CENTER" },
   ));
 
-  // Box 2 — competitors
-  R.push(...box(eid("b2"), slideId, bx + bw + gap, by, bw, bh, C.navyMid, C.brightBlue));
-  R.push(...txt(slideId, bx + bw + gap, by + IN * 0.06, bw, IN * 0.5,
+  // Stat block — competitor count
+  R.push(...box(eid(), slideId, sx + sw + IN * 0.2, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
+  R.push(...txt(slideId, sx + sw + IN * 0.2, sy + IN * 0.1, sw, IN * 0.62,
     String(compCount),
-    { bold: true, size: 28, color: C.white, align: "CENTER" },
+    { bold: true, size: 36, color: C.white, align: "CENTER" },
   ));
-  R.push(...txt(slideId, bx + bw + gap, by + IN * 0.54, bw, IN * 0.3,
-    "منافس",
-    { size: 9, color: "#B0BDDE", align: "CENTER" },
+  R.push(...txt(slideId, sx + sw + IN * 0.2, sy + IN * 0.7, sw, IN * 0.28,
+    "منافس تحت المراقبة",
+    { size: 9, color: "#8BA5CC", align: "CENTER" },
   ));
 
-  // Brand name bottom right (on the blue panel)
-  R.push(...txt(slideId, W * 0.65, H - IN * 0.55, W * 0.32, IN * 0.38,
-    "Somaa · قيود",
-    { size: 10, color: C.white, align: "CENTER" },
+  // Brand mark bottom right
+  R.push(...txt(slideId, W - IN * 2.5, H - IN * 0.52, IN * 2.2, IN * 0.35,
+    "قيود · Creative OS",
+    { size: 9, color: "#8BA5CC", align: "END" },
   ));
 
   return R;
 }
 
-// ─── SUMMARY SLIDE ───────────────────────────────────────────────────────────
-function summarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel: string): any[] {
-  const R: any[] = [newSlide(slideId), setBg(slideId, C.white)];
+// ─── SLIDE 2: EXECUTIVE SUMMARY ───────────────────────────────────────────────
+function execSummarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel: string): any[] {
+  const R: any[] = [newSlide(slideId), setBg(slideId, C.offWhite)];
 
-  // Navy header
-  R.push(...box(eid("hdr"), slideId, 0, 0, W, IN * 0.62, C.navy));
-  R.push(...box(eid("hac"), slideId, 0, 0, IN * 0.1, IN * 0.62, C.brightBlue));
-  R.push(...txt(slideId, IN * 0.25, IN * 0.1, W - IN * 0.5, IN * 0.46,
-    `ملخّص الأسبوع  ·  ${weekLabel}`,
-    { bold: true, size: 17, color: C.white },
+  // Header bar
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.navy));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.3, IN * 0.12, W * 0.6, IN * 0.48,
+    "الملخص التنفيذي",
+    { bold: true, size: 19, color: C.white },
+  ));
+  R.push(...txt(slideId, W * 0.62, IN * 0.16, W * 0.35, IN * 0.38,
+    weekLabel,
+    { size: 11, color: "#8BA5CC", align: "END" },
   ));
 
-  // AI Headline
-  R.push(...box(eid("hl"), slideId, IN * 0.35, IN * 0.78, W - IN * 0.7, IN * 0.65, C.cardBg, C.brightBlue, 2));
-  R.push(...txt(slideId, IN * 0.55, IN * 0.85, W - IN * 1.1, IN * 0.52,
+  // AI headline — prominent box
+  R.push(...box(eid(), slideId, IN * 0.3, IN * 0.86, W - IN * 0.6, IN * 0.72, C.navy, C.brightBlue, 2));
+  R.push(...box(eid(), slideId, IN * 0.3, IN * 0.86, IN * 0.08, IN * 0.72, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.55, IN * 0.96, W - IN * 1.1, IN * 0.54,
     ai.headline || "اتجاه الأسبوع",
-    { bold: true, size: 16, color: C.navy },
+    { bold: true, size: 15, color: C.white },
   ));
 
-  // Competitor activity cards
-  const cols = diffs.length;
-  const cw = (W - IN * 0.7 - IN * 0.15 * (cols - 1)) / cols;
-  const cy = IN * 1.62;
-  const ch = IN * 1.9;
-
-  for (let i = 0; i < cols; i++) {
-    const d = diffs[i];
+  // Three KPI boxes
+  const totalActivity = diffs.reduce((s, d) =>
+    s + d.facebook_new + d.google_new + d.instagram_new_posts +
+    d.youtube_new_videos + d.tiktok_new_videos + d.snapchat_new_posts + d.linkedin_new_posts, 0);
+  const mostActive = diffs.reduce((best, d) => {
     const total = d.facebook_new + d.google_new + d.instagram_new_posts +
-                  d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
-    const cx = IN * 0.35 + i * (cw + IN * 0.15);
+      d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
+    return total > best.total ? { name: d.competitor, total } : best;
+  }, { name: "—", total: 0 });
+  const provenWinners = diffs.reduce((s, d) => s + (d.proven_winners?.length || 0), 0);
 
-    R.push(...box(eid("cc"), slideId, cx, cy, cw, ch,
-      total > 0 ? C.cardBg : C.white,
-      total > 0 ? C.brightBlue : C.cardBorder,
+  const kpis = [
+    { num: String(totalActivity), label: "إجمالي النشاط", sub: "عبر جميع المنصات", color: C.brightBlue },
+    { num: mostActive.name, label: "الأكثر نشاطاً", sub: `${mostActive.total} منشور`, color: C.amberSolid },
+    { num: String(provenWinners), label: "إعلان مثبت", sub: "يعمل أكثر من 30 يوم", color: C.greenSolid },
+  ];
+
+  const kw = (W - IN * 0.6 - IN * 0.2 * 2) / 3;
+  const ky = IN * 1.74;
+  const kh = IN * 1.12;
+
+  for (let i = 0; i < kpis.length; i++) {
+    const kx = IN * 0.3 + i * (kw + IN * 0.2);
+    const k = kpis[i];
+    R.push(...box(eid(), slideId, kx, ky, kw, kh, C.white, C.cardBorder));
+    // Top colored strip
+    R.push(...box(eid(), slideId, kx, ky, kw, IN * 0.06, k.color));
+    R.push(...txt(slideId, kx, ky + IN * 0.15, kw, IN * 0.56,
+      k.num,
+      { bold: true, size: 28, color: C.navy, align: "CENTER" },
     ));
-
-    // Top color strip
-    R.push(...box(eid("ctop"), slideId, cx, cy, cw, IN * 0.28,
-      total > 0 ? C.royalBlue : C.cardBorder,
+    R.push(...txt(slideId, kx, ky + IN * 0.72, kw, IN * 0.24,
+      k.label,
+      { bold: true, size: 10, color: C.textDark, align: "CENTER" },
     ));
-
-    // Competitor name
-    R.push(...txt(slideId, cx + IN * 0.1, cy + IN * 0.03, cw - IN * 0.2, IN * 0.28,
-      d.competitor,
-      { bold: true, size: 11, color: C.white, align: "CENTER" },
-    ));
-
-    // Total number
-    R.push(...txt(slideId, cx, cy + IN * 0.32, cw, IN * 0.55,
-      String(total),
-      { bold: true, size: 26, color: total > 0 ? C.navy : C.textLight, align: "CENTER" },
-    ));
-    R.push(...txt(slideId, cx, cy + IN * 0.84, cw, IN * 0.22,
-      "نشاط جديد",
-      { size: 9, color: C.textLight, align: "CENTER" },
-    ));
-
-    // Platform breakdown
-    const lines: string[] = [];
-    if (d.instagram_new_posts > 0)  lines.push(`IG  ${d.instagram_new_posts}`);
-    if (d.tiktok_new_videos > 0)    lines.push(`TikTok  ${d.tiktok_new_videos}`);
-    if (d.youtube_new_videos > 0)   lines.push(`YouTube  ${d.youtube_new_videos}`);
-    if (d.linkedin_new_posts > 0)   lines.push(`LinkedIn  ${d.linkedin_new_posts}`);
-    if (d.facebook_new > 0)         lines.push(`Meta  ${d.facebook_new}`);
-    if (d.google_new > 0)           lines.push(`Google  ${d.google_new}`);
-    if (lines.length === 0)         lines.push("لا تغيير");
-
-    R.push(...txt(slideId, cx + IN * 0.1, cy + IN * 1.1, cw - IN * 0.2, ch - IN * 1.2,
-      lines.join("\n"),
-      { size: 9, color: C.textMid, align: "CENTER" },
+    R.push(...txt(slideId, kx, ky + IN * 0.92, kw, IN * 0.2,
+      k.sub,
+      { size: 8, color: C.textLight, align: "CENTER" },
     ));
   }
 
   // Notable angles
-  const angles = diffs.flatMap(d => d.notable_angles).filter(Boolean).slice(0, 4);
+  const angles = diffs.flatMap(d => d.notable_angles).filter(Boolean).slice(0, 3);
   if (angles.length > 0) {
-    const ay = IN * 3.72;
-    R.push(...txt(slideId, IN * 0.35, ay, W - IN * 0.7, IN * 0.3,
-      "أبرز الزوايا والرسائل:",
+    const ay = IN * 3.08;
+    R.push(...txt(slideId, IN * 0.3, ay, W - IN * 0.6, IN * 0.3,
+      "أبرز الرسائل والزوايا الإعلانية هذا الأسبوع:",
       { bold: true, size: 10, color: C.textMid },
     ));
-    const aw = (W - IN * 0.85) / 2;
-    for (let i = 0; i < Math.min(angles.length, 4); i++) {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const ax = IN * 0.35 + col * (aw + IN * 0.15);
-      const aY = ay + IN * 0.35 + row * IN * 0.5;
-      R.push(...box(eid("ang"), slideId, ax, aY, aw, IN * 0.42, C.cardBg, C.cardBorder));
-      R.push(...txt(slideId, ax + IN * 0.15, aY + IN * 0.06, aw - IN * 0.3, IN * 0.32,
+
+    const aw = (W - IN * 0.6 - IN * 0.15 * (angles.length - 1)) / angles.length;
+    for (let i = 0; i < angles.length; i++) {
+      const ax = IN * 0.3 + i * (aw + IN * 0.15);
+      R.push(...box(eid(), slideId, ax, ay + IN * 0.36, aw, IN * 0.5, C.white, C.cardBorder));
+      R.push(...box(eid(), slideId, ax, ay + IN * 0.36, IN * 0.06, IN * 0.5, C.brightBlue));
+      R.push(...txt(slideId, ax + IN * 0.18, ay + IN * 0.42, aw - IN * 0.28, IN * 0.38,
         `"${angles[i]}"`,
-        { italic: true, size: 10, color: C.textMid },
+        { italic: true, size: 9.5, color: C.textMid },
+      ));
+    }
+  }
+
+  // Recommended actions
+  const actions = (ai.recommended_actions || []).slice(0, 3);
+  if (actions.length > 0) {
+    const acy = IN * 4.1;
+    R.push(...box(eid(), slideId, IN * 0.3, acy, W - IN * 0.6, IN * 0.3, C.navy));
+    R.push(...txt(slideId, IN * 0.5, acy + IN * 0.04, W - IN * 1.0, IN * 0.24,
+      "توصيات هذا الأسبوع",
+      { bold: true, size: 10, color: C.white },
+    ));
+    for (let i = 0; i < actions.length; i++) {
+      const aY = acy + IN * 0.38 + i * IN * 0.28;
+      R.push(...box(eid(), slideId, IN * 0.3, aY, IN * 0.3, IN * 0.24, C.brightBlue));
+      R.push(...txt(slideId, IN * 0.3, aY, IN * 0.3, IN * 0.24,
+        String(i + 1), { bold: true, size: 10, color: C.white, align: "CENTER" },
+      ));
+      R.push(...txt(slideId, IN * 0.7, aY, W - IN * 1.0, IN * 0.26,
+        actions[i], { size: 10, color: C.textDark },
       ));
     }
   }
@@ -412,156 +407,286 @@ function summarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel: st
   return R;
 }
 
-// ─── COMPETITOR SLIDE ─────────────────────────────────────────────────────────
-function competitorSlide(slideId: string, d: WeekDiff, ct: any): any[] {
+// ─── SLIDE 3: MARKET ACTIVITY BARS ────────────────────────────────────────────
+function marketActivitySlide(slideId: string, diffs: WeekDiff[], weekLabel: string): any[] {
   const R: any[] = [newSlide(slideId), setBg(slideId, C.white)];
 
-  // Navy header
-  R.push(...box(eid("hdr"), slideId, 0, 0, W, IN * 0.65, C.navy));
-  R.push(...box(eid("hac"), slideId, 0, 0, IN * 0.1, IN * 0.65, C.brightBlue));
-  R.push(...txt(slideId, IN * 0.25, IN * 0.1, W * 0.55, IN * 0.48,
-    d.competitor,
-    { bold: true, size: 22, color: C.white },
+  // Header
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.navy));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.3, IN * 0.12, W * 0.6, IN * 0.48,
+    "نشاط المنافسين — توزيع المنصات",
+    { bold: true, size: 19, color: C.white },
+  ));
+  R.push(...txt(slideId, W * 0.62, IN * 0.16, W * 0.35, IN * 0.38,
+    weekLabel, { size: 11, color: "#8BA5CC", align: "END" },
   ));
 
-  // Activity summary in header
-  const parts: string[] = [];
-  if (d.instagram_new_posts > 0)  parts.push(`IG ${d.instagram_new_posts}`);
-  if (d.tiktok_new_videos > 0)    parts.push(`TikTok ${d.tiktok_new_videos}`);
-  if (d.youtube_new_videos > 0)   parts.push(`YT ${d.youtube_new_videos}`);
-  if (d.linkedin_new_posts > 0)   parts.push(`LI ${d.linkedin_new_posts}`);
-  if (d.facebook_new > 0)         parts.push(`Meta ${d.facebook_new}`);
-  if (d.google_new > 0)           parts.push(`Google ${d.google_new}`);
+  // Platform breakdown per competitor — horizontal stacked bars
+  const platforms = [
+    { key: "facebook_new",        label: "Meta",     color: C.royalBlue },
+    { key: "google_new",          label: "Google",   color: C.brightBlue },
+    { key: "instagram_new_posts", label: "IG",       color: C.skyBlue },
+    { key: "youtube_new_videos",  label: "YouTube",  color: C.redSolid },
+    { key: "tiktok_new_videos",   label: "TikTok",   color: "#1A1A1A" },
+    { key: "linkedin_new_posts",  label: "LinkedIn", color: C.amberSolid },
+  ] as const;
 
-  R.push(...txt(slideId, W * 0.44, IN * 0.14, W * 0.53, IN * 0.38,
-    parts.length > 0 ? parts.join("  ·  ") : "لا تغيير",
-    { size: 10, color: "#B0BDDE", align: "END" },
+  // Legend
+  const legX = IN * 0.3;
+  const legY = IN * 0.82;
+  for (let i = 0; i < platforms.length; i++) {
+    const lx = legX + i * IN * 1.45;
+    R.push(...box(eid(), slideId, lx, legY, IN * 0.22, IN * 0.18, platforms[i].color));
+    R.push(...txt(slideId, lx + IN * 0.28, legY, IN * 1.1, IN * 0.2,
+      platforms[i].label,
+      { size: 8, color: C.textMid, align: "START" },
+      "LEFT_TO_RIGHT",
+    ));
+  }
+
+  // Find max for scaling
+  const maxTotal = Math.max(...diffs.map(d =>
+    d.facebook_new + d.google_new + d.instagram_new_posts +
+    d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts,
+  ), 1);
+
+  const barAreaX = IN * 2.0;
+  const barAreaW = W - barAreaX - IN * 0.3;
+  const barH     = IN * 0.55;
+  const rowGap   = IN * 0.26;
+  const startY   = IN * 1.18;
+
+  for (let i = 0; i < diffs.length; i++) {
+    const d = diffs[i];
+    const ry = startY + i * (barH + rowGap);
+
+    // Competitor label
+    R.push(...txt(slideId, IN * 0.3, ry + IN * 0.1, IN * 1.65, IN * 0.38,
+      d.competitor,
+      { bold: true, size: 11, color: C.navy },
+    ));
+
+    // Background track
+    R.push(...box(eid(), slideId, barAreaX, ry, barAreaW, barH, C.cardBg));
+
+    // Stacked segments
+    const total = d.facebook_new + d.google_new + d.instagram_new_posts +
+      d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
+    const values = [
+      d.facebook_new, d.google_new, d.instagram_new_posts,
+      d.youtube_new_videos, d.tiktok_new_videos, d.linkedin_new_posts,
+    ];
+
+    let segX = barAreaX;
+    for (let j = 0; j < platforms.length; j++) {
+      const v = values[j];
+      if (v <= 0) continue;
+      const segW = (v / maxTotal) * barAreaW;
+      R.push(...box(eid(), slideId, segX, ry, segW, barH, platforms[j].color));
+      if (segW > IN * 0.35) {
+        R.push(...txt(slideId, segX, ry + IN * 0.15, segW, IN * 0.28,
+          String(v),
+          { bold: true, size: 8, color: C.white, align: "CENTER" },
+          "LEFT_TO_RIGHT",
+        ));
+      }
+      segX += segW;
+    }
+
+    // Total label
+    R.push(...txt(slideId, barAreaX + barAreaW + IN * 0.12, ry + IN * 0.1, IN * 0.8, IN * 0.38,
+      String(total),
+      { bold: true, size: 13, color: total > 0 ? C.navy : C.textLight, align: "START" },
+      "LEFT_TO_RIGHT",
+    ));
+
+    // Proven winners badge
+    if ((d.proven_winners?.length || 0) > 0) {
+      R.push(...box(eid(), slideId, barAreaX + barAreaW - IN * 1.2, ry - IN * 0.02,
+        IN * 1.1, IN * 0.28, C.amberBg, C.amberBdr,
+      ));
+      R.push(...txt(slideId, barAreaX + barAreaW - IN * 1.2, ry, IN * 1.1, IN * 0.26,
+        `★ ${d.proven_winners!.length} مثبت`,
+        { size: 8, color: C.amber, align: "CENTER" },
+      ));
+    }
+  }
+
+  // Bottom note
+  R.push(...txt(slideId, IN * 0.3, H - IN * 0.4, W - IN * 0.6, IN * 0.3,
+    "★ مثبت = إعلان يعمل أكثر من 30 يوماً — إشارة ربحية",
+    { size: 8, color: C.textLight, italic: true },
   ));
 
-  // ── Left column: analysis ── (0.25in → 5.2in)
+  return R;
+}
+
+// ─── SLIDE 4: COMPETITOR DEEP-DIVE ────────────────────────────────────────────
+function competitorSlide(slideId: string, d: WeekDiff, ct: any): any[] {
+  const R: any[] = [newSlide(slideId), setBg(slideId, C.offWhite)];
+
+  const total = d.facebook_new + d.google_new + d.instagram_new_posts +
+    d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
+
+  // Header
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.navy));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.25, IN * 0.11, W * 0.55, IN * 0.48,
+    d.competitor, { bold: true, size: 22, color: C.white },
+  ));
+
+  // Activity chips in header
+  const chips: { label: string; val: number }[] = [
+    { label: "Meta", val: d.facebook_new },
+    { label: "Google", val: d.google_new },
+    { label: "IG", val: d.instagram_new_posts },
+    { label: "TikTok", val: d.tiktok_new_videos },
+    { label: "YT", val: d.youtube_new_videos },
+    { label: "LI", val: d.linkedin_new_posts },
+  ].filter(c => c.val > 0);
+
+  let chipX = W - IN * 0.25;
+  for (const chip of chips.reverse()) {
+    const cw = IN * 0.75;
+    chipX -= cw + IN * 0.1;
+    R.push(...box(eid(), slideId, chipX, IN * 0.15, cw, IN * 0.38, C.brightBlue));
+    R.push(...txt(slideId, chipX, IN * 0.17, cw, IN * 0.34,
+      `${chip.label} ${chip.val}`,
+      { size: 8, color: C.white, bold: true, align: "CENTER" },
+      "LEFT_TO_RIGHT",
+    ));
+  }
+
+  // ── LEFT COLUMN (55% width) ──
   const lx = IN * 0.25;
-  const lw = IN * 5.0;
-  let ly = IN * 0.82;
+  const lw = IN * 4.85;
+  let ly  = IN * 0.82;
 
   // Summary
   if (ct?.summary) {
-    R.push(...txt(slideId, lx, ly, lw, IN * 0.42,
-      ct.summary,
-      { italic: true, size: 11, color: C.textMid },
+    R.push(...box(eid(), slideId, lx, ly, lw, IN * 0.52, C.white, C.cardBorder));
+    R.push(...box(eid(), slideId, lx, ly, IN * 0.06, IN * 0.52, C.brightBlue));
+    R.push(...txt(slideId, lx + IN * 0.18, ly + IN * 0.08, lw - IN * 0.28, IN * 0.38,
+      ct.summary, { size: 10.5, color: C.textMid, italic: true },
     ));
-    ly += IN * 0.48;
+    ly += IN * 0.6;
   }
 
-  // ✅ Good
+  // ✅ What they're doing right
   const good = (ct?.good || []).slice(0, 2);
   if (good.length > 0) {
-    R.push(...box(eid("glbl"), slideId, lx, ly, lw, IN * 0.3, C.greenBg, C.greenBdr));
-    R.push(...txt(slideId, lx + IN * 0.15, ly + IN * 0.03, lw - IN * 0.3, IN * 0.26,
-      "يعملونه صح", { bold: true, size: 10, color: C.green },
+    R.push(...box(eid(), slideId, lx, ly, lw, IN * 0.3, C.greenBg, C.greenBdr));
+    R.push(...box(eid(), slideId, lx, ly, IN * 0.06, IN * 0.3, C.greenSolid));
+    R.push(...txt(slideId, lx + IN * 0.18, ly + IN * 0.06, lw - IN * 0.28, IN * 0.22,
+      "✓  يعملونه صح", { bold: true, size: 9.5, color: C.green },
     ));
     ly += IN * 0.34;
     for (const g of good) {
-      R.push(...txt(slideId, lx + IN * 0.12, ly, lw - IN * 0.2, IN * 0.36,
-        `•  ${g}`, { size: 10, color: C.textDark },
+      R.push(...txt(slideId, lx + IN * 0.18, ly, lw - IN * 0.28, IN * 0.34,
+        `•  ${g}`, { size: 9.5, color: C.textDark },
       ));
-      ly += IN * 0.37;
+      ly += IN * 0.35;
     }
-    ly += IN * 0.06;
+    ly += IN * 0.08;
   }
 
-  // ❌ Gaps
+  // ❌ Gaps / weaknesses
   const bad = (ct?.bad || []).slice(0, 2);
   if (bad.length > 0) {
-    R.push(...box(eid("rlbl"), slideId, lx, ly, lw, IN * 0.3, C.redBg, C.redBdr));
-    R.push(...txt(slideId, lx + IN * 0.15, ly + IN * 0.03, lw - IN * 0.3, IN * 0.26,
-      "ثغرات نقدر نستفيد منها", { bold: true, size: 10, color: C.red },
+    R.push(...box(eid(), slideId, lx, ly, lw, IN * 0.3, C.redBg, C.redBdr));
+    R.push(...box(eid(), slideId, lx, ly, IN * 0.06, IN * 0.3, C.redSolid));
+    R.push(...txt(slideId, lx + IN * 0.18, ly + IN * 0.06, lw - IN * 0.28, IN * 0.22,
+      "✗  ثغرات نقدر نستغلها", { bold: true, size: 9.5, color: C.red },
     ));
     ly += IN * 0.34;
     for (const b of bad) {
-      R.push(...txt(slideId, lx + IN * 0.12, ly, lw - IN * 0.2, IN * 0.36,
-        `•  ${b}`, { size: 10, color: C.textDark },
+      R.push(...txt(slideId, lx + IN * 0.18, ly, lw - IN * 0.28, IN * 0.34,
+        `•  ${b}`, { size: 9.5, color: C.textDark },
       ));
-      ly += IN * 0.37;
+      ly += IN * 0.35;
     }
-    ly += IN * 0.06;
+    ly += IN * 0.08;
   }
 
-  // Qoyod advantage
+  // ⚡ Qoyod advantage
   if (ct?.qoyod_advantage) {
-    const advH = IN * 0.65;
-    R.push(...box(eid("adv"), slideId, lx, ly, lw, advH, C.cardBg, C.brightBlue, 2));
-    R.push(...textBox(eid("advt"), slideId, lx + IN * 0.15, ly + IN * 0.08, lw - IN * 0.3, advH - IN * 0.1,
-      [
-        { text: "ميزة قيود:  ", bold: true, size: 10, color: C.royalBlue },
-        { text: ct.qoyod_advantage, size: 10, color: C.textDark },
-      ],
-    ));
+    R.push(...box(eid(), slideId, lx, ly, lw, IN * 0.65, C.navy));
+    R.push(...box(eid(), slideId, lx, ly, IN * 0.06, IN * 0.65, C.brightBlue));
+    R.push(...textBox(eid(), slideId, lx + IN * 0.18, ly + IN * 0.08, lw - IN * 0.28, IN * 0.52, [
+      { text: "⚡ ميزة قيود:  ", bold: true, size: 10, color: C.brightBlue },
+      { text: ct.qoyod_advantage, size: 10, color: C.white },
+    ]));
   }
 
-  // ── Right column: top post ──
-  const rx = IN * 5.45;
+  // ── RIGHT COLUMN (top posts) ──
+  const rx = IN * 5.3;
   const rw = W - rx - IN * 0.25;
   const samples = d.top_samples.slice(0, 2);
   let ry = IN * 0.82;
 
   if (samples.length === 0) {
-    R.push(...box(eid("nop"), slideId, rx, ry, rw, IN * 0.5, C.cardBg, C.cardBorder));
-    R.push(...txt(slideId, rx + IN * 0.1, ry + IN * 0.12, rw - IN * 0.2, IN * 0.28,
+    R.push(...box(eid(), slideId, rx, ry, rw, IN * 0.56, C.cardBg, C.cardBorder));
+    R.push(...txt(slideId, rx + IN * 0.1, ry + IN * 0.15, rw - IN * 0.2, IN * 0.28,
       "لا منشورات جديدة هذا الأسبوع",
       { size: 10, color: C.textLight, align: "CENTER" },
     ));
-    ry += IN * 0.6;
+    ry += IN * 0.66;
   }
 
   for (const s of samples) {
     const slotH = samples.length === 1 ? IN * 3.85 : IN * 1.88;
-
-    R.push(...box(eid("pc"), slideId, rx, ry, rw, slotH, C.cardBg, C.cardBorder));
-    // Platform header
-    R.push(...box(eid("pt"), slideId, rx, ry, rw, IN * 0.3, C.royalBlue));
-    R.push(...txt(slideId, rx + IN * 0.1, ry + IN * 0.04, rw - IN * 0.2, IN * 0.24,
+    R.push(...box(eid(), slideId, rx, ry, rw, slotH, C.white, C.cardBorder));
+    // Platform header strip
+    R.push(...box(eid(), slideId, rx, ry, rw, IN * 0.3, C.royalBlue));
+    R.push(...txt(slideId, rx + IN * 0.12, ry + IN * 0.05, rw - IN * 0.24, IN * 0.22,
       s.source.toUpperCase(),
-      { bold: true, size: 9, color: C.white, align: "START" },
+      { bold: true, size: 8.5, color: C.white, align: "START" },
+      "LEFT_TO_RIGHT",
     ));
 
-    let cy2 = ry + IN * 0.35;
+    let py = ry + IN * 0.36;
 
     // Image
     if (s.image_url) {
       const imgH = samples.length === 1 ? IN * 2.2 : IN * 1.0;
       try {
-        R.push(image(slideId, s.image_url, rx + IN * 0.1, cy2, rw - IN * 0.2, imgH));
-        cy2 += imgH + IN * 0.1;
+        R.push({
+          createImage: {
+            objectId: eid("img"), url: s.image_url,
+            elementProperties: { pageObjectId: slideId, size: emu(rw - IN * 0.2, imgH), transform: pos(rx + IN * 0.1, py) },
+          },
+        });
+        py += imgH + IN * 0.1;
       } catch { /* skip */ }
     }
 
     // Post text
-    const postText = (s.hook || s.body || "").slice(0, 150);
-    const textH = slotH - (cy2 - ry) - IN * 0.42;
+    const postText = (s.hook || s.body || "").slice(0, 160);
+    const textH = slotH - (py - ry) - IN * 0.4;
     if (postText && textH > IN * 0.2) {
-      R.push(...txt(slideId, rx + IN * 0.12, cy2, rw - IN * 0.22, textH,
-        `"${postText}"`,
-        { italic: true, size: 9, color: C.textMid },
+      R.push(...txt(slideId, rx + IN * 0.12, py, rw - IN * 0.22, textH,
+        `"${postText}"`, { italic: true, size: 9, color: C.textMid },
       ));
     }
 
     // Link
     if (s.detail_url) {
-      R.push(...txt(slideId, rx + IN * 0.1, ry + slotH - IN * 0.36, rw - IN * 0.2, IN * 0.3,
-        "عرض المنشور  ←",
-        { bold: true, size: 9, color: C.brightBlue, link: s.detail_url, align: "START" },
+      R.push(...txt(slideId, rx + IN * 0.12, ry + slotH - IN * 0.35, rw - IN * 0.22, IN * 0.28,
+        "← عرض المنشور",
+        { bold: true, size: 8.5, color: C.brightBlue, link: s.detail_url, align: "START" },
+        "LEFT_TO_RIGHT",
       ));
     }
 
     ry += slotH + IN * 0.1;
   }
 
-  // Proven winners footer
-  if (d.proven_winners.length > 0) {
-    const pwY = H - IN * 0.5;
-    R.push(...box(eid("pw"), slideId, 0, pwY, W, IN * 0.45, C.amberBg, C.amberBdr));
-    R.push(...txt(slideId, IN * 0.25, pwY + IN * 0.07, W - IN * 0.5, IN * 0.3,
-      `محتوى مثبت (>30 يوم):  ${d.proven_winners.slice(0, 2).join("  ·  ")}`,
+  // Proven winners amber footer
+  if ((d.proven_winners?.length || 0) > 0) {
+    R.push(...box(eid(), slideId, 0, H - IN * 0.44, W, IN * 0.44, C.amberBg, C.amberBdr));
+    R.push(...txt(slideId, IN * 0.3, H - IN * 0.36, W - IN * 0.6, IN * 0.3,
+      `★ إعلانات مثبتة (أكثر من 30 يوم):  ${d.proven_winners!.slice(0, 3).join("  ·  ")}`,
       { size: 9, color: C.amber },
     ));
   }
@@ -569,45 +694,100 @@ function competitorSlide(slideId: string, d: WeekDiff, ct: any): any[] {
   return R;
 }
 
-// ─── TASKS SLIDE ─────────────────────────────────────────────────────────────
-function tasksSlide(slideId: string, tasks: Array<{ title: string; owner: string; deadline?: string; why?: string }>): any[] {
-  const R: any[] = [newSlide(slideId), setBg(slideId, C.white)];
+// ─── SLIDE 5: KNOWLEDGE INSIGHTS ──────────────────────────────────────────────
+function knowledgeSlide(slideId: string, insights: string[]): any[] {
+  const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
 
-  R.push(...box(eid("hdr"), slideId, 0, 0, W, IN * 0.62, C.navy));
-  R.push(...box(eid("hac"), slideId, 0, 0, IN * 0.1, IN * 0.62, C.brightBlue));
-  R.push(...txt(slideId, IN * 0.25, IN * 0.1, W - IN * 0.5, IN * 0.46,
-    "مهام الفريق هذا الأسبوع",
-    { bold: true, size: 20, color: C.white },
+  // Header
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.royalBlue));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.3, IN * 0.12, W * 0.7, IN * 0.48,
+    "ما تعلّمناه هذا الأسبوع  —  قاعدة المعرفة",
+    { bold: true, size: 18, color: C.white },
   ));
 
-  const rh  = IN * 0.72;
+  const cols = 2;
+  const cardW = (W - IN * 0.6 - IN * 0.2) / cols;
+  const cardH = IN * 0.88;
+  const gap   = IN * 0.18;
+
+  for (let i = 0; i < Math.min(insights.length, 8); i++) {
+    const col  = i % cols;
+    const row  = Math.floor(i / cols);
+    const cx   = IN * 0.3 + col * (cardW + IN * 0.2);
+    const cy   = IN * 0.88 + row * (cardH + gap);
+
+    R.push(...box(eid(), slideId, cx, cy, cardW, cardH, C.navyLight, C.brightBlue, 1));
+    // Number badge
+    R.push(...box(eid(), slideId, cx, cy, IN * 0.36, cardH, C.brightBlue));
+    R.push(...txt(slideId, cx, cy + IN * 0.24, IN * 0.36, IN * 0.42,
+      String(i + 1),
+      { bold: true, size: 16, color: C.white, align: "CENTER" },
+      "LEFT_TO_RIGHT",
+    ));
+    R.push(...txt(slideId, cx + IN * 0.46, cy + IN * 0.14, cardW - IN * 0.56, IN * 0.64,
+      insights[i],
+      { size: 9.5, color: "#C8D8F0", lh: 130 },
+    ));
+  }
+
+  // Footer note
+  R.push(...txt(slideId, IN * 0.3, H - IN * 0.42, W - IN * 0.6, IN * 0.3,
+    "هذه المعرفة تُحقن تلقائياً في كل عملية توليد محتوى — النظام يتعلّم كل أسبوع",
+    { size: 8.5, color: "#6B8CB8", italic: true },
+  ));
+
+  return R;
+}
+
+// ─── SLIDE 6: ACTION PLAN ─────────────────────────────────────────────────────
+function actionPlanSlide(
+  slideId: string,
+  tasks: Array<{ title: string; owner: string; deadline?: string; why?: string }>,
+): any[] {
+  const R: any[] = [newSlide(slideId), setBg(slideId, C.white)];
+
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.navy));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.3, IN * 0.12, W * 0.7, IN * 0.48,
+    "مهام الفريق هذا الأسبوع",
+    { bold: true, size: 19, color: C.white },
+  ));
+
+  const priorityColors = [C.redSolid, C.amberSolid, C.greenSolid, C.brightBlue, C.skyBlue, C.textLight];
+  const priorityLabels = ["P1", "P2", "P3", "P4", "P5", "P6"];
+
+  const rh  = IN * 0.68;
   const gap = IN * 0.1;
 
   for (let i = 0; i < Math.min(tasks.length, 6); i++) {
-    const t = tasks[i];
-    const ty = IN * 0.78 + i * (rh + gap);
-    R.push(...box(eid("tr"), slideId, IN * 0.25, ty, W - IN * 0.5, rh,
+    const t  = tasks[i];
+    const ty = IN * 0.82 + i * (rh + gap);
+
+    R.push(...box(eid(), slideId, IN * 0.3, ty, W - IN * 0.6, rh,
       i % 2 === 0 ? C.cardBg : C.white, C.cardBorder,
     ));
-    // Number badge
-    R.push(...box(eid("nb"), slideId, IN * 0.25, ty, IN * 0.48, rh, C.royalBlue));
-    R.push(...txt(slideId, IN * 0.25, ty + IN * 0.18, IN * 0.48, IN * 0.38,
-      String(i + 1),
-      { bold: true, size: 18, color: C.white, align: "CENTER" },
+
+    // Priority badge
+    R.push(...box(eid(), slideId, IN * 0.3, ty, IN * 0.5, rh, priorityColors[i] || C.textLight));
+    R.push(...txt(slideId, IN * 0.3, ty + IN * 0.2, IN * 0.5, IN * 0.3,
+      priorityLabels[i],
+      { bold: true, size: 10, color: C.white, align: "CENTER" },
+      "LEFT_TO_RIGHT",
     ));
-    // Title
-    R.push(...txt(slideId, IN * 0.85, ty + IN * 0.05, W - IN * 3.6, IN * 0.38,
-      t.title,
-      { bold: true, size: 12, color: C.navy },
+
+    // Task title
+    R.push(...txt(slideId, IN * 0.95, ty + IN * 0.06, W - IN * 3.8, IN * 0.36,
+      t.title, { bold: true, size: 11.5, color: C.navy },
     ));
     if (t.why) {
-      R.push(...txt(slideId, IN * 0.85, ty + IN * 0.4, W - IN * 3.6, IN * 0.28,
-        t.why,
-        { italic: true, size: 9, color: C.textLight },
+      R.push(...txt(slideId, IN * 0.95, ty + IN * 0.4, W - IN * 3.8, IN * 0.24,
+        t.why, { italic: true, size: 8.5, color: C.textLight },
       ));
     }
-    // Owner · deadline
-    R.push(...txt(slideId, W - IN * 2.8, ty + IN * 0.2, IN * 2.35, IN * 0.35,
+
+    // Owner · deadline (right side)
+    R.push(...txt(slideId, W - IN * 2.9, ty + IN * 0.18, IN * 2.4, IN * 0.34,
       [t.owner, t.deadline].filter(Boolean).join("  ·  "),
       { size: 9, color: C.brightBlue, align: "END" },
     ));
@@ -616,27 +796,70 @@ function tasksSlide(slideId: string, tasks: Array<{ title: string; owner: string
   return R;
 }
 
-// ─── ALERT SLIDE ─────────────────────────────────────────────────────────────
-function alertSlide(slideId: string, alert: string): any[] {
-  const R: any[] = [newSlide(slideId), setBg(slideId, C.redBg)];
-  R.push(...box(eid("top"), slideId, 0, 0, W, IN * 0.14, C.red));
-  R.push(...box(eid("bot"), slideId, 0, H - IN * 0.14, W, IN * 0.14, C.red));
-  R.push(...txt(slideId, IN, H / 2 - IN * 0.9, W - IN * 2, IN * 0.55,
-    "تنبيه عاجل",
-    { bold: true, size: 26, color: C.red, align: "CENTER" },
+// ─── SLIDE 7: CLOSING ─────────────────────────────────────────────────────────
+function closingSlide(slideId: string, actions: string[], weekLabel: string): any[] {
+  const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
+
+  // Decorative top strip
+  R.push(...box(eid(), slideId, 0, 0, W, IN * 0.08, C.brightBlue));
+  R.push(...box(eid(), slideId, 0, H - IN * 0.08, W, IN * 0.08, C.brightBlue));
+
+  // Title
+  R.push(...txt(slideId, IN * 0.5, IN * 0.5, W - IN * 1.0, IN * 0.7,
+    "خطوة قيود هذا الأسبوع",
+    { bold: true, size: 32, color: C.white },
   ));
-  R.push(...txt(slideId, IN, H / 2 - IN * 0.25, W - IN * 2, IN * 1.2,
-    alert,
-    { size: 15, color: C.textDark, align: "CENTER" },
+  R.push(...txt(slideId, IN * 0.5, IN * 1.28, W - IN * 1.0, IN * 0.36,
+    weekLabel, { size: 12, color: C.brightBlue },
   ));
+
+  // Rule
+  R.push(...box(eid(), slideId, IN * 0.5, IN * 1.72, IN * 2.0, IN * 0.05, C.brightBlue));
+
+  // Action cards (3 across)
+  const displayActions = actions.length > 0 ? actions.slice(0, 3) : [
+    "لا توجد توصيات محددة هذا الأسبوع",
+  ];
+  const aw = (W - IN * 1.0 - IN * 0.2 * (displayActions.length - 1)) / displayActions.length;
+  const ay = IN * 2.0;
+  const ah = IN * 2.2;
+
+  for (let i = 0; i < displayActions.length; i++) {
+    const ax = IN * 0.5 + i * (aw + IN * 0.2);
+    R.push(...box(eid(), slideId, ax, ay, aw, ah, C.navyLight, C.brightBlue, 1.5));
+    // Top accent
+    R.push(...box(eid(), slideId, ax, ay, aw, IN * 0.06, C.brightBlue));
+    // Number
+    R.push(...txt(slideId, ax, ay + IN * 0.18, aw, IN * 0.55,
+      String(i + 1),
+      { bold: true, size: 28, color: C.brightBlue, align: "CENTER" },
+      "LEFT_TO_RIGHT",
+    ));
+    // Action text
+    R.push(...txt(slideId, ax + IN * 0.2, ay + IN * 0.82, aw - IN * 0.4, ah - IN * 1.0,
+      displayActions[i],
+      { size: 11, color: C.white, lh: 135 },
+    ));
+  }
+
+  // Footer
+  R.push(...txt(slideId, IN * 0.5, H - IN * 0.5, W - IN * 1.0, IN * 0.3,
+    "قيود · Creative OS  —  النظام يتعلم ويتطور كل أسبوع",
+    { size: 9, color: "#4A6A9C" },
+  ));
+
   return R;
 }
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 export interface AIOutput {
   headline?: string;
-  competitors?: Array<{ name: string; summary: string; good?: string[]; bad?: string[]; qoyod_advantage?: string }>;
+  competitors?: Array<{
+    name: string; summary: string;
+    good?: string[]; bad?: string[]; qoyod_advantage?: string;
+  }>;
   tasks?: Array<{ title: string; owner: string; deadline?: string; why?: string }>;
+  recommended_actions?: string[];
   alert?: string | null;
 }
 
@@ -672,30 +895,42 @@ export async function createWeeklySlidesPresentation(
     const requests: any[] = [];
     if (defaultSlide?.objectId) requests.push({ deleteObject: { objectId: defaultSlide.objectId } });
 
-    // Cover
+    // 1. Cover
     requests.push(...coverSlide(eid("slide"), weekLabel, total, diffs.length));
 
-    // Summary
-    requests.push(...summarySlide(eid("slide"), ai, diffs, weekLabel));
+    // 2. Executive summary
+    requests.push(...execSummarySlide(eid("slide"), ai, diffs, weekLabel));
 
-    // Per-competitor
+    // 3. Market activity bars
+    requests.push(...marketActivitySlide(eid("slide"), diffs, weekLabel));
+
+    // 4. Per-competitor deep-dives
     for (const d of diffs) {
       const act = d.facebook_new + d.google_new + d.instagram_new_posts +
-                  d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
-      if (act === 0 && d.facebook_paused === 0) continue;
-      const ct = (ai.competitors || []).find(c => c.name.toLowerCase() === d.competitor.toLowerCase());
+        d.youtube_new_videos + d.tiktok_new_videos + d.linkedin_new_posts;
+      if (act === 0 && d.facebook_paused === 0 && !d.proven_winners?.length) continue;
+      const ct = (ai.competitors || []).find(
+        c => c.name.toLowerCase() === d.competitor.toLowerCase(),
+      );
       requests.push(...competitorSlide(eid("slide"), d, ct));
     }
 
-    // Tasks
-    if ((ai.tasks || []).length > 0) {
-      requests.push(...tasksSlide(eid("slide"), ai.tasks!));
+    // 5. Knowledge insights (top 8 from notable angles + recommended actions)
+    const insights = [
+      ...diffs.flatMap(d => (d.notable_angles || []).map(a => `${d.competitor}: ${a}`)),
+      ...(ai.recommended_actions || []),
+    ].filter(Boolean).slice(0, 8);
+    if (insights.length > 0) {
+      requests.push(...knowledgeSlide(eid("slide"), insights));
     }
 
-    // Alert
-    if (ai.alert) {
-      requests.push(...alertSlide(eid("slide"), ai.alert));
+    // 6. Action plan
+    if ((ai.tasks || []).length > 0) {
+      requests.push(...actionPlanSlide(eid("slide"), ai.tasks!));
     }
+
+    // 7. Closing — Qoyod's move
+    requests.push(...closingSlide(eid("slide"), ai.recommended_actions || [], weekLabel));
 
     await slides.presentations.batchUpdate({ presentationId: presId, requestBody: { requests } });
 
