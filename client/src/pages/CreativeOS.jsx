@@ -1152,15 +1152,16 @@ export default function CreativeOS(){
         <div style={{display:"flex",alignItems:"center",gap:9}}>
           <div style={{width:30,height:30,background:"linear-gradient(135deg,#17a3a3,#13778d)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff"}}>Q</div>
           <div>
-            <div style={{fontSize:12.5,fontWeight:700}}>Somaa Content Agent</div>
+            <div style={{fontSize:12.5,fontWeight:700}}>Social Media Artist</div>
             <div style={{fontSize:9.5,color:"#2e5468",marginTop:1}}>{T("وكيل المحتوى الذكي","AI Content Agent")}</div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <a href="/dashboard.html" style={{display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:4,border:"1px solid rgba(47,117,242,.3)",background:"rgba(47,117,242,.08)",fontSize:9.5,color:"#4B9EFF",fontWeight:600,textDecoration:"none",fontFamily:"inherit"}}>{T("لوحة الوكلاء","Agent Hub")} ↗</a>
           <div style={{display:"flex",background:"#0a1f3d",border:"1px solid rgba(1,53,90,.45)",borderRadius:6,overflow:"hidden",height:26}}>
             {["ar","en"].map(l=><button key={l} onClick={()=>setLang(l)} style={{padding:"0 10px",height:"100%",background:lang===l?"rgba(23,163,164,.1)":"none",border:"none",color:lang===l?"#17a3a3":"#2e5468",fontSize:10.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{l.toUpperCase()}</button>)}
           </div>
-<div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid rgba(23,163,164,.12)",fontSize:9.5,color:"#2e5468"}}>
+          <div style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid rgba(23,163,164,.12)",fontSize:9.5,color:"#2e5468"}}>
             <div style={{width:4,height:4,borderRadius:"50%",background:"#17a3a3"}}/>LIVE
           </div>
         </div>
@@ -2112,10 +2113,8 @@ export default function CreativeOS(){
               </div>
             )}
 
-            {/* ── Two-column: Run + Schedules ── */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-
-              {/* Manual Run */}
+            {/* ── Manual Run ── */}
+            <div style={{marginBottom:10}}>
               <div style={card}>
                 <div style={cHead}>
                   <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("تشغيل يدوي","Run Agent")}</span>
@@ -2127,7 +2126,7 @@ export default function CreativeOS(){
                         {id:"orchestrator",label:"المنسق",label_en:"Orchestrator"},
                         {id:"social_media",label:"السوشيال",label_en:"Social"},
                         {id:"content_creator",label:"المحتوى",label_en:"Content"},
-                        {id:"cro",label:"الإعلانات",label_en:"Paid Media"},
+                        {id:"paid_media_analyst",label:"الإعلانات",label_en:"Paid Media"},
                         {id:"email_lifecycle",label:"البريد",label_en:"Email"},
                         {id:"editor_qa",label:"المدقق",label_en:"Editor QA"},
                       ]).map(p=>(
@@ -2154,47 +2153,6 @@ export default function CreativeOS(){
                     </div>
                   )}
                   <Btn ch={agentRunning?T("يعمل...","Running..."):T("تشغيل الوكيل","Run Agent")} onClick={runAgent} dis={agentRunning||!agentRunPrompt.trim()} full/>
-                </div>
-              </div>
-
-              {/* Scheduled Jobs */}
-              <div style={card}>
-                <div style={cHead}>
-                  <span style={{fontSize:11,fontWeight:700,color:"#6a96aa",letterSpacing:".04em",textTransform:"uppercase"}}>{T("المهام المجدولة","Scheduled Jobs")}</span>
-                  <span style={{fontSize:9.5,color:"#2e5468"}}>{agentSchedules.length} {T("جدول","jobs")}</span>
-                </div>
-                <div style={cBody}>
-                  {/* Fixed system jobs */}
-                  {[
-                    {name:T("رصد المنافسين الأسبوعي","Weekly Competitor Monitor"),when:T("الأحد 09:00 UTC","Sunday 09:00 UTC"),action:()=>fetch("/api/competitor-ads/run-monitor-now",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({postToSlack:false})}).then(r=>r.json()).then(j=>alert(j.week||j.error))},
-                    {name:T("ملخص Slack اليومي","Daily Slack Digest"),when:T("يومياً","Daily"),action:()=>fetch("/api/agent/weekly-digest/run-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Sent":"Failed: "+j.error))},
-                    {name:T("تحليل المنافسين","Competitor Analysis"),when:T("كل ساعة","Hourly"),action:()=>fetch("/api/agent/competitor/poll-now",{method:"POST"}).then(r=>r.json()).then(j=>alert(j.ok?"Done":"Failed: "+j.error))},
-                  ].map((j,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i<2?"1px solid rgba(1,53,90,.25)":"none"}}>
-                      <div>
-                        <p style={{fontSize:11,fontWeight:600,color:"#ddeef4",margin:0}}>{j.name}</p>
-                        <p style={{fontSize:9.5,color:"#2e5468",margin:0}}>{j.when}</p>
-                      </div>
-                      <button onClick={j.action} style={{padding:"4px 9px",borderRadius:5,fontFamily:"inherit",fontSize:10,cursor:"pointer",border:"1px solid rgba(23,163,164,.3)",background:"rgba(23,163,164,.08)",color:"#17a3a3",fontWeight:600}}>
-                        {T("شغّل","Run")}
-                      </button>
-                    </div>
-                  ))}
-                  {/* Dynamic schedules */}
-                  {agentSchedules.length>0&&(
-                    <div style={{marginTop:10}}>
-                      <p style={{fontSize:9.5,color:"#2e5468",marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>{T("مجدولة ديناميكية","Dynamic Schedules")}</p>
-                      {agentSchedules.slice(0,4).map(s=>(
-                        <div key={s.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(1,53,90,.2)"}}>
-                          <div>
-                            <p style={{fontSize:10.5,fontWeight:600,color:"#ddeef4",margin:0}}>{s.name}</p>
-                            {s.next_run_at&&<p style={{fontSize:9,color:"#2e5468",margin:0}}>{T("التالي: ","Next: ")}{new Date(s.next_run_at).toLocaleTimeString()}</p>}
-                          </div>
-                          <div style={{width:8,height:8,borderRadius:"50%",background:s.active?"#5dc87a":"#f07070"}}/>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Qoyod Creative OS — Agent Activity Dashboard</title>
+<title>Social Media Artist — Agent Activity Dashboard</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -203,6 +203,29 @@
   .cdown-lbl { font-size: 9px; color: var(--sub); margin-bottom: 3px; }
   .cdown-val { font-size: 22px; font-weight: 700; color: var(--bright); letter-spacing: .04em; }
 
+  /* AGENT MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; z-index: 500; padding: 20px;
+  }
+  .modal-box {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 480px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  }
+  .modal-head {
+    padding: 20px 22px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+  .modal-role  { font-size: 11px; color: var(--sub); line-height: 1.5; }
+  .modal-close { background: none; border: none; color: var(--sub); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .modal-body  { padding: 18px 22px; }
+  .modal-section-lbl { font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); margin-bottom: 8px; }
+  .tool-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
+  .tool-chip { font-size: 10px; padding: 3px 8px; border-radius: 5px; background: rgba(47,117,242,.1); color: var(--accent); border: 1px solid rgba(47,117,242,.15); }
+  .tool-chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
+
   /* TOAST */
   #toast {
     position: fixed; bottom: 22px; right: 22px; z-index: 999;
@@ -234,11 +257,12 @@
   <div class="logo">
     <div class="logo-mark">Q</div>
     <div>
-      <h1>Creative OS</h1>
+      <h1>Social Media Artist</h1>
       <p>Agent Activity Dashboard</p>
     </div>
   </div>
   <div class="hdr-right">
+    <a href="/" style="display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(47,117,242,.1);border:1px solid rgba(47,117,242,.25);color:var(--accent);text-decoration:none;">← Main App</a>
     <div class="pill pill-green"><div class="dot dot-green"></div><span id="sysStatusLabel">Checking...</span></div>
     <div class="pill pill-blue"><div class="dot dot-blue"></div><span id="commitLabel">–</span></div>
   </div>
@@ -276,7 +300,7 @@
   </div>
 
   <!-- Agent cards -->
-  <div class="section-label">Agent Team — 5 Specialists</div>
+  <div class="section-label">Agent Team — 6 Specialists · click a card for details</div>
   <div class="agents" id="agentGrid"></div>
 
   <!-- Main 3-col grid -->
@@ -357,6 +381,28 @@
 
 <div id="toast"></div>
 
+<!-- Agent detail modal -->
+<div class="modal-overlay" id="agentModal" style="display:none" onclick="if(event.target===this)closeAgentModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div style="font-size:28px;margin-bottom:6px" id="mEm"></div>
+        <div class="modal-title" id="mName"></div>
+        <div class="modal-role" id="mRole"></div>
+      </div>
+      <button class="modal-close" onclick="closeAgentModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-lbl">Tool Access</div>
+      <div class="tool-grid" id="mTools"></div>
+      <div class="modal-section-lbl">Trigger Keywords</div>
+      <div id="mKeywords" style="font-size:11px;color:var(--sub);line-height:1.8;margin-bottom:14px"></div>
+      <div class="modal-section-lbl">Status</div>
+      <div id="mStatus" style="font-size:11px"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Config ────────────────────────────────────────────
 const BASE = window.location.origin;
@@ -368,7 +414,7 @@ const AGENTS = [
   { id:'email_lifecycle', em:'📧', name:'Email Lifecycle',  role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
   { id:'paid_media_analyst',em:'📡',name:'Paid Media Analyst',role:'Ad library · Counter-creative · Paid performance',  tools:['analyze_competitor_content','analyze_metrics_report','build_campaign_plan','generate_google_ads_rsa'], active:false },
   { id:'editor_qa',       em:'🔍', name:'Editor / QA',     role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
-  { id:'orchestrator',    em:'🎼', name:'Orchestrator',    role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
+  { id:'orchestrator',    em:'🎼', name:'Team Manager',     role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
 ];
 
 // ── Activity feed items ───────────────────────────────
@@ -400,7 +446,10 @@ const ON_DEMAND = [
   { em:'📡', name:'Competitor Ad Library Scan',   agent:'paid_media_analyst', desc:'Paid Media Analyst',   endpoint:'/api/competitor-ads', body:null },
   { em:'🎯', name:'Counter-Creative Brief',       agent:'paid_media_analyst', desc:'Paid Media Analyst',   endpoint:'/api/agent', body:'Analyze competitor ad library, identify winning angles running >30 days, and produce counter-creative briefs for Qoyod.' },
   { em:'✅', name:'Copy QA Check',                agent:'editor_qa',          desc:'Editor / QA',          endpoint:'/api/editor-qa', body:'Run the 11-rule QA checklist on the latest content output.' },
-  { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator',       desc:'Orchestrator',         endpoint:'/api/monitor/trigger', body:null },
+  { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator',       desc:'Team Manager',         endpoint:'/api/monitor/trigger', body:null },
+  { em:'📝', name:'Blog Article',                 agent:'content_creator',    desc:'Content Creator',      endpoint:'/api/agent', body:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.' },
+  { em:'💌', name:'Nurture Email Sequence',        agent:'email_lifecycle',    desc:'Email Lifecycle',      endpoint:'/api/agent', body:'Build a 4-email nurture sequence for Qoyod trial users who did not convert. Weekly cadence. Arabic-first. Focus on feature discovery and social proof.' },
+  { em:'🔁', name:'Winback Sequence',             agent:'email_lifecycle',    desc:'Email Lifecycle',      endpoint:'/api/agent', body:'Build a 3-email winback sequence for Qoyod churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven with urgency.' },
 ];
 
 // ── Scheduled tasks ───────────────────────────────────
@@ -438,9 +487,18 @@ const CHANNELS = [
 ];
 
 // ── Render ────────────────────────────────────────────
+const AGENT_KEYWORDS = {
+  social_media:      '@social · calendar · competitor · organic · instagram · tiktok · linkedin · snapchat',
+  content_creator:   '@writer · copy · headline · caption · google ads · blog · article · مقال',
+  email_lifecycle:   '@email · nurture · winback · welcome · sequence · drip · بريد',
+  paid_media_analyst:'@paid · @pma · ad library · meta ads · counter creative · ctr · cpl · roas',
+  editor_qa:         '@editor · review · qa · dialect check · تدقيق',
+  orchestrator:      'default fallback — handles complex / multi-step / unclear briefs',
+};
+
 function renderAgents() {
-  document.getElementById('agentGrid').innerHTML = AGENTS.map(a => `
-    <div class="agent-box">
+  document.getElementById('agentGrid').innerHTML = AGENTS.map((a, i) => `
+    <div class="agent-box" style="cursor:pointer" onclick="showAgentModal(${i})">
       <div class="agent-top">
         <span class="agent-em">${a.em}</span>
         <span class="status-badge ${a.active ? 'sb-active' : 'sb-idle'}">${a.active ? 'ACTIVE' : 'IDLE'}</span>
@@ -453,6 +511,24 @@ function renderAgents() {
       </div>
     </div>
   `).join('');
+}
+
+function showAgentModal(idx) {
+  const a = AGENTS[idx];
+  document.getElementById('mEm').textContent   = a.em;
+  document.getElementById('mName').textContent = a.name;
+  document.getElementById('mRole').textContent = a.role;
+  document.getElementById('mTools').innerHTML  = a.tools.map(t =>
+    `<span class="tool-chip ${t==='ALL TOOLS'?'tool-chip-all':''}">${t}</span>`
+  ).join('');
+  document.getElementById('mKeywords').textContent = AGENT_KEYWORDS[a.id] || '—';
+  const statusEl = document.getElementById('mStatus');
+  statusEl.innerHTML = `<span style="color:${a.active?'var(--green)':'var(--muted)'};font-weight:600">${a.active ? '● Active — currently processing tasks' : '○ Idle — ready for on-demand tasks'}</span>`;
+  document.getElementById('agentModal').style.display = 'flex';
+}
+
+function closeAgentModal() {
+  document.getElementById('agentModal').style.display = 'none';
 }
 
 let currentFilter = 'all';
