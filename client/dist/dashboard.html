@@ -229,31 +229,36 @@
 
   /* EMAIL MARKETING SECTION */
   .email-section { margin-top: 20px; }
-  .email-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-  .email-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 13px; overflow: hidden;
+  .email-group { background: var(--card); border: 1px solid var(--border); border-radius: 13px; margin-bottom: 10px; overflow: hidden; }
+  .email-group-head {
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; user-select: none;
+    transition: background .15s;
   }
-  .email-card-top {
-    padding: 14px 16px 10px; border-bottom: 1px solid rgba(47,117,242,.07);
-    display: flex; align-items: flex-start; gap: 10px;
+  .email-group-head:hover { background: rgba(47,117,242,.05); }
+  .email-group-title { font-size: 12px; font-weight: 700; flex: 1; }
+  .email-group-count { font-size: 10px; color: var(--sub); }
+  .email-group-caret { font-size: 10px; color: var(--sub); transition: transform .2s; }
+  .email-group-caret.open { transform: rotate(180deg); }
+  .email-group-body { display: none; border-top: 1px solid var(--border); }
+  .email-group-body.open { display: block; }
+  .email-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    border-bottom: 1px solid rgba(47,117,242,.05); font-size: 11px;
   }
+  .email-row:last-child { border-bottom: none; }
+  .email-row-name  { flex: 1; min-width: 0; }
+  .email-row-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .email-row-sub   { font-size: 9px; color: var(--sub); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .email-row-stats { display: flex; gap: 12px; flex-shrink: 0; font-size: 10px; color: var(--sub); }
+  .email-row-stats span { white-space: nowrap; }
+  .email-row-date  { font-size: 9px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
   .email-state {
     font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
   }
   .es-sent      { background: rgba(34,197,94,.14);  color: var(--green); }
   .es-scheduled { background: rgba(245,158,11,.14); color: var(--yellow); }
   .es-sending   { background: rgba(47,117,242,.14); color: var(--bright); }
-  .es-draft     { background: rgba(100,116,139,.12);color: var(--muted); }
-  .email-name   { font-size: 12px; font-weight: 700; margin-bottom: 3px; line-height: 1.3; }
-  .email-subject{ font-size: 10px; color: var(--sub); }
-  .email-stats  { display: grid; grid-template-columns: repeat(3, 1fr); padding: 10px 16px; gap: 6px; }
-  .email-stat   { text-align: center; }
-  .email-stat .esv { font-size: 16px; font-weight: 700; }
-  .email-stat .esl { font-size: 9px; color: var(--sub); margin-top: 1px; }
-  .esv-green { color: var(--green); }
-  .esv-blue  { color: var(--accent); }
-  .esv-yellow{ color: var(--yellow); }
-  .email-date { font-size: 9px; color: var(--muted); padding: 0 16px 10px; }
   .email-empty { text-align: center; padding: 32px; color: var(--muted); font-size: 12px; }
   .email-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 9px; padding: 12px 16px; font-size: 11px; color: var(--red); }
 
@@ -957,45 +962,81 @@ async function fetchEmailCampaigns() {
   }
 }
 
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtPct(num, denom) {
+  return denom > 0 ? ((num / denom) * 100).toFixed(1) + '%' : '—';
+}
+
 function renderEmailSection(campaigns, error) {
   const el = document.getElementById('emailSection');
   if (!el) return;
-  if (error) {
-    el.innerHTML = `<div class="email-error">⚠ ${error}</div>`;
-    return;
-  }
+  if (error) { el.innerHTML = `<div class="email-error">⚠ ${error}</div>`; return; }
   if (!campaigns || campaigns.length === 0) {
-    el.innerHTML = '<div class="email-empty">No email campaigns found in HubSpot</div>';
+    el.innerHTML = '<div class="email-empty">No published emails found in HubSpot</div>';
     return;
   }
-  el.innerHTML = '<div class="email-grid">' + campaigns.map(e => {
-    const state    = e.currentState || 'DRAFT';
-    const stateCls = EM_STATE_CLASS[state] || 'es-draft';
-    const stats    = e.stats?.counters || {};
-    const sent     = stats.sent || stats.delivered || 0;
-    const opens    = stats.open || 0;
-    const clicks   = stats.click || 0;
-    const openRate = sent > 0 ? ((opens / sent) * 100).toFixed(1) + '%' : '—';
-    const ctr      = sent > 0 ? ((clicks / sent) * 100).toFixed(1) + '%' : '—';
-    const dateStr  = e.currentlyPublishedAt
-      ? new Date(e.currentlyPublishedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
-      : (e.scheduledAt ? '⏰ ' + new Date(e.scheduledAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '');
-    return `<div class="email-card">
-      <div class="email-card-top">
-        <div style="flex:1;min-width:0">
-          <div class="email-name">${e.name || '(unnamed)'}</div>
-          <div class="email-subject">${e.subject || ''}</div>
+
+  // Group by state
+  const groups = { SENT:[], SCHEDULED:[], SENDING:[] };
+  for (const e of campaigns) {
+    const s = (e.state || '').toUpperCase();
+    if (groups[s]) groups[s].push(e);
+    else groups.SENT.push(e); // unknown state → treat as sent
+  }
+
+  const GROUP_META = {
+    SENT:      { label:'Sent',      em:'✅', cls:'es-sent',      open: true  },
+    SCHEDULED: { label:'Scheduled', em:'⏰', cls:'es-scheduled', open: true  },
+    SENDING:   { label:'Sending',   em:'📤', cls:'es-sending',   open: true  },
+  };
+
+  let html = '';
+  for (const [state, items] of Object.entries(groups)) {
+    if (!items.length) continue;
+    const m = GROUP_META[state];
+    const bodyId = 'eg_' + state;
+    html += `<div class="email-group">
+      <div class="email-group-head" onclick="toggleEmailGroup('${bodyId}')">
+        <span class="email-state ${m.cls}">${m.em} ${m.label}</span>
+        <span class="email-group-title"></span>
+        <span class="email-group-count">${items.length} email${items.length>1?'s':''}</span>
+        <span class="email-group-caret ${m.open?'open':''}">▼</span>
+      </div>
+      <div class="email-group-body ${m.open?'open':''}" id="${bodyId}">`;
+
+    for (const e of items) {
+      const s   = e.stats || {};
+      const del = s.delivered || s.sent || 0;
+      const row = [
+        del   ? `📬 ${del.toLocaleString()}` : '',
+        s.opens   ? `👁 ${fmtPct(s.opens,   del)}` : '',
+        s.clicks  ? `🔗 ${fmtPct(s.clicks,  del)}` : '',
+        s.bounces ? `↩ ${s.bounces}` : '',
+      ].filter(Boolean).join('  ');
+      const date = fmtDate(e.publishDate || e.scheduledAt);
+      html += `<div class="email-row">
+        <div class="email-row-name">
+          <div class="email-row-title">${e.name || '(unnamed)'}</div>
+          ${e.subject ? `<div class="email-row-sub">${e.subject}</div>` : ''}
         </div>
-        <span class="email-state ${stateCls}">${state}</span>
-      </div>
-      <div class="email-stats">
-        <div class="email-stat"><div class="esv esv-blue">${sent.toLocaleString()}</div><div class="esl">Delivered</div></div>
-        <div class="email-stat"><div class="esv esv-green">${openRate}</div><div class="esl">Open Rate</div></div>
-        <div class="email-stat"><div class="esv esv-yellow">${ctr}</div><div class="esl">CTR</div></div>
-      </div>
-      ${dateStr ? `<div class="email-date">${dateStr}</div>` : ''}
-    </div>`;
-  }).join('') + '</div>';
+        ${row ? `<div class="email-row-stats"><span>${row}</span></div>` : ''}
+        ${date ? `<div class="email-row-date">${date}</div>` : ''}
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function toggleEmailGroup(id) {
+  const body  = document.getElementById(id);
+  const caret = body?.previousElementSibling?.querySelector('.email-group-caret');
+  if (!body) return;
+  body.classList.toggle('open');
+  if (caret) caret.classList.toggle('open');
 }
 
 // ── Daily Digest ──────────────────────────────────────

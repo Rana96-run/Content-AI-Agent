@@ -2262,19 +2262,56 @@ router.get("/email-campaigns", async (_req, res) => {
   const token = process.env.HS_ACCESS_TOKEN;
   if (!token) return res.status(503).json({ error: "HubSpot not configured" });
   try {
+    // Request specific properties — v3 returns only id/name/subject by default
+    const props = [
+      "hs_email_status","state","publishDate","scheduledAt","updatedAt",
+      "hs_email_sends_requested","hs_email_delivered","hs_email_open",
+      "hs_email_click","hs_email_bounce","hs_email_unsubscribed",
+      "hs_email_subject","archived",
+    ].join(",");
     const r = await fetch(
-      "https://api.hubapi.com/marketing/v3/emails?limit=50&sort=-updatedAt",
+      `https://api.hubapi.com/marketing/v3/emails?limit=50&sort=-updatedAt&properties=${props}`,
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
     );
     const data = await r.json() as { results?: Record<string, unknown>[]; message?: string };
     if (!r.ok) return res.status(r.status).json({ error: data.message || "HubSpot error" });
-    // Strip full HTML content (content.flexAreas, content.widgets etc) but keep all metadata
-    const slim = (data.results || []).map((e) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { content: _content, ...meta } = e as Record<string, unknown>;
-      return meta;
-    });
-    res.json({ results: slim, total: slim.length });
+    const now = Date.now();
+    const cutoff2026 = new Date("2026-01-01").getTime();
+    const slim = (data.results || [])
+      .map((e) => {
+        const props = (e.properties || e) as Record<string, unknown>;
+        const state      = (props.hs_email_status || props.state || "") as string;
+        const publishDate= (props.publishDate || props.updatedAt || "") as string;
+        const dateMs     = publishDate ? new Date(publishDate).getTime() : 0;
+        const name       = (e.name || props.name || "") as string;
+        return { id: e.id, name, subject: (e.subject || props.hs_email_subject || "") as string,
+          state, publishDate, scheduledAt: (props.scheduledAt || "") as string,
+          archived: props.archived,
+          stats: {
+            sent:         Number(props.hs_email_sends_requested) || 0,
+            delivered:    Number(props.hs_email_delivered)       || 0,
+            opens:        Number(props.hs_email_open)            || 0,
+            clicks:       Number(props.hs_email_click)           || 0,
+            bounces:      Number(props.hs_email_bounce)          || 0,
+            unsubscribes: Number(props.hs_email_unsubscribed)    || 0,
+          },
+          _dateMs: dateMs,
+        };
+      })
+      .filter((e) => {
+        if (e.archived) return false;
+        // Only 2026+
+        if (e._dateMs > 0 && e._dateMs < cutoff2026) return false;
+        // Exclude drafts
+        const s = e.state.toUpperCase();
+        if (!s || s === "DRAFT" || s === "ARCHIVED") return false;
+        // Exclude test emails
+        const n = e.name.toLowerCase();
+        if (n.includes("test") || n.includes("تجربة") || n.includes("اختبار")) return false;
+        return true;
+      })
+      .map(({ _dateMs: _, ...rest }) => rest);
+    res.json({ results: slim, total: slim.length, debug_total_before_filter: (data.results||[]).length });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
