@@ -212,6 +212,10 @@
   .cdown-lbl { font-size: 9px; color: var(--sub); margin-bottom: 3px; }
   .cdown-val { font-size: 22px; font-weight: 700; color: var(--bright); letter-spacing: .04em; }
 
+  /* PIXEL ICONS */
+  .agent-px { width: 28px; height: 28px; display: flex; align-items: center; flex-shrink: 0; }
+  .agent-px svg { width: 100%; height: 100%; }
+
   /* AGENT MODAL */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
@@ -475,13 +479,23 @@ const BASE = window.location.origin;
 
 // ── Agent definitions ─────────────────────────────────
 const AGENTS = [
-  { id:'social_media',    em:'📱', name:'Social Media',    role:'Calendar · Competitor scan · Organic metrics', tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'], active:true },
-  { id:'content_creator', em:'✍️', name:'Content Creator', role:'Google RSA · Captions · Blog articles · Ad copy', tools:['generate_content','generate_google_ads_rsa','build_blog_article','review_copy','translate_copy'], active:false },
-  { id:'email_lifecycle', em:'📧', name:'Email Lifecycle',  role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
-  { id:'paid_media_analyst',em:'📡',name:'Paid Media Analyst',role:'Ad library · Counter-creative · Paid performance',  tools:['analyze_competitor_content','analyze_metrics_report','build_campaign_plan','generate_google_ads_rsa'], active:false },
-  { id:'editor_qa',       em:'🔍', name:'Editor / QA',     role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
-  { id:'orchestrator',    em:'🎼', name:'Team Manager',     role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
+  { id:'orchestrator',      em:'🎼', color:'#2F75F2', name:'Team Manager',      role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
+  { id:'social_media',      em:'📱', color:'#22C55E', name:'Social Media',       role:'Calendar · Competitor scan · Organic metrics', tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'], active:true },
+  { id:'content_creator',   em:'✍️', color:'#F59E0B', name:'Content Creator',   role:'Google RSA · Captions · Blog articles · Ad copy', tools:['generate_content','generate_google_ads_rsa','build_blog_article','review_copy','translate_copy'], active:false },
+  { id:'email_lifecycle',   em:'📧', color:'#A78BFA', name:'Email Lifecycle',   role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
+  { id:'paid_media_analyst',em:'📡', color:'#4B9EFF', name:'Paid Media Analyst',role:'Ad library · Counter-creative · Paid performance', tools:['analyze_competitor_content','analyze_metrics_report','build_campaign_plan','generate_google_ads_rsa'], active:false },
+  { id:'editor_qa',         em:'🔍', color:'#F87171', name:'Editor / QA',       role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
 ];
+
+// ── Pixel art icons (crispEdges SVG, 2px pixel grid) ─────────
+const AGENT_SVG = {
+  orchestrator: `<svg viewBox="0 0 18 8" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="2" height="2"/><rect x="8" y="0" width="2" height="2"/><rect x="14" y="0" width="2" height="2"/><rect x="2" y="2" width="14" height="2"/><rect x="0" y="4" width="18" height="4"/></svg>`,
+  social_media: `<svg viewBox="0 0 12 14" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="8" height="2"/><rect x="0" y="2" width="2" height="10"/><rect x="10" y="2" width="2" height="10"/><rect x="2" y="12" width="8" height="2"/><rect x="3" y="3" width="6" height="6"/><rect x="4" y="10" width="4" height="2"/></svg>`,
+  content_creator: `<svg viewBox="0 0 12 10" fill="currentColor" shape-rendering="crispEdges"><rect x="8" y="0" width="4" height="2"/><rect x="6" y="2" width="4" height="2"/><rect x="4" y="4" width="4" height="2"/><rect x="2" y="6" width="4" height="2"/><rect x="0" y="8" width="4" height="2"/></svg>`,
+  email_lifecycle: `<svg viewBox="0 0 14 10" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="14" height="2"/><rect x="0" y="0" width="2" height="10"/><rect x="12" y="0" width="2" height="10"/><rect x="0" y="8" width="14" height="2"/><rect x="2" y="2" width="2" height="2"/><rect x="10" y="2" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="8" y="4" width="2" height="2"/><rect x="6" y="6" width="2" height="2"/></svg>`,
+  paid_media_analyst: `<svg viewBox="0 0 13 10" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="7" width="2" height="3"/><rect x="4" y="4" width="2" height="6"/><rect x="8" y="1" width="2" height="9"/><rect x="12" y="5" width="1" height="1"/><rect x="0" y="9" width="13" height="1"/></svg>`,
+  editor_qa: `<svg viewBox="0 0 14 14" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="6" height="2"/><rect x="0" y="2" width="2" height="6"/><rect x="8" y="2" width="2" height="6"/><rect x="2" y="8" width="6" height="2"/><rect x="8" y="8" width="2" height="2"/><rect x="10" y="10" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></svg>`,
+};
 
 // ── Activity feed — live tasks only, no static placeholders ──
 
@@ -554,20 +568,24 @@ const AGENT_KEYWORDS = {
 };
 
 function renderAgents() {
-  document.getElementById('agentGrid').innerHTML = AGENTS.map((a, i) => `
-    <div class="agent-box" style="cursor:pointer" onclick="showAgentModal(${i})">
+  document.getElementById('agentGrid').innerHTML = AGENTS.map((a, i) => {
+    const iconHtml = AGENT_SVG[a.id]
+      ? `<span class="agent-px" style="color:${a.color}">${AGENT_SVG[a.id]}</span>`
+      : `<span class="agent-em">${a.em}</span>`;
+    return `
+    <div class="agent-box" style="cursor:pointer;border-color:${a.active ? a.color+'33' : ''}" onclick="showAgentModal(${i})">
       <div class="agent-top">
-        <span class="agent-em">${a.em}</span>
+        ${iconHtml}
         <span class="status-badge ${a.active ? 'sb-active' : 'sb-idle'}">${a.active ? 'ACTIVE' : 'IDLE'}</span>
       </div>
-      <div class="agent-name">${a.name}</div>
+      <div class="agent-name" style="color:${a.active ? a.color : ''}">${a.name}</div>
       <div class="agent-role">${a.role}</div>
       <div class="agent-chips">
         ${a.tools.slice(0,3).map(t => `<span class="chip ${t==='ALL TOOLS'?'chip-all':''}">${t}</span>`).join('')}
         ${a.tools.length > 3 ? `<span class="chip">+${a.tools.length-3}</span>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function showAgentModal(idx) {
@@ -755,27 +773,26 @@ async function fetchHealth() {
   try {
     const r = await fetch(BASE + '/api/ai-health', { signal: AbortSignal.timeout(8000) });
     const d = await r.json();
-    const p = d.providers || {};
-    setH('hAnthropic', p.anthropic?.ok ?? true);
-    setH('hSheets',    d.sheets?.ok    ?? true);
-    setH('hDrive',     d.drive?.ok     ?? true);
-    setH('hApify',     d.apify?.ok     ?? true);
-    setH('hSlack',     d.slack?.ok     ?? true);
-    setH('hHubspot',   d.hubspot?.ok   ?? true);
-    if (d.tasksThisMonth) document.getElementById('statTasks').textContent = d.tasksThisMonth;
-    if (d.knowledgeCount) document.getElementById('statKb').textContent    = d.knowledgeCount;
-    if (d.competitorCount)document.getElementById('statComp').textContent  = d.competitorCount;
-    if (d.libraryCount)   document.getElementById('statLib').textContent   = d.libraryCount;
-    if (d.winsCount)      document.getElementById('statWins').textContent  = d.winsCount;
+    setH('hAnthropic', d.ok ?? true);
+  } catch { setH('hAnthropic', false, '⚠ Check'); }
+
+  try {
+    const r = await fetch(BASE + '/api/agent/stats', { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    const ig = d.integrations || {};
+    setH('hSheets',  ig.sheets  ?? true);
+    setH('hDrive',   ig.drive   ?? true);
+    setH('hApify',   ig.apify   ?? true);
+    setH('hSlack',   ig.slack   ?? true);
+    setH('hHubspot', ig.hubspot ?? true);
+    document.getElementById('statTasks').textContent = d.tasksThisMonth ?? '–';
+    document.getElementById('statKb').textContent    = d.knowledgeCount ?? '–';
+    document.getElementById('statComp').textContent  = d.competitorCount ?? '–';
+    document.getElementById('statLib').textContent   = d.libraryCount ?? '–';
+    document.getElementById('statWins').textContent  = d.winsCount ?? '–';
   } catch {
-    // fallback display values
-    setH('hAnthropic', true); setH('hSheets', true); setH('hDrive', true);
+    setH('hSheets', true); setH('hDrive', true);
     setH('hApify', true); setH('hSlack', true); setH('hHubspot', true);
-    document.getElementById('statTasks').textContent = '47';
-    document.getElementById('statKb').textContent    = '51';
-    document.getElementById('statComp').textContent  = '6';
-    document.getElementById('statLib').textContent   = '124';
-    document.getElementById('statWins').textContent  = '8';
   }
 
   // try to get live commit

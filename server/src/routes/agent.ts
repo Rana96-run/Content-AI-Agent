@@ -2347,4 +2347,46 @@ router.get("/daily-summary", async (_req, res) => {
   }
 });
 
+// ── Dashboard stats ─────────────────────────────────────────────────────────
+router.get("/stats", async (_req, res) => {
+  try {
+    const now = new Date();
+    const monthStartMs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    const [tasks, facts, lib] = await Promise.all([
+      loadTasks(),
+      listFacts(),
+      libraryStats(),
+    ]);
+
+    const tasksThisMonth = tasks.filter(t => t.created_at >= monthStartMs).length;
+    const knowledgeCount = facts.length;
+    const libraryCount   = lib.total_entries ?? 0;
+
+    const winsCount = facts.filter(f =>
+      (f.text || "").toUpperCase().includes("WIN")
+    ).length;
+
+    // Env-based integration status (no external pings — avoid latency)
+    const integrations = {
+      sheets:   !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      drive:    !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      apify:    !!process.env.APIFY_TOKEN,
+      slack:    !!process.env.SLACK_BOT_TOKEN,
+      hubspot:  !!process.env.HUBSPOT_TOKEN,
+    };
+
+    res.json({
+      tasksThisMonth,
+      knowledgeCount,
+      competitorCount: 6,  // fixed — Foodics, Salla, Zid, Jahez, Lean, Tamara
+      libraryCount,
+      winsCount,
+      integrations,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 export default router;
