@@ -917,7 +917,6 @@ async function fetchEmailCampaigns() {
       time: e.currentlyPublishedAt ? new Date(e.currentlyPublishedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '',
     }));
     renderEmailSection(emailCampaigns, null);
-    if (currentFilter === 'email') renderFeed();
   } catch (err) {
     renderEmailSection(null, String(err));
   }
