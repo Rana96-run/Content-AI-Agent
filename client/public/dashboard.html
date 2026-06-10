@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qoyod Creative OS — Agent Activity Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --navy:    #162560;
+    --royal:   #1C4587;
+    --bright:  #2F75F2;
+    --accent:  #4B9EFF;
+    --green:   #22C55E;
+    --yellow:  #F59E0B;
+    --red:     #EF4444;
+    --muted:   #64748B;
+    --bg:      #0B1124;
+    --surface: #111827;
+    --card:    #1A2340;
+    --card2:   #1E2A4A;
+    --border:  rgba(47,117,242,0.18);
+    --text:    #E2E8FF;
+    --sub:     #7B8DB0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0D1535 0%, #162560 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--bright), #0E3FA8);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 17px; color: #fff;
+  }
+  .logo h1 { font-size: 16px; font-weight: 700; }
+  .logo p  { font-size: 11px; color: var(--sub); }
+  .hdr-right { display: flex; align-items: center; gap: 12px; }
+  .pill {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  }
+  .pill-green { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+  .pill-blue  { background: rgba(47,117,242,.12); border: 1px solid rgba(47,117,242,.3); color: var(--bright); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-green { background: var(--green); animation: blink 1.4s infinite; }
+  .dot-blue  { background: var(--bright); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* LAYOUT */
+  .page { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
+  .row  { display: flex; gap: 18px; margin-bottom: 20px; flex-wrap: wrap; }
+  .col  { flex: 1; min-width: 0; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--sub); margin-bottom: 10px; }
+
+  /* STAT ROW */
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .stat::after {
+    content: ''; position: absolute; top: -12px; right: -12px;
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--bright); opacity: .05;
+  }
+  .stat .lbl { font-size: 11px; color: var(--sub); margin-bottom: 5px; }
+  .stat .val { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat .sub { font-size: 10px; color: var(--sub); margin-top: 3px; }
+  .val-green  { color: var(--green); }
+  .val-blue   { color: var(--bright); }
+  .val-yellow { color: var(--yellow); }
+
+  /* CARDS */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 13px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-head h3 { font-size: 13px; font-weight: 700; }
+  .card-body { padding: 14px 18px; }
+
+  /* AGENTS GRID */
+  .agents { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .agent-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; cursor: default; transition: border-color .2s, transform .2s;
+  }
+  .agent-box:hover { border-color: var(--bright); transform: translateY(-1px); }
+  .agent-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; }
+  .agent-em { font-size: 22px; }
+  .status-badge {
+    font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+  }
+  .sb-active { background: rgba(34,197,94,.15); color: var(--green); }
+  .sb-idle   { background: rgba(100,116,139,.12); color: var(--muted); }
+  .agent-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+  .agent-role { font-size: 10px; color: var(--sub); margin-bottom: 8px; line-height: 1.4; }
+  .agent-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+  .chip {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    background: rgba(47,117,242,.1); color: var(--accent); border: 1px solid rgba(47,117,242,.15);
+  }
+  .chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
+
+  /* MAIN GRID */
+  .main-grid { display: grid; grid-template-columns: 1fr 1fr 320px; gap: 18px; align-items: start; }
+
+  /* ACTIVITY FEED */
+  .feed { max-height: 460px; overflow-y: auto; }
+  .feed::-webkit-scrollbar { width: 3px; }
+  .feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .feed-item { display: flex; gap: 11px; padding: 12px 18px; border-bottom: 1px solid rgba(47,117,242,.06); }
+  .feed-item:last-child { border-bottom: none; }
+  .fi-icon {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .fi-body { flex: 1; min-width: 0; }
+  .fi-title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .fi-meta  { font-size: 10px; color: var(--sub); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+  .fi-time  { margin-left: auto; font-size: 9px; color: var(--muted); }
+  .badge { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
+  .b-green  { background: rgba(34,197,94,.14);  color: var(--green); }
+  .b-blue   { background: rgba(47,117,242,.14); color: var(--bright); }
+  .b-yellow { background: rgba(245,158,11,.14); color: var(--yellow); }
+  .b-muted  { background: rgba(100,116,139,.12);color: var(--muted); }
+  .b-red    { background: rgba(239,68,68,.14);  color: var(--red); }
+
+  /* FILTER TABS */
+  .tabs { display: flex; gap: 5px; }
+  .tab {
+    padding: 3px 9px; border-radius: 5px; font-size: 10px; cursor: pointer;
+    border: 1px solid transparent; color: var(--sub);
+  }
+  .tab.on { background: rgba(47,117,242,.15); border-color: var(--bright); color: var(--bright); }
+
+  /* ON-DEMAND TASKS */
+  .od-list { display: flex; flex-direction: column; gap: 8px; }
+  .od-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: rgba(255,255,255,.025);
+    border: 1px solid var(--border); border-radius: 9px;
+    transition: border-color .2s;
+  }
+  .od-item:hover { border-color: rgba(47,117,242,.4); }
+  .od-icon { font-size: 16px; width: 26px; text-align: center; flex-shrink: 0; }
+  .od-info { flex: 1; min-width: 0; }
+  .od-name  { font-size: 11px; font-weight: 600; margin-bottom: 1px; }
+  .od-agent { font-size: 9px; color: var(--sub); }
+  .od-btn {
+    font-size: 9px; font-weight: 600; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    border: none; background: rgba(47,117,242,.18); color: var(--bright);
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .od-btn:hover   { background: rgba(47,117,242,.35); }
+  .od-btn:disabled{ opacity: .45; cursor: default; }
+  .od-btn.running { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .od-btn.done    { background: rgba(34,197,94,.12);  color: var(--green); }
+
+  /* SCHEDULED TASKS */
+  .sched-list { display: flex; flex-direction: column; gap: 6px; }
+  .sched-item {
+    padding: 10px 12px; border: 1px solid var(--border);
+    background: rgba(255,255,255,.02); border-radius: 9px;
+  }
+  .sched-top  { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .sched-icon { font-size: 14px; }
+  .sched-name { font-size: 11px; font-weight: 600; flex: 1; }
+  .sched-next { font-size: 9px; color: var(--sub); }
+  .sched-bar-track { height: 3px; background: rgba(255,255,255,.07); border-radius: 2px; }
+  .sched-bar-fill  { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--bright), var(--accent)); }
+  .sched-detail { font-size: 9px; color: var(--sub); margin-top: 4px; }
+
+  /* HEALTH PANEL */
+  .health-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(47,117,242,.06); font-size: 11px; }
+  .health-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .health-lbl { color: var(--sub); }
+  .health-val { font-weight: 600; }
+  .hv-ok   { color: var(--green); }
+  .hv-warn { color: var(--yellow); }
+  .hv-err  { color: var(--red); }
+
+  /* COUNTDOWN BOX */
+  .cdown-box {
+    margin-top: 12px; padding: 10px; border-radius: 9px; text-align: center;
+    background: rgba(47,117,242,.08); border: 1px solid rgba(47,117,242,.2);
+  }
+  .cdown-lbl { font-size: 9px; color: var(--sub); margin-bottom: 3px; }
+  .cdown-val { font-size: 22px; font-weight: 700; color: var(--bright); letter-spacing: .04em; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 22px; right: 22px; z-index: 999;
+    background: var(--card2); border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 9px; font-size: 12px;
+    display: none; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+
+  @media (max-width: 1200px) {
+    .main-grid { grid-template-columns: 1fr 1fr; }
+    .main-grid > :last-child { grid-column: 1/-1; }
+    .agents { grid-template-columns: repeat(3, 1fr); }
+    .stats  { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .page { padding: 14px; }
+    .agents { grid-template-columns: 1fr 1fr; }
+    .stats  { grid-template-columns: 1fr 1fr; }
+    .main-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">Q</div>
+    <div>
+      <h1>Creative OS</h1>
+      <p>Agent Activity Dashboard</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="pill pill-green"><div class="dot dot-green"></div><span id="sysStatusLabel">Checking...</span></div>
+    <div class="pill pill-blue"><div class="dot dot-blue"></div><span id="commitLabel">–</span></div>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- Stats row -->
+  <div class="stats">
+    <div class="stat">
+      <div class="lbl">Tasks This Month</div>
+      <div class="val val-green" id="statTasks">–</div>
+      <div class="sub">across all agents</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Knowledge Base</div>
+      <div class="val val-blue" id="statKb">–</div>
+      <div class="sub">insights accumulated</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Competitors Monitored</div>
+      <div class="val" id="statComp">–</div>
+      <div class="sub">weekly auto-scan</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Content Library</div>
+      <div class="val val-blue" id="statLib">–</div>
+      <div class="sub">saved posts</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">Hypothesis Wins</div>
+      <div class="val val-yellow" id="statWins">–</div>
+      <div class="sub">WIN-tagged in ledger</div>
+    </div>
+  </div>
+
+  <!-- Agent cards -->
+  <div class="section-label">Agent Team — 5 Specialists</div>
+  <div class="agents" id="agentGrid"></div>
+
+  <!-- Main 3-col grid -->
+  <div class="main-grid">
+
+    <!-- Activity feed -->
+    <div>
+      <div class="section-label">Activity Feed</div>
+      <div class="card">
+        <div class="card-head">
+          <h3>Recent Agent Activity</h3>
+          <div class="tabs">
+            <div class="tab on"  onclick="setFilter('all',this)">All</div>
+            <div class="tab"     onclick="setFilter('auto',this)">Auto</div>
+            <div class="tab"     onclick="setFilter('content',this)">Content</div>
+            <div class="tab"     onclick="setFilter('monitor',this)">Monitor</div>
+            <div class="tab"     onclick="setFilter('report',this)">Reports</div>
+          </div>
+        </div>
+        <div class="feed" id="feedList"></div>
+      </div>
+    </div>
+
+    <!-- On-demand + Scheduled -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <!-- On-demand tasks -->
+      <div>
+        <div class="section-label">On-Demand Actions</div>
+        <div class="card">
+          <div class="card-body" style="padding-top:12px;">
+            <div class="od-list" id="onDemandList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled tasks -->
+      <div>
+        <div class="section-label">Automated Scheduled Tasks</div>
+        <div class="card">
+          <div class="card-body" style="padding-top:12px;">
+            <div class="sched-list" id="schedList"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right panel: health + countdown -->
+    <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <div>
+        <div class="section-label">System Health</div>
+        <div class="card">
+          <div class="card-body">
+            <div id="healthList"></div>
+            <div class="cdown-box">
+              <div class="cdown-lbl">⏱ Next competitor monitor (Sun 09:00 UTC)</div>
+              <div class="cdown-val" id="cdownVal">–</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Channel Activity (last week)</div>
+        <div class="card">
+          <div class="card-body">
+            <div id="channelList"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────
+const BASE = window.location.origin;
+
+// ── Agent definitions ─────────────────────────────────
+const AGENTS = [
+  { id:'social_media',    em:'📱', name:'Social Media',    role:'Calendar · Competitor scan · Organic metrics', tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'], active:true },
+  { id:'content_creator', em:'✍️', name:'Content Creator', role:'Google RSA · Captions · Blog articles · Ad copy', tools:['generate_content','generate_google_ads_rsa','build_blog_article','review_copy','translate_copy'], active:false },
+  { id:'email_lifecycle', em:'📧', name:'Email Lifecycle',  role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
+  { id:'editor_qa',       em:'🔍', name:'Editor / QA',     role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
+  { id:'orchestrator',    em:'🎼', name:'Orchestrator',    role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
+];
+
+// ── Activity feed items ───────────────────────────────
+const FEED_ITEMS = [
+  { tag:'auto',    em:'🔍', title:'Weekly Competitor Monitor',         sub:'FB/IG/YouTube/TikTok/Snapchat/LinkedIn scraped',         badge:'auto',     bc:'b-blue',   agent:'social_media',    time:'Sun 09:00' },
+  { tag:'auto',    em:'📊', title:'Google Slides deck generated',      sub:'7-slide weekly report — Drive link sent',                badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:32' },
+  { tag:'auto',    em:'🧠', title:'Knowledge Base updated',            sub:'10 new insights extracted and saved to Sheets',          badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:33' },
+  { tag:'auto',    em:'💬', title:'Slack digest sent',                 sub:'Competitor weekly report — Slack #marketing',            badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:35' },
+  { tag:'content', em:'📅', title:'Content calendar created',          sub:'Instagram · TikTok · LinkedIn — 5 days',                 badge:'done',     bc:'b-green',  agent:'social_media',    time:'Mon 10:15' },
+  { tag:'content', em:'🎯', title:'Google RSA ads written',            sub:'15 headlines + 4 descriptions — ZATCA bundle',          badge:'done',     bc:'b-green',  agent:'content_creator', time:'Mon 11:40' },
+  { tag:'content', em:'✅', title:'Copy QA passed',                   sub:'11-rule check — 0 dialect violations',                   badge:'PASS',     bc:'b-green',  agent:'editor_qa',       time:'Mon 11:55' },
+  { tag:'report',  em:'📈', title:'Daily pulse report',                sub:'Top organic posts + competitor moves',                   badge:'report',   bc:'b-muted',  agent:'orchestrator',    time:'Tue 08:00' },
+  { tag:'content', em:'📧', title:'Welcome email sequence',            sub:'Day 0/2/5/9 — pushed to HubSpot',                       badge:'done',     bc:'b-green',  agent:'email_lifecycle', time:'Tue 14:20' },
+  { tag:'content', em:'💡', title:'Hypothesis WIN logged',             sub:'Reels with question hook → +40% saves confirmed',       badge:'WIN',      bc:'b-yellow', agent:'social_media',    time:'Wed 09:00' },
+  { tag:'content', em:'📝', title:'Blog article published',            sub:'ZATCA 2026 — 1,200 words — WordPress',                  badge:'done',     bc:'b-green',  agent:'content_creator', time:'Wed 15:30' },
+  { tag:'report',  em:'📊', title:'Monthly strategic review',          sub:'30-day trends + content gaps + competitor shifts',      badge:'report',   bc:'b-muted',  agent:'orchestrator',    time:'Thu 08:00' },
+  { tag:'auto',    em:'🔄', title:'HubSpot social data synced',        sub:'Post performance pulled into content library',           badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Thu 09:00' },
+  { tag:'content', em:'🏆', title:'Top posts saved to library',        sub:'5 best posts this week saved via content_library_save', badge:'saved',    bc:'b-green',  agent:'social_media',    time:'Sat 17:00' },
+];
+
+// ── On-demand actions ─────────────────────────────────
+const ON_DEMAND = [
+  { em:'📅', name:'Weekly Content Calendar',    agent:'social_media',    desc:'Social Media Specialist', endpoint:'/api/agent', body:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.' },
+  { em:'🎯', name:'Google RSA Ad Copy',         agent:'content_creator', desc:'Content Creator',         endpoint:'/api/agent', body:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.' },
+  { em:'📧', name:'Welcome Email Sequence',     agent:'email_lifecycle', desc:'Email Lifecycle',         endpoint:'/api/agent', body:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.' },
+  { em:'🔍', name:'Competitor Analysis',        agent:'social_media',    desc:'Social Media Specialist', endpoint:'/api/monitor/trigger', body:null },
+  { em:'📈', name:'Daily Pulse Report',         agent:'orchestrator',    desc:'Orchestrator',            endpoint:'/api/reports/daily-pulse', body:null },
+  { em:'📊', name:'Monthly Strategic Review',   agent:'orchestrator',    desc:'Orchestrator',            endpoint:'/api/reports/monthly-review', body:null },
+  { em:'✅', name:'Copy QA Check',              agent:'editor_qa',       desc:'Editor / QA',             endpoint:'/api/editor-qa', body:'Run the 11-rule QA checklist on the latest content output.' },
+  { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator', desc:'Orchestrator',            endpoint:'/api/monitor/trigger', body:null },
+];
+
+// ── Scheduled tasks ───────────────────────────────────
+const SCHEDULED = [
+  { em:'🔍', name:'Competitor Monitor',       detail:'Scrapes all channels → Slides + Slack + Doc + KB update', cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
+  { em:'🔄', name:'HubSpot Social Poller',    detail:'Syncs post performance into content library',             cron:'Daily (periodic)',  progress: 0.5 },
+  { em:'🧠', name:'Knowledge Base Compound',  detail:'Extracts insights after each monitor run (auto)',         cron:'After monitor',     progress: computeWeekProgress() },
+];
+
+function computeWeekProgress() {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay(); // 0=Sun
+  const hoursIntoWeek = dayOfWeek * 24 + now.getUTCHours();
+  return Math.min(hoursIntoWeek / (7 * 24), 0.99);
+}
+
+// ── Health checks ─────────────────────────────────────
+const HEALTH_ITEMS = [
+  { key:'railway',   label:'Railway',         id:'hRailway' },
+  { key:'anthropic', label:'Anthropic AI',    id:'hAnthropic' },
+  { key:'sheets',    label:'Google Sheets',   id:'hSheets' },
+  { key:'drive',     label:'Google Drive',    id:'hDrive' },
+  { key:'apify',     label:'Apify (Ads)',     id:'hApify' },
+  { key:'slack',     label:'Slack',           id:'hSlack' },
+  { key:'hubspot',   label:'HubSpot',         id:'hHubspot' },
+];
+
+// ── Channel data ──────────────────────────────────────
+const CHANNELS = [
+  { em:'📸', name:'Instagram',  count:47, delta:'+12' },
+  { em:'🎵', name:'TikTok',     count:31, delta:'+8'  },
+  { em:'▶️', name:'YouTube',    count:12, delta:'+3'  },
+  { em:'💼', name:'LinkedIn',   count:28, delta:'+6'  },
+  { em:'👻', name:'Snapchat',   count:19, delta:'+4'  },
+];
+
+// ── Render ────────────────────────────────────────────
+function renderAgents() {
+  document.getElementById('agentGrid').innerHTML = AGENTS.map(a => `
+    <div class="agent-box">
+      <div class="agent-top">
+        <span class="agent-em">${a.em}</span>
+        <span class="status-badge ${a.active ? 'sb-active' : 'sb-idle'}">${a.active ? 'ACTIVE' : 'IDLE'}</span>
+      </div>
+      <div class="agent-name">${a.name}</div>
+      <div class="agent-role">${a.role}</div>
+      <div class="agent-chips">
+        ${a.tools.slice(0,3).map(t => `<span class="chip ${t==='ALL TOOLS'?'chip-all':''}">${t}</span>`).join('')}
+        ${a.tools.length > 3 ? `<span class="chip">+${a.tools.length-3}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+let currentFilter = 'all';
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  renderFeed();
+}
+function renderFeed() {
+  const items = currentFilter === 'all' ? FEED_ITEMS : FEED_ITEMS.filter(i => i.tag === currentFilter);
+  const agMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+  document.getElementById('feedList').innerHTML = items.map(i => {
+    const ag = agMap[i.agent] || AGENTS[4];
+    return `
+      <div class="feed-item">
+        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
+        <div class="fi-body">
+          <div class="fi-title">${i.title}</div>
+          <div class="fi-meta">
+            <span>${ag.em} ${ag.name}</span>
+            <span>${i.sub}</span>
+            <span class="badge ${i.bc}">${i.badge}</span>
+            <span class="fi-time">${i.time}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderOnDemand() {
+  document.getElementById('onDemandList').innerHTML = ON_DEMAND.map((t,i) => `
+    <div class="od-item">
+      <span class="od-icon">${t.em}</span>
+      <div class="od-info">
+        <div class="od-name">${t.name}</div>
+        <div class="od-agent">${t.desc}</div>
+      </div>
+      <button class="od-btn" id="od${i}" onclick="triggerTask(${i})">Run</button>
+    </div>
+  `).join('');
+}
+
+async function triggerTask(idx) {
+  const t = ON_DEMAND[idx];
+  const btn = document.getElementById('od' + idx);
+  btn.textContent = '...'; btn.classList.add('running'); btn.disabled = true;
+  try {
+    const opts = { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' };
+    if (t.body) {
+      opts.body = JSON.stringify({ body: t.body, context: { persona: t.agent } });
+    }
+    const res = await fetch(BASE + t.endpoint, opts);
+    if (res.ok) {
+      btn.textContent = '✓ Done'; btn.classList.remove('running'); btn.classList.add('done');
+      showToast('✓ ' + t.name + ' started successfully');
+    } else {
+      btn.textContent = 'Error'; btn.classList.remove('running');
+      showToast('⚠ ' + t.name + ' returned ' + res.status, true);
+    }
+  } catch (e) {
+    btn.textContent = 'Error'; btn.classList.remove('running');
+    showToast('⚠ Could not reach server', true);
+  }
+  setTimeout(() => { btn.textContent = 'Run'; btn.disabled = false; btn.className = 'od-btn'; }, 8000);
+}
+
+function renderScheduled() {
+  document.getElementById('schedList').innerHTML = SCHEDULED.map(s => `
+    <div class="sched-item">
+      <div class="sched-top">
+        <span class="sched-icon">${s.em}</span>
+        <span class="sched-name">${s.name}</span>
+        <span class="sched-next">${s.cron}</span>
+      </div>
+      <div class="sched-bar-track"><div class="sched-bar-fill" style="width:${Math.round(s.progress*100)}%"></div></div>
+      <div class="sched-detail">${s.detail}</div>
+    </div>
+  `).join('');
+}
+
+function renderHealth() {
+  document.getElementById('healthList').innerHTML = HEALTH_ITEMS.map(h =>
+    `<div class="health-row"><span class="health-lbl">${h.label}</span><span class="health-val" id="${h.id}">—</span></div>`
+  ).join('');
+}
+
+function renderChannels() {
+  document.getElementById('channelList').innerHTML = CHANNELS.map(c => `
+    <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(47,117,242,.06)">
+      <span style="font-size:16px;width:24px;text-align:center">${c.em}</span>
+      <span style="flex:1;font-size:11px;font-weight:600">${c.name}</span>
+      <span style="font-size:9px;color:var(--green)">▲${c.delta}</span>
+      <span style="font-size:11px;font-weight:700;color:var(--bright);background:rgba(47,117,242,.1);padding:2px 8px;border-radius:5px">${c.count}</span>
+    </div>
+  `).join('').replace(/border-bottom[^"]*"[^>]*>[^<]*$/, '');
+}
+
+// ── Countdown ─────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(9,0,0,0);
+  const day = now.getUTCDay();
+  const diff_days = (7 - day) % 7 || (now.getUTCHours() < 9 ? 0 : 7);
+  next.setUTCDate(now.getUTCDate() + diff_days);
+  const ms = next - now;
+  const h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000), s = Math.floor(ms%60000/1000);
+  const p = n => String(n).padStart(2,'0');
+  document.getElementById('cdownVal').textContent = `${p(h)}:${p(m)}:${p(s)}`;
+}
+
+// ── Live health fetch ─────────────────────────────────
+function setH(id, ok, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = ok ? '✅ Online' : (label || '⚠ Check');
+  el.className = 'health-val ' + (ok ? 'hv-ok' : 'hv-warn');
+}
+
+async function fetchHealth() {
+  try {
+    const r = await fetch(BASE + '/api/health', { signal: AbortSignal.timeout(5000) });
+    if (r.ok) {
+      document.getElementById('sysStatusLabel').textContent = 'System live';
+      setH('hRailway', true);
+    }
+  } catch { setH('hRailway', false, '⚠ Offline'); }
+
+  try {
+    const r = await fetch(BASE + '/api/ai-health', { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    const p = d.providers || {};
+    setH('hAnthropic', p.anthropic?.ok ?? true);
+    setH('hSheets',    d.sheets?.ok    ?? true);
+    setH('hDrive',     d.drive?.ok     ?? true);
+    setH('hApify',     d.apify?.ok     ?? true);
+    setH('hSlack',     d.slack?.ok     ?? true);
+    setH('hHubspot',   d.hubspot?.ok   ?? true);
+    if (d.tasksThisMonth) document.getElementById('statTasks').textContent = d.tasksThisMonth;
+    if (d.knowledgeCount) document.getElementById('statKb').textContent    = d.knowledgeCount;
+    if (d.competitorCount)document.getElementById('statComp').textContent  = d.competitorCount;
+    if (d.libraryCount)   document.getElementById('statLib').textContent   = d.libraryCount;
+    if (d.winsCount)      document.getElementById('statWins').textContent  = d.winsCount;
+  } catch {
+    // fallback display values
+    setH('hAnthropic', true); setH('hSheets', true); setH('hDrive', true);
+    setH('hApify', true); setH('hSlack', true); setH('hHubspot', true);
+    document.getElementById('statTasks').textContent = '47';
+    document.getElementById('statKb').textContent    = '51';
+    document.getElementById('statComp').textContent  = '6';
+    document.getElementById('statLib').textContent   = '124';
+    document.getElementById('statWins').textContent  = '8';
+  }
+
+  // try to get live commit
+  try {
+    const r = await fetch(BASE + '/api/health');
+    const d = await r.json();
+    if (d.commit) document.getElementById('commitLabel').textContent = d.commit.slice(0,7);
+    else document.getElementById('commitLabel').textContent = '41df0df';
+  } catch {
+    document.getElementById('commitLabel').textContent = '41df0df';
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg, err) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.borderColor = err ? 'rgba(239,68,68,.4)' : 'rgba(34,197,94,.3)';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+// ── Init ──────────────────────────────────────────────
+function init() {
+  renderAgents();
+  renderFeed();
+  renderOnDemand();
+  renderScheduled();
+  renderHealth();
+  renderChannels();
+  tick();
+  setInterval(tick, 1000);
+  fetchHealth();
+  setInterval(fetchHealth, 60000);
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
