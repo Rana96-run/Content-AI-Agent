@@ -2268,16 +2268,12 @@ router.get("/email-campaigns", async (_req, res) => {
     );
     const data = await r.json() as { results?: Record<string, unknown>[]; message?: string };
     if (!r.ok) return res.status(r.status).json({ error: data.message || "HubSpot error" });
-    // Strip full HTML content — dashboard only needs metadata + stats
-    const slim = (data.results || []).map((e) => ({
-      id:                   e.id,
-      name:                 e.name,
-      subject:              e.subject,
-      currentState:         e.currentState,
-      currentlyPublishedAt: e.currentlyPublishedAt,
-      scheduledAt:          e.scheduledAt,
-      stats:                e.stats,
-    }));
+    // Strip full HTML content (content.flexAreas, content.widgets etc) but keep all metadata
+    const slim = (data.results || []).map((e) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { content: _content, ...meta } = e as Record<string, unknown>;
+      return meta;
+    });
     res.json({ results: slim, total: slim.length });
   } catch (e) {
     res.status(500).json({ error: String(e) });
