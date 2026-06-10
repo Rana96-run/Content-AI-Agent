@@ -634,7 +634,7 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
-  if (f === 'content' && !libraryLoaded) fetchContentLibrary();
+  if (f === 'content' && !socialLoaded) fetchSocialPosts();
   if (f === 'email' && emailCampaigns === null) fetchEmailCampaigns();
   renderFeed();
 }
@@ -867,55 +867,57 @@ function showToast(msg, err) {
   setTimeout(() => { t.style.display = 'none'; }, 3500);
 }
 
-// ── Content Library Feed ──────────────────────────────
-let libraryEntries = [];
-let libraryLoaded  = false;
+// ── Social Posts Feed (live from HubSpot broadcasts) ──
+let socialPosts  = [];
+let socialLoaded = false;
 
 const CHANNEL_EM = {
   instagram:'📸', facebook:'💙', linkedin:'💼', tiktok:'🎵',
-  twitter:'🐦', x:'🐦', youtube:'▶️', email:'📧', blog:'📝', other:'📄',
-};
-const TYPE_BADGE = {
-  post:'b-blue', reel:'b-green', story:'b-yellow', email:'b-muted',
-  ad:'b-red', blog:'b-blue', other:'b-muted',
+  'twitter/x':'🐦', twitter:'🐦', youtube:'▶️', email:'📧', blog:'📝',
 };
 
-async function fetchContentLibrary() {
+async function fetchSocialPosts() {
   try {
-    const r = await fetch(BASE + '/api/agent/content-library/entries?limit=40', { signal: AbortSignal.timeout(6000) });
+    const r = await fetch(BASE + '/api/agent/social-posts?limit=40', { signal: AbortSignal.timeout(8000) });
     if (!r.ok) return;
     const d = await r.json();
-    libraryEntries = d.entries || [];
-    libraryLoaded  = true;
+    socialPosts  = d.posts || [];
+    socialLoaded = true;
     if (currentFilter === 'content') renderFeed();
   } catch (_) {}
 }
 
 function renderContentFeed() {
-  if (!libraryLoaded) {
+  if (!socialLoaded) {
     document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading published posts…</div>';
-    fetchContentLibrary();
+    fetchSocialPosts();
     return;
   }
-  if (libraryEntries.length === 0) {
-    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts in library yet</div>';
+  if (socialPosts.length === 0) {
+    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts found in HubSpot</div>';
     return;
   }
-  document.getElementById('feedList').innerHTML = libraryEntries.map(e => {
-    const ch   = (e.channel || '').toLowerCase();
-    const em   = CHANNEL_EM[ch] || '📄';
-    const bc   = TYPE_BADGE[e.type] || 'b-muted';
-    const time = e.published_at ? new Date(e.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
-    const preview = (e.content_text || '').slice(0, 100) + (e.content_text?.length > 100 ? '…' : '');
-    const url  = e.post_url ? `<a href="${e.post_url}" target="_blank" style="color:var(--accent);text-decoration:none">↗</a>` : '';
+  document.getElementById('feedList').innerHTML = socialPosts.map(p => {
+    const ch      = (p.channel || '').toLowerCase();
+    const em      = CHANNEL_EM[ch] || '📄';
+    const time    = p.published_at ? new Date(p.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    const preview = (p.content || '').slice(0, 110) + (p.content?.length > 110 ? '…' : '');
+    const url     = p.url ? `<a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:4px">↗</a>` : '';
+    const s       = p.stats || {};
+    const statsHtml = [
+      s.impressions != null ? `👁 ${s.impressions.toLocaleString()}` : '',
+      s.reach       != null ? `📡 ${s.reach.toLocaleString()}`       : '',
+      s.reactions   != null ? `❤️ ${s.reactions}`                    : '',
+      s.clicks      != null ? `🔗 ${s.clicks}`                       : '',
+      s.shares      != null ? `↗ ${s.shares}`                        : '',
+    ].filter(Boolean).join('  ');
     return `<div class="feed-item">
       <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
       <div class="fi-body">
-        <div class="fi-title">${e.channel || 'Post'} · ${e.type} ${url}</div>
+        <div class="fi-title">${p.channel || 'Post'}${url}</div>
         <div class="fi-meta">
-          ${e.topic ? `<span>${e.topic}</span>` : ''}
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${preview}</span>
-          <span class="badge ${bc}">${e.type}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${preview}</span>
+          ${statsHtml ? `<span style="color:var(--sub);font-size:9px;white-space:nowrap">${statsHtml}</span>` : ''}
           <span class="fi-time">${time}</span>
         </div>
       </div>
@@ -1044,7 +1046,7 @@ function init() {
   setInterval(fetchLiveTasks, 30000); // refresh task feed every 30s
   fetchDigest();
   setInterval(fetchDigest, 5 * 60 * 1000); // refresh digest every 5 min
-  fetchContentLibrary();   // pre-load so Posts tab is instant
+  fetchSocialPosts();      // pre-load so Posts tab is instant
   fetchEmailCampaigns();   // pre-load email section on page open
 }
 document.addEventListener('DOMContentLoaded', init);

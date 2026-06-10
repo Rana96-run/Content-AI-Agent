@@ -2147,6 +2147,57 @@ router.post("/daily-digest/run-now", async (_req, res) => {
   }
 });
 
+/* ── Social posts — live from HubSpot broadcasts ── */
+router.get("/social-posts", async (req, res) => {
+  const token = process.env.HS_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HubSpot not configured" });
+  try {
+    const limit = Math.min(Number(req.query.limit) || 30, 50);
+    const r = await fetch(
+      `https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+    const data = await r.json() as Array<{
+      broadcastGuid: string; channelKey: string; finishedAt: number;
+      status: string; messageUrl?: string;
+      content?: { body?: string; title?: string; thumbUrl?: string };
+      statistics?: { clicks?: number; impressions?: number; reach?: number; reactions?: number; shares?: number };
+    }>;
+
+    // Channel labels
+    const LABELS: Record<string, string> = {
+      "17841403066920736": "Instagram", "1331104100252779": "Facebook",
+      "13231520": "LinkedIn", "752153850132455424": "Twitter/X",
+    };
+    function chLabel(key: string) {
+      for (const [id, label] of Object.entries(LABELS)) {
+        if (key.includes(id)) return label;
+      }
+      return key.split(":")[0] ?? key;
+    }
+
+    const posts = (Array.isArray(data) ? data : []).map((b) => ({
+      id:           b.broadcastGuid,
+      channel:      chLabel(b.channelKey),
+      published_at: b.finishedAt ? new Date(b.finishedAt).toISOString() : null,
+      content:      b.content?.body || b.content?.title || "",
+      url:          b.messageUrl || null,
+      thumb:        b.content?.thumbUrl || null,
+      stats: {
+        clicks:      b.statistics?.clicks      ?? null,
+        impressions: b.statistics?.impressions ?? null,
+        reach:       b.statistics?.reach       ?? null,
+        reactions:   b.statistics?.reactions   ?? null,
+        shares:      b.statistics?.shares      ?? null,
+      },
+    }));
+    res.json({ posts, total: posts.length });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 router.get("/content-library/entries", (_req, res) => {
   try {
     const { type, channel, limit } = _req.query;
