@@ -94,7 +94,7 @@
   .card-body { padding: 14px 18px; }
 
   /* AGENTS GRID */
-  .agents { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .agents { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
   .agent-box {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: 14px; cursor: default; transition: border-color .2s, transform .2s;
@@ -216,6 +216,9 @@
     .main-grid > :last-child { grid-column: 1/-1; }
     .agents { grid-template-columns: repeat(3, 1fr); }
     .stats  { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .agents { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 700px) {
     .page { padding: 14px; }
@@ -363,6 +366,7 @@ const AGENTS = [
   { id:'social_media',    em:'📱', name:'Social Media',    role:'Calendar · Competitor scan · Organic metrics', tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'], active:true },
   { id:'content_creator', em:'✍️', name:'Content Creator', role:'Google RSA · Captions · Blog articles · Ad copy', tools:['generate_content','generate_google_ads_rsa','build_blog_article','review_copy','translate_copy'], active:false },
   { id:'email_lifecycle', em:'📧', name:'Email Lifecycle',  role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
+  { id:'paid_media_analyst',em:'📡',name:'Paid Media Analyst',role:'Ad library · Counter-creative · Paid performance',  tools:['analyze_competitor_content','analyze_metrics_report','build_campaign_plan','generate_google_ads_rsa'], active:false },
   { id:'editor_qa',       em:'🔍', name:'Editor / QA',     role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
   { id:'orchestrator',    em:'🎼', name:'Orchestrator',    role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
 ];
@@ -393,8 +397,10 @@ const ON_DEMAND = [
   { em:'🔍', name:'Competitor Analysis',        agent:'social_media',    desc:'Social Media Specialist', endpoint:'/api/monitor/trigger', body:null },
   { em:'📈', name:'Daily Pulse Report',         agent:'orchestrator',    desc:'Orchestrator',            endpoint:'/api/reports/daily-pulse', body:null },
   { em:'📊', name:'Monthly Strategic Review',   agent:'orchestrator',    desc:'Orchestrator',            endpoint:'/api/reports/monthly-review', body:null },
-  { em:'✅', name:'Copy QA Check',              agent:'editor_qa',       desc:'Editor / QA',             endpoint:'/api/editor-qa', body:'Run the 11-rule QA checklist on the latest content output.' },
-  { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator', desc:'Orchestrator',            endpoint:'/api/monitor/trigger', body:null },
+  { em:'📡', name:'Competitor Ad Library Scan',   agent:'paid_media_analyst', desc:'Paid Media Analyst',   endpoint:'/api/competitor-ads', body:null },
+  { em:'🎯', name:'Counter-Creative Brief',       agent:'paid_media_analyst', desc:'Paid Media Analyst',   endpoint:'/api/agent', body:'Analyze competitor ad library, identify winning angles running >30 days, and produce counter-creative briefs for Qoyod.' },
+  { em:'✅', name:'Copy QA Check',                agent:'editor_qa',          desc:'Editor / QA',          endpoint:'/api/editor-qa', body:'Run the 11-rule QA checklist on the latest content output.' },
+  { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator',       desc:'Orchestrator',         endpoint:'/api/monitor/trigger', body:null },
 ];
 
 // ── Scheduled tasks ───────────────────────────────────
