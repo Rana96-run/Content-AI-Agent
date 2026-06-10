@@ -2302,9 +2302,10 @@ router.get("/email-campaigns", async (_req, res) => {
         if (e.archived) return false;
         // Only 2026+
         if (e._dateMs > 0 && e._dateMs < cutoff2026) return false;
-        // Exclude drafts
+        // Only show published/live/scheduled — exclude drafts, losers, archived
         const s = e.state.toUpperCase();
-        if (!s || s === "DRAFT" || s === "ARCHIVED") return false;
+        const keep = ["PUBLISHED","SCHEDULED","SENDING","AUTOMATED","AUTOMATED_AB"];
+        if (!s || !keep.includes(s)) return false;
         // Exclude test emails
         const n = e.name.toLowerCase();
         if (n.includes("test") || n.includes("تجربة") || n.includes("اختبار")) return false;

@@ -979,18 +979,20 @@ function renderEmailSection(campaigns, error) {
     return;
   }
 
-  // Group by state
-  const groups = { SENT:[], SCHEDULED:[], SENDING:[] };
+  // Group by state — map HubSpot real states to display buckets
+  const groups = { PUBLISHED:[], SCHEDULED:[], AUTOMATED:[], SENDING:[] };
   for (const e of campaigns) {
     const s = (e.state || '').toUpperCase();
-    if (groups[s]) groups[s].push(e);
-    else groups.SENT.push(e); // unknown state → treat as sent
+    if (s === 'AUTOMATED' || s === 'AUTOMATED_AB') groups.AUTOMATED.push(e);
+    else if (groups[s]) groups[s].push(e);
+    else groups.PUBLISHED.push(e);
   }
 
   const GROUP_META = {
-    SENT:      { label:'Sent',      em:'✅', cls:'es-sent',      open: true  },
-    SCHEDULED: { label:'Scheduled', em:'⏰', cls:'es-scheduled', open: true  },
-    SENDING:   { label:'Sending',   em:'📤', cls:'es-sending',   open: true  },
+    PUBLISHED: { label:'Published / Sent', em:'✅', cls:'es-sent',      open: true  },
+    SCHEDULED: { label:'Scheduled',        em:'⏰', cls:'es-scheduled', open: true  },
+    AUTOMATED: { label:'Automated',        em:'🔁', cls:'es-sending',   open: false },
+    SENDING:   { label:'Sending Now',      em:'📤', cls:'es-sending',   open: true  },
   };
 
   let html = '';
