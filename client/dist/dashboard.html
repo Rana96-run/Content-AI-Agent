@@ -253,6 +253,7 @@
   .email-row-stats { display: flex; gap: 12px; flex-shrink: 0; font-size: 10px; color: var(--sub); }
   .email-row-stats span { white-space: nowrap; }
   .email-row-date  { font-size: 9px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+  .email-row[onclick]:hover { background: rgba(47,117,242,.06); }
   .email-state {
     font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
   }
@@ -483,23 +484,7 @@ const AGENTS = [
   { id:'orchestrator',    em:'🎼', name:'Team Manager',     role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
 ];
 
-// ── Activity feed items ───────────────────────────────
-const FEED_ITEMS = [
-  { tag:'auto',    em:'🔍', title:'Weekly Competitor Monitor',         sub:'FB/IG/YouTube/TikTok/Snapchat/LinkedIn scraped',         badge:'auto',     bc:'b-blue',   agent:'social_media',    time:'Sun 09:00' },
-  { tag:'auto',    em:'📊', title:'Google Slides deck generated',      sub:'7-slide weekly report — Drive link sent',                badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:32' },
-  { tag:'auto',    em:'🧠', title:'Knowledge Base updated',            sub:'10 new insights extracted and saved to Sheets',          badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:33' },
-  { tag:'auto',    em:'💬', title:'Slack digest sent',                 sub:'Competitor weekly report — Slack #marketing',            badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Sun 09:35' },
-  { tag:'content', em:'📅', title:'Content calendar created',          sub:'Instagram · TikTok · LinkedIn — 5 days',                 badge:'done',     bc:'b-green',  agent:'social_media',    time:'Mon 10:15' },
-  { tag:'content', em:'🎯', title:'Google RSA ads written',            sub:'15 headlines + 4 descriptions — ZATCA bundle',          badge:'done',     bc:'b-green',  agent:'content_creator', time:'Mon 11:40' },
-  { tag:'content', em:'✅', title:'Copy QA passed',                   sub:'11-rule check — 0 dialect violations',                   badge:'PASS',     bc:'b-green',  agent:'editor_qa',       time:'Mon 11:55' },
-  { tag:'report',  em:'📈', title:'Daily pulse report',                sub:'Top organic posts + competitor moves',                   badge:'report',   bc:'b-muted',  agent:'orchestrator',    time:'Tue 08:00' },
-  { tag:'content', em:'📧', title:'Welcome email sequence',            sub:'Day 0/2/5/9 — pushed to HubSpot',                       badge:'done',     bc:'b-green',  agent:'email_lifecycle', time:'Tue 14:20' },
-  { tag:'content', em:'💡', title:'Hypothesis WIN logged',             sub:'Reels with question hook → +40% saves confirmed',       badge:'WIN',      bc:'b-yellow', agent:'social_media',    time:'Wed 09:00' },
-  { tag:'content', em:'📝', title:'Blog article published',            sub:'ZATCA 2026 — 1,200 words — WordPress',                  badge:'done',     bc:'b-green',  agent:'content_creator', time:'Wed 15:30' },
-  { tag:'report',  em:'📊', title:'Monthly strategic review',          sub:'30-day trends + content gaps + competitor shifts',      badge:'report',   bc:'b-muted',  agent:'orchestrator',    time:'Thu 08:00' },
-  { tag:'auto',    em:'🔄', title:'HubSpot social data synced',        sub:'Post performance pulled into content library',           badge:'auto',     bc:'b-blue',   agent:'orchestrator',    time:'Thu 09:00' },
-  { tag:'content', em:'🏆', title:'Top posts saved to library',        sub:'5 best posts this week saved via content_library_save', badge:'saved',    bc:'b-green',  agent:'social_media',    time:'Sat 17:00' },
-];
+// ── Activity feed — live tasks only, no static placeholders ──
 
 // ── On-demand actions ─────────────────────────────────
 const ON_DEMAND = [
@@ -707,24 +692,9 @@ function renderFeed() {
     return;
   }
 
-  // Static fallback
-  const items = currentFilter === 'all' ? FEED_ITEMS : FEED_ITEMS.filter(i => i.tag === currentFilter);
-  document.getElementById('feedList').innerHTML = items.map(i => {
-    const ag = agMap[i.agent] || AGENTS[4];
-    return `
-      <div class="feed-item">
-        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
-        <div class="fi-body">
-          <div class="fi-title">${i.title}</div>
-          <div class="fi-meta">
-            <span>${ag.em} ${ag.name}</span>
-            <span>${i.sub}</span>
-            <span class="badge ${i.bc}">${i.badge}</span>
-            <span class="fi-time">${i.time}</span>
-          </div>
-        </div>
-      </div>`;
-  }).join('');
+  // No live tasks yet
+  document.getElementById('feedList').innerHTML =
+    '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:28px">No agent tasks recorded yet — run an action to see live activity</div>';
 }
 
 function renderOnDemand() {
@@ -918,7 +888,8 @@ function renderContentFeed() {
       s.clicks      != null ? `🔗 ${s.clicks}`                       : '',
       s.shares      != null ? `↗ ${s.shares}`                        : '',
     ].filter(Boolean).join('  ');
-    return `<div class="feed-item">
+    const clickable = p.url ? `onclick="window.open('${p.url}','_blank')" style="cursor:pointer"` : '';
+    return `<div class="feed-item" ${clickable}>
       <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
       <div class="fi-body">
         <div class="fi-title">${p.channel || 'Post'}${url}</div>
@@ -1019,9 +990,10 @@ function renderEmailSection(campaigns, error) {
         s.bounces ? `↩ ${s.bounces}` : '',
       ].filter(Boolean).join('  ');
       const date = fmtDate(e.publishDate || e.scheduledAt);
-      html += `<div class="email-row">
+      const href = e.viewUrl ? `onclick="window.open('${e.viewUrl}','_blank')" style="cursor:pointer"` : '';
+      html += `<div class="email-row" ${href}>
         <div class="email-row-name">
-          <div class="email-row-title">${e.name || '(unnamed)'}</div>
+          <div class="email-row-title">${e.name || '(unnamed)'}${e.viewUrl ? ' <span style="color:var(--sub);font-size:9px">↗</span>' : ''}</div>
           ${e.subject ? `<div class="email-row-sub">${e.subject}</div>` : ''}
         </div>
         ${row ? `<div class="email-row-stats"><span>${row}</span></div>` : ''}

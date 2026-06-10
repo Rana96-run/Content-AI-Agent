@@ -2149,9 +2149,23 @@ router.post("/daily-digest/run-now", async (_req, res) => {
 
 /* ── Social posts — live from HubSpot broadcasts ── */
 
-// Cache the channel label map so we don't fetch it on every request
+// Cache the channel label map + HubSpot portal ID
 let _channelMapCache: Record<string, string> | null = null;
 let _channelMapFetchedAt = 0;
+let _portalId: number | null = null;
+
+async function getPortalId(token: string): Promise<number | null> {
+  if (_portalId) return _portalId;
+  try {
+    const r = await fetch("https://api.hubapi.com/account-info/v3/details", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return null;
+    const d = await r.json() as { portalId?: number };
+    _portalId = d.portalId ?? null;
+    return _portalId;
+  } catch { return null; }
+}
 
 async function getChannelMap(token: string): Promise<Record<string, string>> {
   const now = Date.now();
@@ -2262,6 +2276,7 @@ router.get("/email-campaigns", async (_req, res) => {
   const token = process.env.HS_ACCESS_TOKEN;
   if (!token) return res.status(503).json({ error: "HubSpot not configured" });
   try {
+    const portalId = await getPortalId(token);
     // Request specific properties — v3 returns only id/name/subject by default
     const props = [
       "hs_email_status","state","publishDate","scheduledAt","updatedAt",
@@ -2311,8 +2326,11 @@ router.get("/email-campaigns", async (_req, res) => {
         if (n.includes("test") || n.includes("تجربة") || n.includes("اختبار")) return false;
         return true;
       })
-      .map(({ _dateMs: _, ...rest }) => rest);
-    res.json({ results: slim, total: slim.length, debug_total_before_filter: (data.results||[]).length });
+      .map(({ _dateMs: _, ...rest }) => ({
+        ...rest,
+        viewUrl: portalId ? `https://app.hubspot.com/email/${portalId}/details/${rest.id}/performance` : null,
+      }));
+    res.json({ results: slim, total: slim.length });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
