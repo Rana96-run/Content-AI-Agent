@@ -2147,6 +2147,36 @@ router.post("/daily-digest/run-now", async (_req, res) => {
   }
 });
 
+router.get("/content-library/entries", (_req, res) => {
+  try {
+    const { type, channel, limit } = _req.query;
+    const entries = listEntries({
+      type: type as import("../lib/content-library.js").ContentEntry["type"],
+      channel: channel as string,
+      limit: Number(limit) || 30,
+    });
+    res.json({ entries });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+router.get("/email-campaigns", async (_req, res) => {
+  const token = process.env.HS_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HubSpot not configured" });
+  try {
+    const r = await fetch(
+      "https://api.hubapi.com/marketing/v3/emails?limit=20&sort=-updatedAt",
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
+    );
+    const data = await r.json() as { results?: unknown[]; message?: string };
+    if (!r.ok) return res.status(r.status).json({ error: data.message || "HubSpot error" });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 router.get("/daily-summary", async (_req, res) => {
   try {
     const { readLatestDigest } = await import("../lib/daily-digest.js");

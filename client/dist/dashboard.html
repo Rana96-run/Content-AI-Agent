@@ -226,6 +226,36 @@
   .tool-chip { font-size: 10px; padding: 3px 8px; border-radius: 5px; background: rgba(47,117,242,.1); color: var(--accent); border: 1px solid rgba(47,117,242,.15); }
   .tool-chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
 
+  /* EMAIL MARKETING SECTION */
+  .email-section { margin-top: 20px; }
+  .email-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .email-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 13px; overflow: hidden;
+  }
+  .email-card-top {
+    padding: 14px 16px 10px; border-bottom: 1px solid rgba(47,117,242,.07);
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .email-state {
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+  }
+  .es-sent      { background: rgba(34,197,94,.14);  color: var(--green); }
+  .es-scheduled { background: rgba(245,158,11,.14); color: var(--yellow); }
+  .es-sending   { background: rgba(47,117,242,.14); color: var(--bright); }
+  .es-draft     { background: rgba(100,116,139,.12);color: var(--muted); }
+  .email-name   { font-size: 12px; font-weight: 700; margin-bottom: 3px; line-height: 1.3; }
+  .email-subject{ font-size: 10px; color: var(--sub); }
+  .email-stats  { display: grid; grid-template-columns: repeat(3, 1fr); padding: 10px 16px; gap: 6px; }
+  .email-stat   { text-align: center; }
+  .email-stat .esv { font-size: 16px; font-weight: 700; }
+  .email-stat .esl { font-size: 9px; color: var(--sub); margin-top: 1px; }
+  .esv-green { color: var(--green); }
+  .esv-blue  { color: var(--accent); }
+  .esv-yellow{ color: var(--yellow); }
+  .email-date { font-size: 9px; color: var(--muted); padding: 0 16px 10px; }
+  .email-empty { text-align: center; padding: 32px; color: var(--muted); font-size: 12px; }
+  .email-error { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 9px; padding: 12px 16px; font-size: 11px; color: var(--red); }
+
   /* TEAM REVIEW PANEL */
   .review-meta { font-size: 10px; color: var(--sub); margin-bottom: 10px; }
   .review-persona { display: flex; align-items: baseline; gap: 7px; padding: 6px 0; border-bottom: 1px solid rgba(47,117,242,.06); font-size: 11px; }
@@ -326,7 +356,8 @@
           <div class="tabs">
             <div class="tab on"  onclick="setFilter('all',this)">All</div>
             <div class="tab"     onclick="setFilter('auto',this)">Auto</div>
-            <div class="tab"     onclick="setFilter('content',this)">Content</div>
+            <div class="tab"     onclick="setFilter('content',this)">Posts</div>
+            <div class="tab"     onclick="setFilter('email',this)">Email</div>
             <div class="tab"     onclick="setFilter('monitor',this)">Monitor</div>
             <div class="tab"     onclick="setFilter('report',this)">Reports</div>
           </div>
@@ -397,6 +428,15 @@
     </div>
 
   </div>
+
+  <!-- Email Marketing -->
+  <div class="email-section">
+    <div class="section-label">Email Marketing — HubSpot Campaigns</div>
+    <div id="emailSection">
+      <div class="email-empty">Loading campaigns…</div>
+    </div>
+  </div>
+
 </main>
 
 <div id="toast"></div>
@@ -593,10 +633,41 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   el.classList.add('on');
+  if (f === 'content' && !libraryLoaded) fetchContentLibrary();
+  if (f === 'email' && emailCampaigns === null) fetchEmailCampaigns();
   renderFeed();
 }
 
 function renderFeed() {
+  // Dedicated data sources for content library and email tabs
+  if (currentFilter === 'content') { renderContentFeed(); return; }
+  if (currentFilter === 'email') {
+    if (emailCampaigns === null) {
+      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading HubSpot campaigns…</div>';
+      return;
+    }
+    if (emailFeedItems.length === 0) {
+      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No email campaigns found — see Email Marketing section below</div>';
+      return;
+    }
+    const agMap2 = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+    const ag = agMap2['email_lifecycle'];
+    document.getElementById('feedList').innerHTML = emailFeedItems.map(i => `
+      <div class="feed-item">
+        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
+        <div class="fi-body">
+          <div class="fi-title">${i.title}</div>
+          <div class="fi-meta">
+            <span>${ag ? ag.em + ' ' + ag.name : ''}</span>
+            ${i.sub ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${i.sub}</span>` : ''}
+            <span class="badge ${i.bc}">${i.badge}</span>
+            <span class="fi-time">${i.time}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    return;
+  }
+
   const agMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 
   // Use live tasks if we have any, otherwise fall back to static examples
@@ -795,6 +866,133 @@ function showToast(msg, err) {
   setTimeout(() => { t.style.display = 'none'; }, 3500);
 }
 
+// ── Content Library Feed ──────────────────────────────
+let libraryEntries = [];
+let libraryLoaded  = false;
+
+const CHANNEL_EM = {
+  instagram:'📸', facebook:'💙', linkedin:'💼', tiktok:'🎵',
+  twitter:'🐦', x:'🐦', youtube:'▶️', email:'📧', blog:'📝', other:'📄',
+};
+const TYPE_BADGE = {
+  post:'b-blue', reel:'b-green', story:'b-yellow', email:'b-muted',
+  ad:'b-red', blog:'b-blue', other:'b-muted',
+};
+
+async function fetchContentLibrary() {
+  try {
+    const r = await fetch(BASE + '/api/agent/content-library/entries?limit=40', { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return;
+    const d = await r.json();
+    libraryEntries = d.entries || [];
+    libraryLoaded  = true;
+    if (currentFilter === 'content') renderFeed();
+  } catch (_) {}
+}
+
+function renderContentFeed() {
+  if (!libraryLoaded) {
+    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading published posts…</div>';
+    fetchContentLibrary();
+    return;
+  }
+  if (libraryEntries.length === 0) {
+    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts in library yet</div>';
+    return;
+  }
+  document.getElementById('feedList').innerHTML = libraryEntries.map(e => {
+    const ch   = (e.channel || '').toLowerCase();
+    const em   = CHANNEL_EM[ch] || '📄';
+    const bc   = TYPE_BADGE[e.type] || 'b-muted';
+    const time = e.published_at ? new Date(e.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    const preview = (e.content_text || '').slice(0, 100) + (e.content_text?.length > 100 ? '…' : '');
+    const url  = e.post_url ? `<a href="${e.post_url}" target="_blank" style="color:var(--accent);text-decoration:none">↗</a>` : '';
+    return `<div class="feed-item">
+      <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
+      <div class="fi-body">
+        <div class="fi-title">${e.channel || 'Post'} · ${e.type} ${url}</div>
+        <div class="fi-meta">
+          ${e.topic ? `<span>${e.topic}</span>` : ''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${preview}</span>
+          <span class="badge ${bc}">${e.type}</span>
+          <span class="fi-time">${time}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Email Campaigns ────────────────────────────────────
+let emailCampaigns  = null;  // null = not fetched yet
+let emailFeedItems  = [];
+
+const EM_STATE_CLASS = { SENT:'es-sent', SCHEDULED:'es-scheduled', SENDING:'es-sending', DRAFT:'es-draft' };
+
+async function fetchEmailCampaigns() {
+  try {
+    const r = await fetch(BASE + '/api/agent/email-campaigns', { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    if (!r.ok) {
+      renderEmailSection(null, d.error || 'HubSpot error');
+      return;
+    }
+    emailCampaigns = d.results || [];
+    emailFeedItems = emailCampaigns.map(e => ({
+      tag:'email', em:'📧',
+      title: e.name || e.subject || '(no name)',
+      sub: e.subject || '',
+      badge: (e.currentState || 'DRAFT').toLowerCase(),
+      bc: EM_STATE_CLASS[e.currentState] || 'b-muted',
+      time: e.currentlyPublishedAt ? new Date(e.currentlyPublishedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '',
+    }));
+    renderEmailSection(emailCampaigns, null);
+    if (currentFilter === 'email') renderFeed();
+  } catch (err) {
+    renderEmailSection(null, String(err));
+  }
+}
+
+function renderEmailSection(campaigns, error) {
+  const el = document.getElementById('emailSection');
+  if (!el) return;
+  if (error) {
+    el.innerHTML = `<div class="email-error">⚠ ${error}</div>`;
+    return;
+  }
+  if (!campaigns || campaigns.length === 0) {
+    el.innerHTML = '<div class="email-empty">No email campaigns found in HubSpot</div>';
+    return;
+  }
+  el.innerHTML = '<div class="email-grid">' + campaigns.map(e => {
+    const state    = e.currentState || 'DRAFT';
+    const stateCls = EM_STATE_CLASS[state] || 'es-draft';
+    const stats    = e.stats?.counters || {};
+    const sent     = stats.sent || stats.delivered || 0;
+    const opens    = stats.open || 0;
+    const clicks   = stats.click || 0;
+    const openRate = sent > 0 ? ((opens / sent) * 100).toFixed(1) + '%' : '—';
+    const ctr      = sent > 0 ? ((clicks / sent) * 100).toFixed(1) + '%' : '—';
+    const dateStr  = e.currentlyPublishedAt
+      ? new Date(e.currentlyPublishedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      : (e.scheduledAt ? '⏰ ' + new Date(e.scheduledAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '');
+    return `<div class="email-card">
+      <div class="email-card-top">
+        <div style="flex:1;min-width:0">
+          <div class="email-name">${e.name || '(unnamed)'}</div>
+          <div class="email-subject">${e.subject || ''}</div>
+        </div>
+        <span class="email-state ${stateCls}">${state}</span>
+      </div>
+      <div class="email-stats">
+        <div class="email-stat"><div class="esv esv-blue">${sent.toLocaleString()}</div><div class="esl">Delivered</div></div>
+        <div class="email-stat"><div class="esv esv-green">${openRate}</div><div class="esl">Open Rate</div></div>
+        <div class="email-stat"><div class="esv esv-yellow">${ctr}</div><div class="esl">CTR</div></div>
+      </div>
+      ${dateStr ? `<div class="email-date">${dateStr}</div>` : ''}
+    </div>`;
+  }).join('') + '</div>';
+}
+
 // ── Daily Digest ──────────────────────────────────────
 async function fetchDigest() {
   try {
@@ -845,6 +1043,8 @@ function init() {
   setInterval(fetchLiveTasks, 30000); // refresh task feed every 30s
   fetchDigest();
   setInterval(fetchDigest, 5 * 60 * 1000); // refresh digest every 5 min
+  fetchContentLibrary();   // pre-load so Posts tab is instant
+  fetchEmailCampaigns();   // pre-load email section on page open
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
