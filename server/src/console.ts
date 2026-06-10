@@ -10,7 +10,7 @@
    terminal:  `npm run console`
 
    Built-in prompts (type `/help` to see all):
-     /p <id>         switch persona (graphic_designer, cro, …)
+     /p <id>         switch persona (social_media, content_creator, email_lifecycle, …)
      /personas       list personas
      /ask <text>     send a free-form task to the current persona
      /quick <key>    run a preset (see QUICK_PROMPTS below)
@@ -54,11 +54,6 @@ const QUICK_PROMPTS: Record<string, { persona: string; body: string; title: stri
     persona: "social_media",
     title: "Competitor scan — Zoho Books",
     body: "Analyze zohobooks.com/sa content pillars vs. Qoyod. What gaps should we exploit this quarter?",
-  },
-  lp: {
-    persona: "cro",
-    title: "LP for invoicing bundle",
-    body: "اكتب لاندنج بيج عربي لباقة الفوترة الإلكترونية. ضمّن A/B test plan وSEO meta.",
   },
   review: {
     persona: "editor_qa",

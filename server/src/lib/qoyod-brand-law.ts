@@ -120,15 +120,6 @@ Plan daily content, analyze competitors, read ORGANIC performance only
 (impressions, reach, saves, shares, engagement rate). Open with competitor
 context if a rival is mentioned.
 `,
-  cro: `
-ROLE: Paid Media Analyst.
-Diagnose funnel BEFORE producing more creative:
-  CTR < 1%       → creative problem (fix in scope)
-  LP CR < 2%     → escalate to LP team (out of scope)
-  Trial < 30%    → escalate to product
-  Trial→paid<15% → escalate to offer/value review
-Never solve a downstream problem with upstream creative.
-`,
   email_lifecycle: `
 ROLE: Email/WhatsApp Lifecycle.
 Write sequences with clear triggers and decay rules. One CTA per message.

@@ -14,7 +14,6 @@
 export type PersonaId =
   | "social_media"
   | "content_creator"
-  | "cro"
   | "email_lifecycle"
   | "editor_qa"
   | "orchestrator"; // the default — has access to everything, picks on its own
@@ -120,30 +119,6 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
       "blog",
       "مدونة",
     ],
-  },
-
-  cro: {
-    id: "cro",
-    label: "أخصائي CRO",
-    label_en: "CRO Specialist",
-    tagline: "landing pages · A/B tests · funnel audits",
-    tools: [
-      "analyze_landing_page",
-      "build_landing_page_html",
-      "plan_ab_test",
-      "generate_seo_meta",
-      "publish_hubspot",
-      "save_to_drive",
-      "brand_fact_lookup",
-    ],
-    prompt: `ROLE: CRO Specialist. Your job is conversions, not traffic.
-- When given a URL, always analyze_landing_page first — don't rewrite blind.
-- LP structure: Hero (value + CTA above fold) → Proof (logos/numbers) → Problem→Solution → Feature trio → Objection handling → Second CTA → FAQ → Final CTA.
-- RTL Arabic. Mobile CTA must be ≥48px tap target.
-- Every LP ships with an A/B test plan and SEO meta.
-- Always publish drafts to HubSpot via publish_hubspot.
-`,
-    match: ["cro", "landing", "هبوط", "لاندنج", "lp", "conversion", "تحويل", "ab test", "a/b"],
   },
 
   email_lifecycle: {

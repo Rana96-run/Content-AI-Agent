@@ -4,7 +4,7 @@ import { PERSONAS, type PersonaId } from "./agent-personas.js";
    @mention parser — pull explicit persona handles out of free-form
    trigger text. Supports both English handles and Arabic aliases.
 
-     "@cro fix this LP"               → persona = "cro"
+     "@writer draft captions"          → persona = "content_creator"
      "@مصمم اعمل بوستر"                → persona = "graphic_designer"
      "@social @editor review calendar" → persona = "social_media" (first wins),
                                          mentions = ["social_media","editor_qa"]
@@ -25,11 +25,6 @@ const HANDLE_MAP: Record<string, PersonaId> = {
   content: "content_creator",
   "محتوى": "content_creator",
   "كاتب": "content_creator",
-  // cro
-  cro: "cro",
-  lp: "cro",
-  landing: "cro",
-  "هبوط": "cro",
   // email
   email: "email_lifecycle",
   lifecycle: "email_lifecycle",

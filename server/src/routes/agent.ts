@@ -1781,7 +1781,7 @@ router.post("/webhook", async (req, res) => {
     const personaMap: Record<string, string> = {
       hs_new_lead:       "email_lifecycle",
       hs_deal_stage:     "content_creator",
-      hs_form_submit:    "cro",
+      hs_form_submit:    "content_creator",
       sheets_brief:      "orchestrator",
       calendly_booking:  "content_creator",
       linkedin_lead:     "email_lifecycle",

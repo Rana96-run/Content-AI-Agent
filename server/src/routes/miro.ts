@@ -418,7 +418,7 @@ async function drawAgentFlow(token: string, boardId: string) {
       { id: "r_designer",  col: 2, row: 0, label: "Designer",           sub: "SVG ads, Canva, images",     fill: TEAL   },
       { id: "r_social",    col: 2, row: 1, label: "Social Media",       sub: "Captions + competitor intel",fill: TEAL   },
       { id: "r_writer",    col: 2, row: 2, label: "Content Writer",     sub: "Copy, blog, Google Ads",     fill: TEAL   },
-      { id: "r_cro",       col: 2, row: 3, label: "CRO / Email",        sub: "Landing pages, A/B, email",  fill: TEAL   },
+      { id: "r_cro",       col: 2, row: 3, label: "Email Lifecycle",    sub: "Welcome, nurture, winback",   fill: TEAL   },
       { id: "r_intel",     col: 2, row: 4, label: "Intelligence",       sub: "Library + memory + insights",fill: INDIGO },
     ],
     // Col 3 — Actions (tools)
@@ -944,7 +944,7 @@ async function drawSystemArchitecture(token: string, boardId: string) {
   const personas = [
     { id: "p_social", label: "Social Media\nanalysis+monitor" },
     { id: "p_content", label: "Content Creator\ncopy+captions" },
-    { id: "p_cro", label: "Paid Media\nfunnel doctor" },
+    { id: "p_email2", label: "Email Lifecycle\nwelcome+nurture" },
     { id: "p_email", label: "Email Lifecycle\nsequences" },
     { id: "p_qa", label: "Editor QA\nchecklist" },
     { id: "p_orch", label: "Orchestrator\nrouter" },
