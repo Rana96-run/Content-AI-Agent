@@ -98,6 +98,56 @@ const pos = (x: number, y: number) => ({
 let _seq = 0;
 const eid = (p = "e") => `${p}_${++_seq}_${Date.now() % 1_000_000}`;
 
+function rBox(
+  id: string, slideId: string,
+  x: number, y: number, w: number, h: number,
+  fill: string, borderColor?: string, borderPt = 1,
+): any[] {
+  return [
+    {
+      createShape: {
+        objectId: id, shapeType: "ROUND_RECTANGLE",
+        elementProperties: { pageObjectId: slideId, size: emu(w, h), transform: pos(x, y) },
+      },
+    },
+    {
+      updateShapeProperties: {
+        objectId: id, fields: "shapeBackgroundFill,outline",
+        shapeProperties: {
+          shapeBackgroundFill: { solidFill: { color: { rgbColor: rgb(fill) } } },
+          outline: borderColor
+            ? { outlineFill: { solidFill: { color: { rgbColor: rgb(borderColor) } } }, weight: pt(borderPt) }
+            : { propertyState: "NOT_RENDERED" },
+        },
+      },
+    },
+  ];
+}
+
+function ellipse(
+  id: string, slideId: string,
+  x: number, y: number, w: number, h: number,
+  fill: string,
+): any[] {
+  return [
+    {
+      createShape: {
+        objectId: id, shapeType: "ELLIPSE",
+        elementProperties: { pageObjectId: slideId, size: emu(w, h), transform: pos(x, y) },
+      },
+    },
+    {
+      updateShapeProperties: {
+        objectId: id, fields: "shapeBackgroundFill,outline",
+        shapeProperties: {
+          shapeBackgroundFill: { solidFill: { color: { rgbColor: rgb(fill) } } },
+          outline: { propertyState: "NOT_RENDERED" },
+        },
+      },
+    },
+  ];
+}
+
 function newSlide(id: string): any {
   return { createSlide: { objectId: id, slideLayoutReference: { predefinedLayout: "BLANK" } } };
 }
@@ -228,69 +278,71 @@ function txt(
 function coverSlide(slideId: string, weekLabel: string, total: number, compCount: number): any[] {
   const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
 
-  // Large decorative circle top-right (simulated with overlapping boxes)
-  R.push(...box(eid(), slideId, W * 0.72, -IN * 1.2, IN * 3.0, IN * 3.0, C.navyLight));
-
-  // Accent right panel
-  R.push(...box(eid(), slideId, W - IN * 0.08, 0, IN * 0.08, H, C.brightBlue));
-
-  // Bottom accent strip
-  R.push(...box(eid(), slideId, 0, H - IN * 0.06, W, IN * 0.06, C.brightBlue));
+  // Decorative ellipses top-right (Canva-style background depth)
+  R.push(...ellipse(eid(), slideId, W * 0.70, -IN * 1.5, IN * 4.2, IN * 4.2, C.navyLight));
+  R.push(...ellipse(eid(), slideId, W * 0.82, -IN * 0.6, IN * 2.2, IN * 2.2, C.royalBlue));
+  // Small accent dot bottom-left
+  R.push(...ellipse(eid(), slideId, -IN * 0.6, H * 0.6, IN * 2.0, IN * 2.0, C.navyLight));
 
   // Left bright stripe
-  R.push(...box(eid(), slideId, 0, 0, IN * 0.06, H, C.brightBlue));
+  R.push(...box(eid(), slideId, 0, 0, IN * 0.07, H, C.brightBlue));
+  // Bottom accent strip
+  R.push(...box(eid(), slideId, 0, H - IN * 0.07, W, IN * 0.07, C.brightBlue));
 
-  // Week label pill background
-  R.push(...box(eid(), slideId, IN * 0.55, IN * 0.75, IN * 2.2, IN * 0.38, C.brightBlue));
-  R.push(...txt(slideId, IN * 0.55, IN * 0.76, IN * 2.2, IN * 0.36,
+  // Week label pill (rounded)
+  R.push(...rBox(eid(), slideId, IN * 0.55, IN * 0.72, IN * 2.4, IN * 0.40, C.brightBlue));
+  R.push(...txt(slideId, IN * 0.55, IN * 0.73, IN * 2.4, IN * 0.38,
     weekLabel, { size: 10, color: C.white, bold: true, align: "CENTER" },
   ));
 
-  // Main Arabic title
-  R.push(...txt(slideId, IN * 0.55, IN * 1.28, IN * 6.0, IN * 1.8,
+  // Main Arabic title — larger, more dramatic
+  R.push(...txt(slideId, IN * 0.55, IN * 1.30, IN * 6.2, IN * 2.0,
     "رصد المنافسين\nالأسبوعي",
-    { bold: true, size: 48, color: C.white, lh: 115 },
+    { bold: true, size: 56, color: C.white, lh: 112 },
   ));
 
   // Subtitle
-  R.push(...txt(slideId, IN * 0.55, IN * 3.28, IN * 6.0, IN * 0.42,
+  R.push(...txt(slideId, IN * 0.55, IN * 3.42, IN * 6.2, IN * 0.44,
     "تقرير ذكاء المنافسين — فريق التسويق الإبداعي",
     { size: 12, color: "#8BA5CC" },
   ));
 
-  // Horizontal rule below title
-  R.push(...box(eid(), slideId, IN * 0.55, IN * 3.18, IN * 2.5, IN * 0.04, C.brightBlue));
+  // Divider line
+  R.push(...box(eid(), slideId, IN * 0.55, IN * 3.34, IN * 2.8, IN * 0.04, C.brightBlue));
 
-  // Stat block — total activity
+  // Stat cards — rounded, floating at bottom
+  const sy = H - IN * 1.42;
+  const sw = IN * 2.3;
+  const sh = IN * 1.15;
   const sx = IN * 0.55;
-  const sy = H - IN * 1.35;
-  const sw = IN * 2.2;
-  const sh = IN * 1.05;
 
-  R.push(...box(eid(), slideId, sx, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
-  R.push(...txt(slideId, sx, sy + IN * 0.1, sw, IN * 0.62,
+  // Total activity card
+  R.push(...rBox(eid(), slideId, sx, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
+  R.push(...box(eid(), slideId, sx, sy, sw, IN * 0.07, C.brightBlue)); // top accent bar
+  R.push(...txt(slideId, sx, sy + IN * 0.14, sw, IN * 0.68,
     String(total),
-    { bold: true, size: 36, color: C.white, align: "CENTER" },
+    { bold: true, size: 44, color: C.white, align: "CENTER" },
   ));
-  R.push(...txt(slideId, sx, sy + IN * 0.7, sw, IN * 0.28,
+  R.push(...txt(slideId, sx, sy + IN * 0.80, sw, IN * 0.28,
     "نشاط رُصد هذا الأسبوع",
     { size: 9, color: "#8BA5CC", align: "CENTER" },
   ));
 
-  // Stat block — competitor count
-  R.push(...box(eid(), slideId, sx + sw + IN * 0.2, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
-  R.push(...txt(slideId, sx + sw + IN * 0.2, sy + IN * 0.1, sw, IN * 0.62,
+  // Competitor count card
+  R.push(...rBox(eid(), slideId, sx + sw + IN * 0.22, sy, sw, sh, C.navyLight, C.brightBlue, 1.5));
+  R.push(...box(eid(), slideId, sx + sw + IN * 0.22, sy, sw, IN * 0.07, C.brightBlue));
+  R.push(...txt(slideId, sx + sw + IN * 0.22, sy + IN * 0.14, sw, IN * 0.68,
     String(compCount),
-    { bold: true, size: 36, color: C.white, align: "CENTER" },
+    { bold: true, size: 44, color: C.white, align: "CENTER" },
   ));
-  R.push(...txt(slideId, sx + sw + IN * 0.2, sy + IN * 0.7, sw, IN * 0.28,
+  R.push(...txt(slideId, sx + sw + IN * 0.22, sy + IN * 0.80, sw, IN * 0.28,
     "منافس تحت المراقبة",
     { size: 9, color: "#8BA5CC", align: "CENTER" },
   ));
 
   // Brand mark bottom right
-  R.push(...txt(slideId, W - IN * 2.5, H - IN * 0.52, IN * 2.2, IN * 0.35,
-    "قيود · Creative OS",
+  R.push(...txt(slideId, W - IN * 2.8, H - IN * 0.55, IN * 2.5, IN * 0.36,
+    "قيود · Social Media Artist",
     { size: 9, color: "#8BA5CC", align: "END" },
   ));
 
@@ -345,18 +397,18 @@ function execSummarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel
   for (let i = 0; i < kpis.length; i++) {
     const kx = IN * 0.3 + i * (kw + IN * 0.2);
     const k = kpis[i];
-    R.push(...box(eid(), slideId, kx, ky, kw, kh, C.white, C.cardBorder));
-    // Top colored strip
-    R.push(...box(eid(), slideId, kx, ky, kw, IN * 0.06, k.color));
-    R.push(...txt(slideId, kx, ky + IN * 0.15, kw, IN * 0.56,
+    // Rounded card with top color bar
+    R.push(...rBox(eid(), slideId, kx, ky, kw, kh, C.white, C.cardBorder));
+    R.push(...box(eid(), slideId, kx, ky, kw, IN * 0.07, k.color));
+    R.push(...txt(slideId, kx, ky + IN * 0.14, kw, IN * 0.60,
       k.num,
-      { bold: true, size: 28, color: C.navy, align: "CENTER" },
+      { bold: true, size: 34, color: C.navy, align: "CENTER" },
     ));
-    R.push(...txt(slideId, kx, ky + IN * 0.72, kw, IN * 0.24,
+    R.push(...txt(slideId, kx, ky + IN * 0.76, kw, IN * 0.24,
       k.label,
       { bold: true, size: 10, color: C.textDark, align: "CENTER" },
     ));
-    R.push(...txt(slideId, kx, ky + IN * 0.92, kw, IN * 0.2,
+    R.push(...txt(slideId, kx, ky + IN * 0.96, kw, IN * 0.2,
       k.sub,
       { size: 8, color: C.textLight, align: "CENTER" },
     ));
@@ -717,15 +769,19 @@ function knowledgeSlide(slideId: string, insights: string[]): any[] {
     const cx   = IN * 0.3 + col * (cardW + IN * 0.2);
     const cy   = IN * 0.88 + row * (cardH + gap);
 
-    R.push(...box(eid(), slideId, cx, cy, cardW, cardH, C.navyLight, C.brightBlue, 1));
-    // Number badge
-    R.push(...box(eid(), slideId, cx, cy, IN * 0.36, cardH, C.brightBlue));
-    R.push(...txt(slideId, cx, cy + IN * 0.24, IN * 0.36, IN * 0.42,
+    // Rounded card
+    R.push(...rBox(eid(), slideId, cx, cy, cardW, cardH, C.navyLight, C.brightBlue, 1));
+    // Ellipse number badge (Canva-style circle)
+    const badgeSize = IN * 0.52;
+    const badgeX = cx + IN * 0.16;
+    const badgeY = cy + (cardH - badgeSize) / 2;
+    R.push(...ellipse(eid(), slideId, badgeX, badgeY, badgeSize, badgeSize, C.brightBlue));
+    R.push(...txt(slideId, badgeX, badgeY + IN * 0.10, badgeSize, IN * 0.34,
       String(i + 1),
-      { bold: true, size: 16, color: C.white, align: "CENTER" },
+      { bold: true, size: 15, color: C.white, align: "CENTER" },
       "LEFT_TO_RIGHT",
     ));
-    R.push(...txt(slideId, cx + IN * 0.46, cy + IN * 0.14, cardW - IN * 0.56, IN * 0.64,
+    R.push(...txt(slideId, cx + IN * 0.80, cy + IN * 0.14, cardW - IN * 0.92, IN * 0.64,
       insights[i],
       { size: 9.5, color: "#C8D8F0", lh: 130 },
     ));
@@ -763,25 +819,28 @@ function actionPlanSlide(
   for (let i = 0; i < Math.min(tasks.length, 6); i++) {
     const t  = tasks[i];
     const ty = IN * 0.82 + i * (rh + gap);
+    const pColor = priorityColors[i] || C.textLight;
 
-    R.push(...box(eid(), slideId, IN * 0.3, ty, W - IN * 0.6, rh,
+    // Rounded card row
+    R.push(...rBox(eid(), slideId, IN * 0.3, ty, W - IN * 0.6, rh,
       i % 2 === 0 ? C.cardBg : C.white, C.cardBorder,
     ));
 
-    // Priority badge
-    R.push(...box(eid(), slideId, IN * 0.3, ty, IN * 0.5, rh, priorityColors[i] || C.textLight));
-    R.push(...txt(slideId, IN * 0.3, ty + IN * 0.2, IN * 0.5, IN * 0.3,
+    // Ellipse priority badge
+    const bSize = IN * 0.46;
+    R.push(...ellipse(eid(), slideId, IN * 0.40, ty + (rh - bSize) / 2, bSize, bSize, pColor));
+    R.push(...txt(slideId, IN * 0.40, ty + (rh - bSize) / 2 + IN * 0.10, bSize, IN * 0.28,
       priorityLabels[i],
       { bold: true, size: 10, color: C.white, align: "CENTER" },
       "LEFT_TO_RIGHT",
     ));
 
     // Task title
-    R.push(...txt(slideId, IN * 0.95, ty + IN * 0.06, W - IN * 3.8, IN * 0.36,
+    R.push(...txt(slideId, IN * 1.05, ty + IN * 0.06, W - IN * 4.0, IN * 0.36,
       t.title, { bold: true, size: 11.5, color: C.navy },
     ));
     if (t.why) {
-      R.push(...txt(slideId, IN * 0.95, ty + IN * 0.4, W - IN * 3.8, IN * 0.24,
+      R.push(...txt(slideId, IN * 1.05, ty + IN * 0.40, W - IN * 4.0, IN * 0.24,
         t.why, { italic: true, size: 8.5, color: C.textLight },
       ));
     }
@@ -800,51 +859,59 @@ function actionPlanSlide(
 function closingSlide(slideId: string, actions: string[], weekLabel: string): any[] {
   const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
 
-  // Decorative top strip
+  // Decorative ellipses for depth (Canva-style)
+  R.push(...ellipse(eid(), slideId, -IN * 0.8, H * 0.5, IN * 2.5, IN * 2.5, C.navyLight));
+  R.push(...ellipse(eid(), slideId, W * 0.75, -IN * 0.5, IN * 2.8, IN * 2.8, C.navyLight));
+
+  // Top + bottom accent strips
   R.push(...box(eid(), slideId, 0, 0, W, IN * 0.08, C.brightBlue));
   R.push(...box(eid(), slideId, 0, H - IN * 0.08, W, IN * 0.08, C.brightBlue));
 
   // Title
-  R.push(...txt(slideId, IN * 0.5, IN * 0.5, W - IN * 1.0, IN * 0.7,
+  R.push(...txt(slideId, IN * 0.5, IN * 0.44, W - IN * 1.0, IN * 0.72,
     "خطوة قيود هذا الأسبوع",
-    { bold: true, size: 32, color: C.white },
+    { bold: true, size: 36, color: C.white },
   ));
-  R.push(...txt(slideId, IN * 0.5, IN * 1.28, W - IN * 1.0, IN * 0.36,
+  R.push(...txt(slideId, IN * 0.5, IN * 1.24, W - IN * 1.0, IN * 0.36,
     weekLabel, { size: 12, color: C.brightBlue },
   ));
 
   // Rule
-  R.push(...box(eid(), slideId, IN * 0.5, IN * 1.72, IN * 2.0, IN * 0.05, C.brightBlue));
+  R.push(...box(eid(), slideId, IN * 0.5, IN * 1.68, IN * 2.2, IN * 0.05, C.brightBlue));
 
-  // Action cards (3 across)
+  // Action cards — rounded, with ellipse number circles
   const displayActions = actions.length > 0 ? actions.slice(0, 3) : [
     "لا توجد توصيات محددة هذا الأسبوع",
   ];
-  const aw = (W - IN * 1.0 - IN * 0.2 * (displayActions.length - 1)) / displayActions.length;
+  const aw = (W - IN * 1.0 - IN * 0.22 * (displayActions.length - 1)) / displayActions.length;
   const ay = IN * 2.0;
-  const ah = IN * 2.2;
+  const ah = IN * 2.3;
 
   for (let i = 0; i < displayActions.length; i++) {
-    const ax = IN * 0.5 + i * (aw + IN * 0.2);
-    R.push(...box(eid(), slideId, ax, ay, aw, ah, C.navyLight, C.brightBlue, 1.5));
-    // Top accent
-    R.push(...box(eid(), slideId, ax, ay, aw, IN * 0.06, C.brightBlue));
-    // Number
-    R.push(...txt(slideId, ax, ay + IN * 0.18, aw, IN * 0.55,
+    const ax = IN * 0.5 + i * (aw + IN * 0.22);
+    // Rounded card
+    R.push(...rBox(eid(), slideId, ax, ay, aw, ah, C.navyLight, C.brightBlue, 1.5));
+    // Top accent bar
+    R.push(...box(eid(), slideId, ax, ay, aw, IN * 0.07, C.brightBlue));
+    // Ellipse number circle
+    const numSize = IN * 0.60;
+    const numX = ax + (aw - numSize) / 2;
+    R.push(...ellipse(eid(), slideId, numX, ay + IN * 0.20, numSize, numSize, C.brightBlue));
+    R.push(...txt(slideId, numX, ay + IN * 0.33, numSize, IN * 0.38,
       String(i + 1),
-      { bold: true, size: 28, color: C.brightBlue, align: "CENTER" },
+      { bold: true, size: 24, color: C.white, align: "CENTER" },
       "LEFT_TO_RIGHT",
     ));
     // Action text
-    R.push(...txt(slideId, ax + IN * 0.2, ay + IN * 0.82, aw - IN * 0.4, ah - IN * 1.0,
+    R.push(...txt(slideId, ax + IN * 0.2, ay + IN * 0.96, aw - IN * 0.4, ah - IN * 1.10,
       displayActions[i],
-      { size: 11, color: C.white, lh: 135 },
+      { size: 11, color: "#C8D8F0", lh: 135 },
     ));
   }
 
   // Footer
-  R.push(...txt(slideId, IN * 0.5, H - IN * 0.5, W - IN * 1.0, IN * 0.3,
-    "قيود · Creative OS  —  النظام يتعلم ويتطور كل أسبوع",
+  R.push(...txt(slideId, IN * 0.5, H - IN * 0.52, W - IN * 1.0, IN * 0.32,
+    "قيود · Social Media Artist  —  النظام يتعلم ويتطور كل أسبوع",
     { size: 9, color: "#4A6A9C" },
   ));
 
