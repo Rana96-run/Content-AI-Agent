@@ -11,14 +11,14 @@ const router = Router();
    Manually trigger the weekly monitoring pipeline (scrape → diff → AI → Slack).
    Use this to test before Sunday, or to re-run after editing the
    tracked competitor list. */
-router.post("/competitor-ads/run-monitor-now", async (req, res) => {
+router.post("/competitor-ads/run-monitor-now", (req, res) => {
   const { competitors, postToSlack = false } = req.body ?? {};
-  try {
-    const result = await runMonitorOnce({ competitors, postToSlack: Boolean(postToSlack) });
-    res.status(200).json(result);
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-  }
+  // Respond immediately — monitor takes several minutes (Apify actors)
+  res.status(202).json({ ok: true, message: "Monitor started — check Slides/Sheets for results in ~5 min" });
+  runMonitorOnce({ competitors, postToSlack: Boolean(postToSlack) }).catch(err => {
+    // eslint-disable-next-line no-console
+    console.error("[monitor-now] background error:", err instanceof Error ? err.message : String(err));
+  });
 });
 
 /* ─── POST /api/competitor-ads/test-slides ──────────────────────────────
