@@ -2148,38 +2148,84 @@ router.post("/daily-digest/run-now", async (_req, res) => {
 });
 
 /* ── Social posts — live from HubSpot broadcasts ── */
+
+// Cache the channel label map so we don't fetch it on every request
+let _channelMapCache: Record<string, string> | null = null;
+let _channelMapFetchedAt = 0;
+
+async function getChannelMap(token: string): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (_channelMapCache && now - _channelMapFetchedAt < 60 * 60 * 1_000) return _channelMapCache;
+  try {
+    const r = await fetch("https://api.hubapi.com/broadcast/v1/channels/setting/publish/current", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) throw new Error(`channels API ${r.status}`);
+    const data = await r.json() as Array<{ channelKey: string; channelType?: string; name?: string }>;
+    const map: Record<string, string> = {};
+    for (const ch of (Array.isArray(data) ? data : [])) {
+      // Derive a friendly label: prefer name, fall back to channelType
+      const raw   = ch.name || ch.channelType || ch.channelKey || "";
+      const lower = raw.toLowerCase();
+      let label = raw;
+      if (lower.includes("instagram"))  label = "Instagram";
+      else if (lower.includes("facebook")) label = "Facebook";
+      else if (lower.includes("linkedin")) label = "LinkedIn";
+      else if (lower.includes("tiktok"))   label = "TikTok";
+      else if (lower.includes("twitter") || lower.includes("/x")) label = "Twitter/X";
+      else if (lower.includes("youtube"))  label = "YouTube";
+      if (ch.channelKey) map[ch.channelKey] = label;
+    }
+    _channelMapCache = map;
+    _channelMapFetchedAt = now;
+    return map;
+  } catch {
+    // Fall back to empty map — channelKey prefix will be used as label
+    return _channelMapCache ?? {};
+  }
+}
+
+function resolveChannel(channelKey: string, map: Record<string, string>): string {
+  // Exact match first
+  if (map[channelKey]) return map[channelKey];
+  // Partial key match (HubSpot sometimes appends account IDs)
+  for (const [k, v] of Object.entries(map)) {
+    if (channelKey.includes(k) || k.includes(channelKey)) return v;
+  }
+  // Infer from the key string itself
+  const low = channelKey.toLowerCase();
+  if (low.includes("instagram"))  return "Instagram";
+  if (low.includes("facebook"))   return "Facebook";
+  if (low.includes("linkedin"))   return "LinkedIn";
+  if (low.includes("tiktok"))     return "TikTok";
+  if (low.includes("twitter"))    return "Twitter/X";
+  if (low.includes("youtube"))    return "YouTube";
+  return channelKey.split(":")[0] ?? channelKey;
+}
+
 router.get("/social-posts", async (req, res) => {
   const token = process.env.HS_ACCESS_TOKEN;
   if (!token) return res.status(503).json({ error: "HubSpot not configured" });
   try {
-    const limit = Math.min(Number(req.query.limit) || 30, 50);
-    const r = await fetch(
-      `https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
-    const data = await r.json() as Array<{
+    const limit = Math.min(Number(req.query.limit) || 40, 50);
+    const [broadcastRes, channelMap] = await Promise.all([
+      fetch(`https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      getChannelMap(token),
+    ]);
+    if (!broadcastRes.ok) return res.status(broadcastRes.status).json({ error: await broadcastRes.text() });
+    const data = await broadcastRes.json() as Array<{
       broadcastGuid: string; channelKey: string; finishedAt: number;
       status: string; messageUrl?: string;
       content?: { body?: string; title?: string; thumbUrl?: string };
       statistics?: { clicks?: number; impressions?: number; reach?: number; reactions?: number; shares?: number };
     }>;
 
-    // Channel labels
-    const LABELS: Record<string, string> = {
-      "17841403066920736": "Instagram", "1331104100252779": "Facebook",
-      "13231520": "LinkedIn", "752153850132455424": "Twitter/X",
-    };
-    function chLabel(key: string) {
-      for (const [id, label] of Object.entries(LABELS)) {
-        if (key.includes(id)) return label;
-      }
-      return key.split(":")[0] ?? key;
-    }
-
     const posts = (Array.isArray(data) ? data : []).map((b) => ({
       id:           b.broadcastGuid,
-      channel:      chLabel(b.channelKey),
+      channel:      resolveChannel(b.channelKey, channelMap),
+      channelKey:   b.channelKey,
       published_at: b.finishedAt ? new Date(b.finishedAt).toISOString() : null,
       content:      b.content?.body || b.content?.title || "",
       url:          b.messageUrl || null,

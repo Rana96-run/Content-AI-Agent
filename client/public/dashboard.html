@@ -873,8 +873,11 @@ let socialLoaded = false;
 
 const CHANNEL_EM = {
   instagram:'📸', facebook:'💙', linkedin:'💼', tiktok:'🎵',
-  'twitter/x':'🐦', twitter:'🐦', youtube:'▶️', email:'📧', blog:'📝',
+  'twitter/x':'🐦', twitter:'🐦', youtube:'▶️', email:'📧', blog:'📝', snapchat:'👻',
 };
+function chanEm(ch) {
+  return CHANNEL_EM[(ch||'').toLowerCase()] || '📄';
+}
 
 async function fetchSocialPosts() {
   try {
@@ -898,8 +901,7 @@ function renderContentFeed() {
     return;
   }
   document.getElementById('feedList').innerHTML = socialPosts.map(p => {
-    const ch      = (p.channel || '').toLowerCase();
-    const em      = CHANNEL_EM[ch] || '📄';
+    const em      = chanEm(p.channel);
     const time    = p.published_at ? new Date(p.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
     const preview = (p.content || '').slice(0, 110) + (p.content?.length > 110 ? '…' : '');
     const url     = p.url ? `<a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:4px">↗</a>` : '';
