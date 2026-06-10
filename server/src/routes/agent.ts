@@ -2147,4 +2147,15 @@ router.post("/daily-digest/run-now", async (_req, res) => {
   }
 });
 
+router.get("/daily-summary", async (_req, res) => {
+  try {
+    const { readLatestDigest } = await import("../lib/daily-digest.js");
+    const data = readLatestDigest();
+    if (!data) return res.status(404).json({ error: "No digest yet" });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 export default router;

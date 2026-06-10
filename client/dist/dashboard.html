@@ -226,6 +226,17 @@
   .tool-chip { font-size: 10px; padding: 3px 8px; border-radius: 5px; background: rgba(47,117,242,.1); color: var(--accent); border: 1px solid rgba(47,117,242,.15); }
   .tool-chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
 
+  /* TEAM REVIEW PANEL */
+  .review-meta { font-size: 10px; color: var(--sub); margin-bottom: 10px; }
+  .review-persona { display: flex; align-items: baseline; gap: 7px; padding: 6px 0; border-bottom: 1px solid rgba(47,117,242,.06); font-size: 11px; }
+  .review-persona:last-child { border-bottom: none; padding-bottom: 0; }
+  .review-em { font-size: 14px; flex-shrink: 0; }
+  .review-label { font-weight: 600; flex: 1; }
+  .review-counts { font-size: 10px; color: var(--sub); }
+  .review-counts .rc-err { color: var(--red); }
+  .review-empty { font-size: 11px; color: var(--muted); text-align: center; padding: 14px 0; }
+  .review-summary { font-size: 10px; color: var(--sub); margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(47,117,242,.06); }
+
   /* TOAST */
   #toast {
     position: fixed; bottom: 22px; right: 22px; z-index: 999;
@@ -349,8 +360,17 @@
 
     </div>
 
-    <!-- Right panel: health + countdown -->
+    <!-- Right panel: review + health + countdown -->
     <div style="display:flex; flex-direction:column; gap:18px;">
+
+      <div>
+        <div class="section-label">Last Team Review</div>
+        <div class="card">
+          <div class="card-body" id="reviewPanel">
+            <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
+          </div>
+        </div>
+      </div>
 
       <div>
         <div class="section-label">System Health</div>
@@ -775,6 +795,40 @@ function showToast(msg, err) {
   setTimeout(() => { t.style.display = 'none'; }, 3500);
 }
 
+// ── Daily Digest ──────────────────────────────────────
+async function fetchDigest() {
+  try {
+    const r = await fetch(BASE + '/api/agent/daily-summary', { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return;
+    const d = await r.json();
+    renderDigest(d);
+  } catch (_) {}
+}
+
+function renderDigest(d) {
+  const el = document.getElementById('reviewPanel');
+  if (!el) return;
+  if (!d || !d.date) { el.innerHTML = '<div class="review-empty">No review data</div>'; return; }
+  const ts = d.generated_at ? new Date(d.generated_at).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : d.date;
+  let html = `<div class="review-meta">${d.date} · ${ts} · ${d.total} tasks</div>`;
+  if (!d.personas || d.personas.length === 0) {
+    html += '<div class="review-empty">No tasks in last 24h</div>';
+  } else {
+    html += '<div>';
+    for (const p of d.personas) {
+      const errHtml = p.errors > 0 ? ` <span class="rc-err">${p.errors} err</span>` : '';
+      html += `<div class="review-persona">
+        <span class="review-em">${p.em}</span>
+        <span class="review-label">${p.label}</span>
+        <span class="review-counts">${p.done}/${p.total}${errHtml}</span>
+      </div>`;
+    }
+    html += '</div>';
+    html += `<div class="review-summary">${d.done} done · ${d.errors > 0 ? `<span style="color:var(--red)">${d.errors} errors</span>` : '0 errors'}</div>`;
+  }
+  el.innerHTML = html;
+}
+
 // ── Init ──────────────────────────────────────────────
 function init() {
   renderAgents();
@@ -789,6 +843,8 @@ function init() {
   setInterval(fetchHealth, 60000);
   fetchLiveTasks();
   setInterval(fetchLiveTasks, 30000); // refresh task feed every 30s
+  fetchDigest();
+  setInterval(fetchDigest, 5 * 60 * 1000); // refresh digest every 5 min
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>

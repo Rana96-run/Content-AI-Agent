@@ -17,7 +17,7 @@ app.listen(port, () => {
   startCompetitorPoller();
   startWeeklyDigest();
   startMonitorScheduler();
-  startDailyDigest();          // Team Manager reviews all tasks daily 08:00 UTC → Slack
+  startDailyDigest();          // Team Manager reviews all tasks daily 08:00 UTC → data/daily-summary.json
   // Knowledge feeds (D2 + D3) — make the agent smarter every day
   startVoiceRefresher(callClaude);
   startZatcaWatcher(callClaude);
