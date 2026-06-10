@@ -2137,4 +2137,14 @@ router.post("/weekly-digest/run-now", async (_req, res) => {
   }
 });
 
+router.post("/daily-digest/run-now", async (_req, res) => {
+  try {
+    const { runDailyDigest } = await import("../lib/daily-digest.js");
+    const out = await runDailyDigest();
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 export default router;

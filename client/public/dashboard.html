@@ -447,6 +447,7 @@ const ON_DEMAND = [
   { em:'🎯', name:'Counter-Creative Brief',       agent:'paid_media_analyst', desc:'Paid Media Analyst',   endpoint:'/api/agent', body:'Analyze competitor ad library, identify winning angles running >30 days, and produce counter-creative briefs for Qoyod.' },
   { em:'✅', name:'Copy QA Check',                agent:'editor_qa',          desc:'Editor / QA',          endpoint:'/api/editor-qa', body:'Run the 11-rule QA checklist on the latest content output.' },
   { em:'🧠', name:'Trigger Knowledge Extraction', agent:'orchestrator',       desc:'Team Manager',         endpoint:'/api/monitor/trigger', body:null },
+  { em:'📋', name:'Daily Team Digest Review',   agent:'orchestrator',       desc:'Team Manager',         endpoint:'/api/agent/daily-digest/run-now', body:null },
   { em:'📝', name:'Blog Article',                 agent:'content_creator',    desc:'Content Creator',      endpoint:'/api/agent', body:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.' },
   { em:'💌', name:'Nurture Email Sequence',        agent:'email_lifecycle',    desc:'Email Lifecycle',      endpoint:'/api/agent', body:'Build a 4-email nurture sequence for Qoyod trial users who did not convert. Weekly cadence. Arabic-first. Focus on feature discovery and social proof.' },
   { em:'🔁', name:'Winback Sequence',             agent:'email_lifecycle',    desc:'Email Lifecycle',      endpoint:'/api/agent', body:'Build a 3-email winback sequence for Qoyod churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven with urgency.' },
@@ -454,6 +455,7 @@ const ON_DEMAND = [
 
 // ── Scheduled tasks ───────────────────────────────────
 const SCHEDULED = [
+  { em:'📋', name:'Daily Team Digest',        detail:'Team Manager reviews all tasks from past 24h → Slack',   cron:'Daily 08:00 UTC',  progress: computeDayProgress() },
   { em:'🔍', name:'Competitor Monitor',       detail:'Scrapes all channels → Slides + Slack + Doc + KB update', cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
   { em:'🔄', name:'HubSpot Social Poller',    detail:'Syncs post performance into content library',             cron:'Daily (periodic)',  progress: 0.5 },
   { em:'🧠', name:'Knowledge Base Compound',  detail:'Extracts insights after each monitor run (auto)',         cron:'After monitor',     progress: computeWeekProgress() },
@@ -464,6 +466,11 @@ function computeWeekProgress() {
   const dayOfWeek = now.getUTCDay(); // 0=Sun
   const hoursIntoWeek = dayOfWeek * 24 + now.getUTCHours();
   return Math.min(hoursIntoWeek / (7 * 24), 0.99);
+}
+function computeDayProgress() {
+  const now = new Date();
+  const minutesIntoDay = now.getUTCHours() * 60 + now.getUTCMinutes();
+  return Math.min(minutesIntoDay / (24 * 60), 0.99);
 }
 
 // ── Health checks ─────────────────────────────────────
@@ -531,6 +538,36 @@ function closeAgentModal() {
   document.getElementById('agentModal').style.display = 'none';
 }
 
+// ── Live task feed ────────────────────────────────────
+const PERSONA_EM_MAP = {
+  social_media:'📱', content_creator:'✍️', email_lifecycle:'📧',
+  paid_media_analyst:'📡', editor_qa:'🔍', orchestrator:'🎼',
+};
+const STATUS_BADGE = {
+  done:    { label:'done',    cls:'b-green'  },
+  running: { label:'live',    cls:'b-blue'   },
+  thinking:{ label:'live',    cls:'b-blue'   },
+  queued:  { label:'queue',   cls:'b-yellow' },
+  error:   { label:'error',   cls:'b-red'    },
+};
+const SOURCE_TAG = { schedule:'auto', webhook:'auto' };
+
+let liveTasks = [];
+
+async function fetchLiveTasks() {
+  try {
+    const r = await fetch(BASE + '/api/agent/tasks', { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return;
+    const d = await r.json();
+    liveTasks = d.tasks || [];
+    renderFeed();
+    // Mark any active agents
+    const activePids = new Set(liveTasks.filter(t => t.status === 'running' || t.status === 'thinking').map(t => t.persona));
+    AGENTS.forEach(a => { a.active = activePids.has(a.id) || a.id === 'orchestrator'; });
+    renderAgents();
+  } catch { /* keep showing last data */ }
+}
+
 let currentFilter = 'all';
 function setFilter(f, el) {
   currentFilter = f;
@@ -538,9 +575,43 @@ function setFilter(f, el) {
   el.classList.add('on');
   renderFeed();
 }
+
 function renderFeed() {
-  const items = currentFilter === 'all' ? FEED_ITEMS : FEED_ITEMS.filter(i => i.tag === currentFilter);
   const agMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+
+  // Use live tasks if we have any, otherwise fall back to static examples
+  if (liveTasks.length > 0) {
+    let items = liveTasks.map(t => {
+      const tag  = SOURCE_TAG[t.source] || 'content';
+      const sb   = STATUS_BADGE[t.status] || { label: t.status, cls: 'b-muted' };
+      const ag   = agMap[t.persona] || agMap['orchestrator'];
+      const time = new Date(t.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      const em   = PERSONA_EM_MAP[t.persona] || '●';
+      return { tag, em, title: t.title || '(untitled)', sub: t.summary || '', badge: sb.label, bc: sb.cls, ag, time };
+    });
+    if (currentFilter !== 'all') items = items.filter(i => i.tag === currentFilter);
+    if (items.length === 0) {
+      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No tasks match this filter</div>';
+      return;
+    }
+    document.getElementById('feedList').innerHTML = items.map(i => `
+      <div class="feed-item">
+        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
+        <div class="fi-body">
+          <div class="fi-title">${i.title}</div>
+          <div class="fi-meta">
+            <span>${i.ag ? i.ag.em + ' ' + i.ag.name : ''}</span>
+            ${i.sub ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${i.sub}</span>` : ''}
+            <span class="badge ${i.bc}">${i.badge}</span>
+            <span class="fi-time">${i.time}</span>
+          </div>
+        </div>
+      </div>`).join('');
+    return;
+  }
+
+  // Static fallback
+  const items = currentFilter === 'all' ? FEED_ITEMS : FEED_ITEMS.filter(i => i.tag === currentFilter);
   document.getElementById('feedList').innerHTML = items.map(i => {
     const ag = agMap[i.agent] || AGENTS[4];
     return `
@@ -716,6 +787,8 @@ function init() {
   setInterval(tick, 1000);
   fetchHealth();
   setInterval(fetchHealth, 60000);
+  fetchLiveTasks();
+  setInterval(fetchLiveTasks, 30000); // refresh task feed every 30s
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>

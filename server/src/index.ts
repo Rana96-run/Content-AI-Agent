@@ -5,6 +5,7 @@ import { startWeeklyDigest } from "./lib/weekly-digest.js";
 import { startMonitorScheduler } from "./lib/competitor-monitor.js";
 import { startVoiceRefresher } from "./lib/customer-voice.js";
 import { startZatcaWatcher } from "./lib/zatca-watcher.js";
+import { startDailyDigest } from "./lib/daily-digest.js";
 import { callClaude } from "./lib/ai-call.js";
 
 const port = Number(process.env.PORT) || 8080;
@@ -16,6 +17,7 @@ app.listen(port, () => {
   startCompetitorPoller();
   startWeeklyDigest();
   startMonitorScheduler();
+  startDailyDigest();          // Team Manager reviews all tasks daily 08:00 UTC → Slack
   // Knowledge feeds (D2 + D3) — make the agent smarter every day
   startVoiceRefresher(callClaude);
   startZatcaWatcher(callClaude);
