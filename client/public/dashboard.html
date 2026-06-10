@@ -117,8 +117,16 @@
   }
   .chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
 
-  /* MAIN GRID */
-  .main-grid { display: grid; grid-template-columns: 1fr 1fr 320px; gap: 18px; align-items: start; }
+  /* MAIN LAYOUT — 2 col: content | sidebar */
+  .content-layout { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+
+  /* CHANNEL FILTER PILLS */
+  .ch-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ch-pill { padding: 3px 10px; border-radius: 20px; font-size: 10px; cursor: pointer; border: 1px solid var(--border); color: var(--sub); transition: all .15s; }
+  .ch-pill.on { background: rgba(47,117,242,.15); border-color: var(--bright); color: var(--bright); }
+
+  /* DIVIDER inside cards */
+  .card-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
   /* ACTIVITY FEED */
   .feed { max-height: 460px; overflow-y: auto; }
@@ -283,8 +291,7 @@
   }
 
   @media (max-width: 1200px) {
-    .main-grid { grid-template-columns: 1fr 1fr; }
-    .main-grid > :last-child { grid-column: 1/-1; }
+    .content-layout { grid-template-columns: 1fr; }
     .agents { grid-template-columns: repeat(3, 1fr); }
     .stats  { grid-template-columns: repeat(3, 1fr); }
   }
@@ -295,7 +302,7 @@
     .page { padding: 14px; }
     .agents { grid-template-columns: 1fr 1fr; }
     .stats  { grid-template-columns: 1fr 1fr; }
-    .main-grid { grid-template-columns: 1fr; }
+    .content-layout { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -351,69 +358,78 @@
   <div class="section-label">Agent Team — 6 Specialists · click a card for details</div>
   <div class="agents" id="agentGrid"></div>
 
-  <!-- Main 3-col grid -->
-  <div class="main-grid">
+  <!-- 2-col layout: content left, sidebar right -->
+  <div class="content-layout">
 
-    <!-- Activity feed -->
-    <div>
-      <div class="section-label">Activity Feed</div>
-      <div class="card">
-        <div class="card-head">
-          <h3>Recent Agent Activity</h3>
-          <div class="tabs">
-            <div class="tab on"  onclick="setFilter('all',this)">All</div>
-            <div class="tab"     onclick="setFilter('auto',this)">Auto</div>
-            <div class="tab"     onclick="setFilter('content',this)">Posts</div>
-            <div class="tab"     onclick="setFilter('email',this)">Email</div>
-            <div class="tab"     onclick="setFilter('monitor',this)">Monitor</div>
-            <div class="tab"     onclick="setFilter('report',this)">Reports</div>
+    <!-- LEFT: Published Posts + Email -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
+
+      <!-- Social Posts -->
+      <div>
+        <div class="section-label">Published Posts — Organic Channels</div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Social Posts</h3>
+            <div class="ch-pills" id="chPills">
+              <div class="ch-pill on" onclick="setChannelFilter('all',this)">All</div>
+              <div class="ch-pill" onclick="setChannelFilter('instagram',this)">📸 Instagram</div>
+              <div class="ch-pill" onclick="setChannelFilter('facebook',this)">💙 Facebook</div>
+              <div class="ch-pill" onclick="setChannelFilter('tiktok',this)">🎵 TikTok</div>
+              <div class="ch-pill" onclick="setChannelFilter('linkedin',this)">💼 LinkedIn</div>
+              <div class="ch-pill" onclick="setChannelFilter('twitter',this)">🐦 Twitter/X</div>
+              <div class="ch-pill" onclick="setChannelFilter('youtube',this)">▶️ YouTube</div>
+            </div>
           </div>
+          <div class="feed" id="postsFeed" style="max-height:400px;"></div>
         </div>
-        <div class="feed" id="feedList"></div>
       </div>
+
+      <!-- Email Campaigns -->
+      <div>
+        <div class="section-label">Email Marketing — HubSpot Campaigns</div>
+        <div id="emailSection">
+          <div class="email-empty">Loading campaigns…</div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- On-demand + Scheduled -->
-    <div style="display:flex; flex-direction:column; gap:18px;">
+    <!-- RIGHT SIDEBAR -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
 
-      <!-- On-demand tasks -->
+      <!-- Agent Activity (pure log, no tabs) -->
       <div>
-        <div class="section-label">On-Demand Actions</div>
+        <div class="section-label">Agent Activity</div>
         <div class="card">
-          <div class="card-body" style="padding-top:12px;">
-            <div class="od-list" id="onDemandList"></div>
-          </div>
+          <div class="feed" id="agentFeed" style="max-height:340px;"></div>
         </div>
       </div>
 
-      <!-- Scheduled tasks -->
+      <!-- Actions & Schedule (combined) -->
       <div>
-        <div class="section-label">Automated Scheduled Tasks</div>
+        <div class="section-label">Actions &amp; Schedule</div>
         <div class="card">
-          <div class="card-body" style="padding-top:12px;">
+          <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
+            <div class="od-list" id="onDemandList"></div>
+            <div class="card-divider" style="margin:12px 0;"></div>
+            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
             <div class="sched-list" id="schedList"></div>
           </div>
         </div>
       </div>
 
-    </div>
-
-    <!-- Right panel: review + health + countdown -->
-    <div style="display:flex; flex-direction:column; gap:18px;">
-
+      <!-- System: Review + Health + Countdown -->
       <div>
-        <div class="section-label">Last Team Review</div>
-        <div class="card">
-          <div class="card-body" id="reviewPanel">
-            <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="section-label">System Health</div>
+        <div class="section-label">System</div>
         <div class="card">
           <div class="card-body">
+            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Last Team Review</div>
+            <div id="reviewPanel">
+              <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
+            </div>
+            <div class="card-divider" style="margin:10px 0;"></div>
+            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">System Health</div>
             <div id="healthList"></div>
             <div class="cdown-box">
               <div class="cdown-lbl">⏱ Next competitor monitor (Sun 09:00 UTC)</div>
@@ -423,25 +439,8 @@
         </div>
       </div>
 
-      <div>
-        <div class="section-label">Channel Activity (last week)</div>
-        <div class="card">
-          <div class="card-body">
-            <div id="channelList"></div>
-          </div>
-        </div>
-      </div>
-
     </div>
 
-  </div>
-
-  <!-- Email Marketing -->
-  <div class="email-section">
-    <div class="section-label">Email Marketing — HubSpot Campaigns</div>
-    <div id="emailSection">
-      <div class="email-empty">Loading campaigns…</div>
-    </div>
   </div>
 
 </main>
@@ -611,7 +610,7 @@ async function fetchLiveTasks() {
     if (!r.ok) return;
     const d = await r.json();
     liveTasks = d.tasks || [];
-    renderFeed();
+    renderAgentFeed();
     // Mark any active agents
     const activePids = new Set(liveTasks.filter(t => t.status === 'running' || t.status === 'thinking').map(t => t.persona));
     AGENTS.forEach(a => { a.active = activePids.has(a.id) || a.id === 'orchestrator'; });
@@ -619,82 +618,39 @@ async function fetchLiveTasks() {
   } catch { /* keep showing last data */ }
 }
 
-let currentFilter = 'all';
-function setFilter(f, el) {
-  currentFilter = f;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+let channelFilter = 'all';
+function setChannelFilter(ch, el) {
+  channelFilter = ch;
+  document.querySelectorAll('.ch-pill').forEach(p => p.classList.remove('on'));
   el.classList.add('on');
-  if (f === 'content' && !socialLoaded) fetchSocialPosts();
-  if (f === 'email' && emailCampaigns === null) fetchEmailCampaigns();
-  renderFeed();
+  renderContentFeed();
 }
 
-function renderFeed() {
-  // Dedicated data sources for content library and email tabs
-  if (currentFilter === 'content') { renderContentFeed(); return; }
-  if (currentFilter === 'email') {
-    if (emailCampaigns === null) {
-      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading HubSpot campaigns…</div>';
-      return;
-    }
-    if (emailFeedItems.length === 0) {
-      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No email campaigns found — see Email Marketing section below</div>';
-      return;
-    }
-    const agMap2 = Object.fromEntries(AGENTS.map(a => [a.id, a]));
-    const ag = agMap2['email_lifecycle'];
-    document.getElementById('feedList').innerHTML = emailFeedItems.map(i => `
-      <div class="feed-item">
-        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
-        <div class="fi-body">
-          <div class="fi-title">${i.title}</div>
-          <div class="fi-meta">
-            <span>${ag ? ag.em + ' ' + ag.name : ''}</span>
-            ${i.sub ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${i.sub}</span>` : ''}
-            <span class="badge ${i.bc}">${i.badge}</span>
-            <span class="fi-time">${i.time}</span>
-          </div>
-        </div>
-      </div>`).join('');
-    return;
-  }
-
+function renderAgentFeed() {
   const agMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
-
-  // Use live tasks if we have any, otherwise fall back to static examples
-  if (liveTasks.length > 0) {
-    let items = liveTasks.map(t => {
-      const tag  = SOURCE_TAG[t.source] || 'content';
-      const sb   = STATUS_BADGE[t.status] || { label: t.status, cls: 'b-muted' };
-      const ag   = agMap[t.persona] || agMap['orchestrator'];
-      const time = new Date(t.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      const em   = PERSONA_EM_MAP[t.persona] || '●';
-      return { tag, em, title: t.title || '(untitled)', sub: t.summary || '', badge: sb.label, bc: sb.cls, ag, time };
-    });
-    if (currentFilter !== 'all') items = items.filter(i => i.tag === currentFilter);
-    if (items.length === 0) {
-      document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No tasks match this filter</div>';
-      return;
-    }
-    document.getElementById('feedList').innerHTML = items.map(i => `
-      <div class="feed-item">
-        <div class="fi-icon" style="background:rgba(47,117,242,.1)">${i.em}</div>
-        <div class="fi-body">
-          <div class="fi-title">${i.title}</div>
-          <div class="fi-meta">
-            <span>${i.ag ? i.ag.em + ' ' + i.ag.name : ''}</span>
-            ${i.sub ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px">${i.sub}</span>` : ''}
-            <span class="badge ${i.bc}">${i.badge}</span>
-            <span class="fi-time">${i.time}</span>
-          </div>
-        </div>
-      </div>`).join('');
+  if (liveTasks.length === 0) {
+    document.getElementById('agentFeed').innerHTML =
+      '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:28px">No agent tasks recorded yet</div>';
     return;
   }
-
-  // No live tasks yet
-  document.getElementById('feedList').innerHTML =
-    '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:28px">No agent tasks recorded yet — run an action to see live activity</div>';
+  document.getElementById('agentFeed').innerHTML = liveTasks.map(t => {
+    const sb  = STATUS_BADGE[t.status] || { label: t.status, cls: 'b-muted' };
+    const ag  = agMap[t.persona] || agMap['orchestrator'];
+    const time = new Date(t.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    const em  = PERSONA_EM_MAP[t.persona] || '●';
+    return `<div class="feed-item">
+      <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
+      <div class="fi-body">
+        <div class="fi-title">${t.title || '(untitled)'}</div>
+        <div class="fi-meta">
+          <span>${ag ? ag.em + ' ' + ag.name : ''}</span>
+          ${t.summary ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${t.summary}</span>` : ''}
+          <span class="badge ${sb.cls}">${sb.label}</span>
+          <span class="fi-time">${time}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderOnDemand() {
@@ -861,24 +817,33 @@ async function fetchSocialPosts() {
     const d = await r.json();
     socialPosts  = d.posts || [];
     socialLoaded = true;
-    if (currentFilter === 'content') renderFeed();
+    renderContentFeed();
   } catch (_) {}
 }
 
 function renderContentFeed() {
+  const el = document.getElementById('postsFeed');
+  if (!el) return;
   if (!socialLoaded) {
-    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading published posts…</div>';
-    fetchSocialPosts();
+    el.innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading published posts…</div>';
     return;
   }
-  if (socialPosts.length === 0) {
-    document.getElementById('feedList').innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts found in HubSpot</div>';
+  let posts = socialPosts;
+  if (channelFilter !== 'all') {
+    posts = posts.filter(p => {
+      const ch = (p.channel || '').toLowerCase();
+      if (channelFilter === 'twitter') return ch.includes('twitter') || ch.includes('/x');
+      return ch.includes(channelFilter);
+    });
+  }
+  if (posts.length === 0) {
+    el.innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts found' + (channelFilter !== 'all' ? ' for this channel' : ' in HubSpot') + '</div>';
     return;
   }
-  document.getElementById('feedList').innerHTML = socialPosts.map(p => {
+  el.innerHTML = posts.map(p => {
     const em      = chanEm(p.channel);
     const time    = p.published_at ? new Date(p.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
-    const preview = (p.content || '').slice(0, 110) + (p.content?.length > 110 ? '…' : '');
+    const preview = (p.content || '').slice(0, 110) + ((p.content || '').length > 110 ? '…' : '');
     const url     = p.url ? `<a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:4px">↗</a>` : '';
     const s       = p.stats || {};
     const statsHtml = [
@@ -1050,11 +1015,11 @@ function renderDigest(d) {
 // ── Init ──────────────────────────────────────────────
 function init() {
   renderAgents();
-  renderFeed();
+  renderAgentFeed();
+  renderContentFeed();
   renderOnDemand();
   renderScheduled();
   renderHealth();
-  renderChannels();
   tick();
   setInterval(tick, 1000);
   fetchHealth();
