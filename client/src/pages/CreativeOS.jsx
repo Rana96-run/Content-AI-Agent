@@ -1156,7 +1156,6 @@ export default function CreativeOS(){
     ["market",  T("مراقبة السوق","Market Watch")],
     ["library", T("مكتبة الإعلانات","Ad Library")],
     ["icp",     T("شرائح العملاء","ICP")],
-    ["agent",   T("مركز التحكم","Agent Dashboard")],
   ];
 
   const SH=({title,sub})=><div style={{marginBottom:15,paddingBottom:11,borderBottom:"1px solid rgba(1,53,90,.45)"}}><h2 style={{fontSize:13.5,fontWeight:700,marginBottom:2}}>{title}</h2><p style={{fontSize:11,color:"#2e5468"}}>{sub}</p></div>;
