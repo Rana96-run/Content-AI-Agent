@@ -242,7 +242,7 @@ function textBox(
           fontSize: pt(b.size || 12),
           bold:   b.bold   ?? false,
           italic: b.italic ?? false,
-          fontFamily: "Lama Sans",
+          fontFamily: "Cairo",
           ...(b.link ? { link: { url: b.link } } : {}),
         },
       },
@@ -340,6 +340,9 @@ function coverSlide(slideId: string, weekLabel: string, total: number, compCount
     { size: 9, color: "#8BA5CC", align: "CENTER" },
   ));
 
+  // Diagonal accent bar (top-right corner) — Canva-style depth
+  R.push(...box(eid(), slideId, W - IN * 0.12, 0, IN * 0.12, H * 0.35, C.brightBlue));
+
   // Brand mark bottom right
   R.push(...txt(slideId, W - IN * 2.8, H - IN * 0.55, IN * 2.5, IN * 0.36,
     "قيود · Social Media Artist",
@@ -402,7 +405,7 @@ function execSummarySlide(slideId: string, ai: any, diffs: WeekDiff[], weekLabel
     R.push(...box(eid(), slideId, kx, ky, kw, IN * 0.07, k.color));
     R.push(...txt(slideId, kx, ky + IN * 0.14, kw, IN * 0.60,
       k.num,
-      { bold: true, size: 34, color: C.navy, align: "CENTER" },
+      { bold: true, size: 38, color: C.navy, align: "CENTER" },
     ));
     R.push(...txt(slideId, kx, ky + IN * 0.76, kw, IN * 0.24,
       k.label,
@@ -750,6 +753,10 @@ function competitorSlide(slideId: string, d: WeekDiff, ct: any): any[] {
 function knowledgeSlide(slideId: string, insights: string[]): any[] {
   const R: any[] = [newSlide(slideId), setBg(slideId, C.navy)];
 
+  // Decorative depth ellipses
+  R.push(...ellipse(eid(), slideId, W * 0.78, H * 0.5, IN * 3.5, IN * 3.5, C.navyLight));
+  R.push(...ellipse(eid(), slideId, -IN * 0.5, -IN * 0.5, IN * 2.2, IN * 2.2, C.navyLight));
+
   // Header
   R.push(...box(eid(), slideId, 0, 0, W, IN * 0.68, C.royalBlue));
   R.push(...box(eid(), slideId, 0, 0, IN * 0.08, IN * 0.68, C.brightBlue));
@@ -825,6 +832,8 @@ function actionPlanSlide(
     R.push(...rBox(eid(), slideId, IN * 0.3, ty, W - IN * 0.6, rh,
       i % 2 === 0 ? C.cardBg : C.white, C.cardBorder,
     ));
+    // Right-side priority accent strip
+    R.push(...box(eid(), slideId, W - IN * 0.6, ty, IN * 0.12, rh, pColor));
 
     // Ellipse priority badge
     const bSize = IN * 0.46;

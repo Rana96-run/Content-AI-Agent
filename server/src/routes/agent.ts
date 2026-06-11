@@ -2369,11 +2369,11 @@ router.get("/stats", async (_req, res) => {
 
     // Env-based integration status (no external pings — avoid latency)
     const integrations = {
-      sheets:   !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      drive:    !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      sheets:   !!(process.env.GOOGLE_SERVICE_ACCOUNT_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
+      drive:    !!(process.env.GOOGLE_SERVICE_ACCOUNT_B64 || process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
       apify:    !!process.env.APIFY_TOKEN,
       slack:    !!process.env.SLACK_BOT_TOKEN,
-      hubspot:  !!process.env.HUBSPOT_TOKEN,
+      hubspot:  !!(process.env.HS_ACCESS_TOKEN || process.env.HUBSPOT_TOKEN),
     };
 
     res.json({
