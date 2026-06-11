@@ -158,7 +158,7 @@ log(`Drafted ${validResponses.length} responses for HOT mentions`)
 // ── Phase 4: Save digest + notify Slack ─────────────────────────────────────
 phase('Save')
 
-const today = args?.date || new Date().toISOString().slice(0, 10)
+const today = args?.date ?? 'today'
 
 const digest = `# Social Listening Digest — ${today}
 

@@ -146,7 +146,7 @@ log(`Generated ${validPosts.length} counter-posts`)
 // ── Phase 4: Save to Drive ───────────────────────────────────────────────────
 phase('Save')
 
-const today = args?.date || new Date().toISOString().slice(0, 10)
+const today = args?.date ?? 'today'
 
 const saveResult = await agent(
   `Save today's competitor intelligence report to Google Drive.
