@@ -2199,21 +2199,17 @@ async function getChannelMap(token: string): Promise<Record<string, string>> {
   }
 }
 
-function resolveChannel(channelKey: string, map: Record<string, string>): string {
-  // Exact match first
-  if (map[channelKey]) return map[channelKey];
-  // Partial key match (HubSpot sometimes appends account IDs)
-  for (const [k, v] of Object.entries(map)) {
-    if (channelKey.includes(k) || k.includes(channelKey)) return v;
-  }
-  // Infer from the key string itself
+function resolveChannel(channelKey: string, _map: Record<string, string>): string {
+  // channelKey format is always "PlatformType:accountId" — use the prefix directly
   const low = channelKey.toLowerCase();
-  if (low.includes("instagram"))  return "Instagram";
-  if (low.includes("facebook"))   return "Facebook";
-  if (low.includes("linkedin"))   return "LinkedIn";
-  if (low.includes("tiktok"))     return "TikTok";
-  if (low.includes("twitter"))    return "Twitter/X";
-  if (low.includes("youtube"))    return "YouTube";
+  if (low.startsWith("instagram"))                          return "Instagram";
+  if (low.startsWith("facebookpage") || low.startsWith("facebook")) return "Facebook";
+  if (low.startsWith("linkedin"))                          return "LinkedIn";
+  if (low.startsWith("tiktok"))                            return "TikTok";
+  if (low.startsWith("twitter"))                           return "Twitter/X";
+  if (low.startsWith("youtube"))                           return "YouTube";
+  if (low.startsWith("snapchat"))                          return "Snapchat";
+  // Fallback: strip account ID after colon
   return channelKey.split(":")[0] ?? channelKey;
 }
 
