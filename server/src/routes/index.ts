@@ -13,6 +13,7 @@ import drive from "./drive.js";
 import convert from "./convert.js";
 import agent from "./agent.js";
 import refs from "./refs.js";
+import setup from "./setup.js";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use("/canva", canva);
 router.use("/miro", miro);
 router.use("/drive", drive);
 router.use("/agent", agent);
+router.use("/setup", setup);
 
 export default router;
