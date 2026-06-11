@@ -359,7 +359,9 @@ async function runActor(actor: string, input: object, token: string): Promise<{ 
       // show a user-friendly message instead of raw JSON.
       if (
         errText.includes("Monthly usage hard limit exceeded") ||
-        errText.includes("platform-feature-disabled")
+        errText.includes("platform-feature-disabled") ||
+        errText.includes("not-enough-usage-to-run-paid-actor") ||
+        errText.includes("exceed your remaining usage")
       ) {
         return { ok: false, status: r.status, error: "APIFY_BILLING_LIMIT" };
       }
