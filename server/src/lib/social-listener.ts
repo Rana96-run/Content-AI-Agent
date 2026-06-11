@@ -7,7 +7,6 @@ import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
-import { callClaude } from "./ai-call.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
@@ -48,8 +47,9 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<Listen
         body: JSON.stringify({
           searchTerms: [keyword],
           maxTweets: 30,
-          lang: "ar",
           sort: "Latest",
+          // no lang filter — Arabic terms return Arabic tweets naturally;
+          // English terms like "qoyod" would be filtered out by lang:"ar"
         }),
         signal: AbortSignal.timeout(100_000),
       }
@@ -108,17 +108,33 @@ async function summarise(mentions: ListeningMention[]): Promise<string> {
     `إشارات السوق (${grouped.market.length}): ${grouped.market.slice(0, 3).map(m => m.text.slice(0, 120)).join(" | ")}`,
   ].join("\n");
 
-  const system = "أنت مراقب وسائل التواصل الاجتماعي لقيود. اكتب ملخصاً موجزاً بالعربية يجيب على: هل هناك شكاوى تحتاج رداً؟ هل هناك فرصة تسويقية؟ ما التوصية الأهم لفريق التسويق اليوم؟";
+  const system = "أنت مراقب وسائل التواصل الاجتماعي لقيود. اكتب ملخصاً موجزاً بالعربية السعودية يجيب على: هل هناك شكاوى تحتاج رداً؟ هل هناك فرصة تسويقية؟ ما التوصية الأهم لفريق التسويق اليوم؟ اكتب نثراً مباشراً — لا قوائم ولا عناوين.";
   const user = `إليك الإشارات المرصودة في آخر 6 ساعات:\n${text}`;
 
   try {
-    const result = await callClaude(system, user, 400);
-    // callClaude returns parsed JSON — if it fails, we get null
-    if (typeof result === "object" && result !== null) {
-      return JSON.stringify(result);
-    }
-  } catch {}
-  return "تعذر إنشاء الملخص تلقائياً.";
+    const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+    if (!apiKey) return "تعذر إنشاء الملخص — مفتاح API غير موجود.";
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 400,
+        system,
+        messages: [{ role: "user", content: user }],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) return "تعذر إنشاء الملخص تلقائياً.";
+    const data = await resp.json() as any;
+    return data?.content?.[0]?.text?.trim() ?? "تعذر إنشاء الملخص تلقائياً.";
+  } catch {
+    return "تعذر إنشاء الملخص تلقائياً.";
+  }
 }
 
 export async function runSocialListener(): Promise<ListeningResult> {
@@ -131,8 +147,8 @@ export async function runSocialListener(): Promise<ListeningResult> {
       // Twitter/X is always primary
       const xResults = token ? await scrapeX(kw, token) : [];
       allMentions.push(...xResults.map(m => ({ ...m, group })));
-      // Web search only for regulatory/market keywords, not brand chatter
-      if (cfg.webSearch) {
+      // Web search: always for zatca/market; for brand only when Twitter returned nothing
+      if (cfg.webSearch || xResults.length === 0) {
         const webResults = await searchWeb(kw);
         allMentions.push(...webResults.map(m => ({ ...m, group })));
       }
