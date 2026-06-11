@@ -2218,11 +2218,12 @@ router.get("/social-posts", async (req, res) => {
   if (!token) return res.status(503).json({ error: "HubSpot not configured" });
   try {
     const limit = Math.min(Number(req.query.limit) || 40, 50);
-    const [broadcastRes, channelMap] = await Promise.all([
+    const [broadcastRes, channelMap, portalId] = await Promise.all([
       fetch(`https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
       getChannelMap(token),
+      getPortalId(token),
     ]);
     if (!broadcastRes.ok) return res.status(broadcastRes.status).json({ error: await broadcastRes.text() });
     const data = await broadcastRes.json() as Array<{
@@ -2238,7 +2239,7 @@ router.get("/social-posts", async (req, res) => {
       channelKey:   b.channelKey,
       published_at: b.finishedAt ? new Date(b.finishedAt).toISOString() : null,
       content:      b.content?.body || b.content?.title || "",
-      url:          b.messageUrl || null,
+      url:          b.messageUrl || (portalId ? `https://app.hubspot.com/social/${portalId}/published/${b.broadcastGuid}` : null),
       thumb:        b.content?.thumbUrl || null,
       stats: {
         clicks:      b.statistics?.clicks      ?? null,
