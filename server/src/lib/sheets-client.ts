@@ -601,6 +601,221 @@ export async function sheetsSetBriefJson(json: string): Promise<void> {
   }
 }
 
+/* ── Formatting helpers ───────────────────────────────────────── */
+
+type RgbColor = { red: number; green: number; blue: number };
+function hex(h: string): RgbColor {
+  const n = parseInt(h.replace("#",""), 16);
+  return { red: ((n>>16)&255)/255, green: ((n>>8)&255)/255, blue: (n&255)/255 };
+}
+function dropdown(sheetId: number, startCol: number, endCol: number, values: string[]) {
+  return {
+    setDataValidation: {
+      range: { sheetId, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: startCol, endColumnIndex: endCol },
+      rule: {
+        condition: { type: "ONE_OF_LIST", values: values.map(v => ({ userEnteredValue: v })) },
+        showCustomUi: true, strict: false,
+      },
+    },
+  };
+}
+function condFmt(sheetId: number, colIdx: number, text: string, bgHex: string, textHex = "#FFFFFF") {
+  return {
+    addConditionalFormatRule: {
+      rule: {
+        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: colIdx, endColumnIndex: colIdx + 1 }],
+        booleanRule: {
+          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: text }] },
+          format: { backgroundColor: hex(bgHex), textFormat: { bold: true, foregroundColor: hex(textHex) } },
+        },
+      },
+      index: 0,
+    },
+  };
+}
+function colWidth(sheetId: number, col: number, px: number) {
+  return {
+    updateDimensionProperties: {
+      range: { sheetId, dimension: "COLUMNS", startIndex: col, endIndex: col + 1 },
+      properties: { pixelSize: px },
+      fields: "pixelSize",
+    },
+  };
+}
+function headerFormat(sheetId: number, colCount: number) {
+  return {
+    repeatCell: {
+      range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: colCount },
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: hex("#021544"),
+          textFormat: { bold: true, foregroundColor: hex("#FFFFFF"), fontSize: 10 },
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "CLIP",
+        },
+      },
+      fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,wrapStrategy)",
+    },
+  };
+}
+function freezePane(sheetId: number, rows = 1, cols = 0) {
+  return {
+    updateSheetProperties: {
+      properties: { sheetId, gridProperties: { frozenRowCount: rows, frozenColumnCount: cols } },
+      fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+    },
+  };
+}
+function altRows(sheetId: number, colCount: number) {
+  return {
+    addConditionalFormatRule: {
+      rule: {
+        ranges: [{ sheetId, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: 0, endColumnIndex: colCount }],
+        booleanRule: {
+          condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: "=MOD(ROW(),2)=0" }] },
+          format: { backgroundColor: hex("#F4F8FB") },
+        },
+      },
+      index: 0,
+    },
+  };
+}
+
+/**
+ * Apply full visual formatting to all known content tabs:
+ * Content Library, Competitor Posts, Knowledge Base, Hypothesis Ledger, ICP Signals, Documents Log.
+ * Safe to call multiple times — conditional format rules are additive but idempotent in effect.
+ */
+export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: string[]; skipped: string[] }> {
+  if (!SPREADSHEET_ID) return { formatted: [], skipped: ["no SPREADSHEET_ID"] };
+  const s = getSheetsClient();
+
+  // Get all sheet IDs by name
+  const meta = await s.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    fields: "sheets.properties",
+  });
+  const idMap: Record<string, number> = {};
+  for (const sh of meta.data.sheets ?? []) {
+    if (sh.properties?.title && sh.properties.sheetId != null) {
+      idMap[sh.properties.title] = sh.properties.sheetId;
+    }
+  }
+
+  const requests: object[] = [];
+  const formatted: string[] = [];
+
+  /* ── Content Library (20 cols) ─────────────────────────────── */
+  if (idMap["Content Library"] != null) {
+    const id = idMap["Content Library"];
+    //          ID  Date  Chan  Type  Funnel Topic Tone  Content Hashtags URL  Media BV  Hook Clar DialOK QANotes WW   TI   Var  Ana
+    const w = [110,  90,  105,  80,   70,   155,  105,  320,    160,     210,  80,  65,  65,  65,  80,   210,  210, 210, 210, 140];
+    requests.push(
+      freezePane(id, 1, 1),
+      headerFormat(id, 20),
+      altRows(id, 20),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 2, 3, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Email","WhatsApp"]),
+      dropdown(id, 3, 4, ["post","reel","story","email","ad","blog","other"]),
+      dropdown(id, 4, 5, ["TOF","MOF","BOF"]),
+      dropdown(id, 6, 7, ["educational","promotional","community","humour","urgency","awareness"]),
+      dropdown(id, 10, 11, ["VIDEO","IMAGE","TEXT","CAROUSEL"]),
+      condFmt(id, 4, "TOF", "#F5A623", "#FFFFFF"),
+      condFmt(id, 4, "MOF", "#0E8585", "#FFFFFF"),
+      condFmt(id, 4, "BOF", "#2E7D32", "#FFFFFF"),
+      condFmt(id, 2, "Instagram", "#E1306C", "#FFFFFF"),
+      condFmt(id, 2, "LinkedIn",  "#0A66C2", "#FFFFFF"),
+      condFmt(id, 2, "TikTok",    "#010101", "#FFFFFF"),
+      condFmt(id, 2, "YouTube",   "#FF0000", "#FFFFFF"),
+      condFmt(id, 2, "Facebook",  "#1877F2", "#FFFFFF"),
+    );
+    formatted.push("Content Library");
+  }
+
+  /* ── Competitor Posts (6 cols) ─────────────────────────────── */
+  if (idMap["Competitor Posts"] != null) {
+    const id = idMap["Competitor Posts"];
+    const w = [130, 110, 340, 220, 145, 130];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 6),
+      altRows(id, 6),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat"]),
+    );
+    formatted.push("Competitor Posts");
+  }
+
+  /* ── Knowledge Base (8 cols) ───────────────────────────────── */
+  if (idMap["Knowledge Base"] != null) {
+    const id = idMap["Knowledge Base"];
+    const w = [90, 110, 110, 110, 380, 120, 95, 150];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 8),
+      altRows(id, 8),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 1, 2, ["content_insight","creative_insight","competitor_insight","market_trend","zatca_update"]),
+      dropdown(id, 6, 7, ["high","medium","low"]),
+    );
+    formatted.push("Knowledge Base");
+  }
+
+  /* ── Hypothesis Ledger (11 cols) ───────────────────────────── */
+  if (idMap["Hypothesis Ledger"] != null) {
+    const id = idMap["Hypothesis Ledger"];
+    const w = [90, 110, 300, 140, 200, 85, 250, 110, 110, 110, 90];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 11),
+      altRows(id, 11),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 5, 6, ["WIN","LOSS","INCONCLUSIVE","PENDING"]),
+      condFmt(id, 5, "WIN",  "#2E7D32", "#FFFFFF"),
+      condFmt(id, 5, "LOSS", "#C62828", "#FFFFFF"),
+      condFmt(id, 5, "INCONCLUSIVE", "#F57C00", "#FFFFFF"),
+    );
+    formatted.push("Hypothesis Ledger");
+  }
+
+  /* ── ICP Signals (7 cols) ──────────────────────────────────── */
+  if (idMap["ICP Signals"] != null) {
+    const id = idMap["ICP Signals"];
+    const w = [100, 90, 160, 130, 280, 110, 280];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 7),
+      altRows(id, 7),
+      ...w.map((px, i) => colWidth(id, i, px)),
+    );
+    formatted.push("ICP Signals");
+  }
+
+  /* ── Documents Log (5 cols) ────────────────────────────────── */
+  if (idMap["Documents Log"] != null) {
+    const id = idMap["Documents Log"];
+    const w = [100, 140, 300, 250, 100];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 5),
+      altRows(id, 5),
+      ...w.map((px, i) => colWidth(id, i, px)),
+    );
+    formatted.push("Documents Log");
+  }
+
+  if (requests.length === 0) return { formatted: [], skipped: Object.keys(idMap) };
+
+  await s.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { requests },
+  });
+
+  const skipped = Object.keys(idMap).filter(t => !formatted.includes(t));
+  logger.info({ formatted, skipped }, "sheets-client: formatting applied");
+  return { formatted, skipped };
+}
+
 /** Health check — returns true if the sheet is reachable. */
 export async function sheetsHealthCheck(): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!SPREADSHEET_ID) return { ok: false, error: "GOOGLE_SHEETS_ID not configured" };

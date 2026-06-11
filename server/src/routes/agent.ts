@@ -2281,6 +2281,17 @@ router.get("/content-library/entries", (_req, res) => {
   }
 });
 
+/* Apply visual formatting to all known Sheets tabs */
+router.post("/sheets/format", async (_req, res) => {
+  try {
+    const { sheetsApplyLibraryFormatting } = await import("../lib/sheets-client.js");
+    const result = await sheetsApplyLibraryFormatting();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 /* Backfill all local content library entries to Google Sheets */
 router.post("/content-library/sync", async (_req, res) => {
   try {
