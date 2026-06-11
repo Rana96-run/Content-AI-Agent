@@ -369,6 +369,14 @@
     </div>
   </div>
   <div class="hdr-right">
+    <a id="btnDrive" href="#" target="_blank" style="display:none;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:#34D399;text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 2L2 10l4.2 7.3h11.6L22 10 17.4 2H6.6zm5.4 13.5c-1.9 0-3.5-1.6-3.5-3.5S10.1 9 12 9s3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>
+      Drive
+    </a>
+    <a id="btnSheets" href="#" target="_blank" style="display:none;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#4ade80;text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      Sheets
+    </a>
     <a href="/" style="display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(47,117,242,.1);border:1px solid rgba(47,117,242,.25);color:var(--accent);text-decoration:none;">← Main App</a>
     <div class="pill pill-green"><div class="dot dot-green"></div><span id="sysStatusLabel">Checking...</span></div>
     <div class="pill pill-blue"><div class="dot dot-blue"></div><span id="commitLabel">–</span></div>
@@ -1133,6 +1141,8 @@ async function fetchHealth() {
     document.getElementById('statComp').textContent  = d.competitorCount ?? '–';
     document.getElementById('statLib').textContent   = d.libraryCount ?? '–';
     document.getElementById('statWins').textContent  = d.winsCount ?? '–';
+    if (d.driveUrl)  { const b = document.getElementById('btnDrive');  b.href = d.driveUrl;  b.style.display = 'flex'; }
+    if (d.sheetsUrl) { const b = document.getElementById('btnSheets'); b.href = d.sheetsUrl; b.style.display = 'flex'; }
   } catch {
     setH('hSheets', true); setH('hDrive', true);
     setH('hApify', true); setH('hSlack', true); setH('hHubspot', true);

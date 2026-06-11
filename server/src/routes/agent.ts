@@ -2388,6 +2388,9 @@ router.get("/stats", async (_req, res) => {
       hubspot:  !!(process.env.HS_ACCESS_TOKEN || process.env.HUBSPOT_TOKEN),
     };
 
+    const driveId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    const sheetsId = process.env.GOOGLE_SHEETS_ID;
+
     res.json({
       tasksThisMonth,
       knowledgeCount,
@@ -2395,6 +2398,8 @@ router.get("/stats", async (_req, res) => {
       libraryCount,
       winsCount,
       integrations,
+      driveUrl:  driveId  ? `https://drive.google.com/drive/folders/${driveId}`               : null,
+      sheetsUrl: sheetsId ? `https://docs.google.com/spreadsheets/d/${sheetsId}/edit#gid=0`  : null,
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
