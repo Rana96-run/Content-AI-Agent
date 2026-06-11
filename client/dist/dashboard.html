@@ -222,7 +222,7 @@
   }
   .modal-box {
     background: var(--card2); border: 1px solid var(--border); border-radius: 16px;
-    width: 100%; max-width: 480px; overflow: hidden;
+    width: 100%; max-width: 600px; max-height: 88vh; overflow-y: auto;
     box-shadow: 0 24px 64px rgba(0,0,0,.6);
   }
   .modal-head {
@@ -237,6 +237,15 @@
   .tool-grid { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 16px; }
   .tool-chip { font-size: 10px; padding: 3px 8px; border-radius: 5px; background: rgba(47,117,242,.1); color: var(--accent); border: 1px solid rgba(47,117,242,.15); }
   .tool-chip-all { background: rgba(34,197,94,.08); color: var(--green); border-color: rgba(34,197,94,.2); }
+
+  /* PLAYBOOK MODAL */
+  .pb-index { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px; }
+  .pb-idx-item { font-size:9px; padding:2px 8px; border-radius:4px; background:rgba(47,117,242,.1); color:var(--accent); border:1px solid rgba(47,117,242,.15); }
+  .pb-section { margin-bottom:14px; }
+  .pb-section-hd { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--sub); margin-bottom:6px; display:flex; align-items:center; gap:7px; }
+  .pb-num { font-size:9px; background:rgba(47,117,242,.18); color:var(--accent); padding:1px 6px; border-radius:3px; font-weight:700; }
+  .pb-bullet { display:flex; gap:8px; font-size:11px; color:rgba(226,232,255,.82); line-height:1.6; margin-bottom:4px; padding-right:4px; }
+  .pb-bullet::before { content:'→'; color:var(--accent); flex-shrink:0; font-size:10px; margin-top:3px; }
 
   /* EMAIL MARKETING SECTION */
   .email-section { margin-top: 20px; }
@@ -374,46 +383,9 @@
     </div>
   </div>
 
-  <!-- Agent Workflow Map (replaces scattered agent grid) -->
-  <div class="section-label">Agent Workflow — من يفعل ماذا</div>
-  <div class="workflow-grid" id="workflowGrid">
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#60A5FA">Social Media Specialist</div>
-      <div class="wf-trigger">⚡ Triggered by: HubSpot new post, manual Run, Sunday monitor</div>
-      <div class="wf-does">Builds content calendars &amp; organic captions<br>Analyzes weekly competitor activity<br>Repurposes top-performing posts cross-platform</div>
-      <div class="wf-output">Output → Content Library + Drive Doc</div>
-    </div>
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#34D399">Content Creator</div>
-      <div class="wf-trigger">⚡ Triggered by: manual Run (Blog, RSA), Zapier brief</div>
-      <div class="wf-does">Writes Google RSA ads (15 headlines + 4 descriptions)<br>Drafts 1200-word SEO blog articles<br>Reviews and polishes copy (Saudi dialect)</div>
-      <div class="wf-output">Output → Drive Doc (Blog) / Dashboard (RSA)</div>
-    </div>
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#F472B6">Email Lifecycle</div>
-      <div class="wf-trigger">⚡ Triggered by: manual Run, HubSpot lead webhook</div>
-      <div class="wf-does">Builds welcome / nurture / winback sequences (4-email)<br>Publishes directly to HubSpot<br>Arabic-first, Saudi dialect tone</div>
-      <div class="wf-output">Output → HubSpot Draft + Drive Doc</div>
-    </div>
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#FBBF24">Paid Media Analyst</div>
-      <div class="wf-trigger">⚡ Triggered by: Sunday weekly review, manual Run, URL paste</div>
-      <div class="wf-does">Scrapes competitor ad libraries (FB, IG, Google, TikTok)<br>Identifies winning angles running &gt;30 days<br>Produces counter-creative briefs for Qoyod</div>
-      <div class="wf-output">Output → Google Slides deck + Drive Doc</div>
-    </div>
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#A78BFA">Editor / QA</div>
-      <div class="wf-trigger">⚡ Triggered by: manual Run before publishing</div>
-      <div class="wf-does">Runs 11-rule pre-publish checklist<br>Flags dialect, brand, ZATCA, and CTA issues<br>Returns pass/fail per rule with fix suggestions</div>
-      <div class="wf-output">Output → Dashboard review panel</div>
-    </div>
-    <div class="wf-agent">
-      <div class="wf-name" style="color:#FB923C">Orchestrator</div>
-      <div class="wf-trigger">⚡ Triggered by: Daily Digest (08:00 UTC), complex briefs</div>
-      <div class="wf-does">Daily digest: summarises all agent tasks from last 24h<br>Routes complex multi-step requests to correct agent<br>Coordinates multi-agent campaigns end-to-end</div>
-      <div class="wf-output">Output → Drive Doc + Slack summary</div>
-    </div>
-  </div>
+  <!-- Agent Workflow Map — populated by renderAgents() -->
+  <div class="section-label">Agent Workflow — من يفعل ماذا · اضغط على أي دور للاطلاع على الدليل الكامل</div>
+  <div class="workflow-grid" id="workflowGrid"></div>
 
   <!-- 2-col layout: content left, sidebar right -->
   <div class="content-layout">
@@ -528,6 +500,9 @@
       <button class="modal-close" onclick="closeAgentModal()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="modal-section-lbl">Playbook Index</div>
+      <div class="pb-index" id="mPbIndex"></div>
+      <div id="mPbSections" style="margin-bottom:8px"></div>
       <div class="modal-section-lbl">Tool Access</div>
       <div class="tool-grid" id="mTools"></div>
       <div class="modal-section-lbl">Trigger Keywords</div>
@@ -544,12 +519,189 @@ const BASE = window.location.origin;
 
 // ── Agent definitions ─────────────────────────────────
 const AGENTS = [
-  { id:'orchestrator',      em:'🎼', color:'#2F75F2', name:'Team Manager',      role:'Multi-specialist · Complex briefs · Auto-routing', tools:['ALL TOOLS'], active:true },
-  { id:'social_media',      em:'📱', color:'#22C55E', name:'Social Media',       role:'Calendar · Competitor scan · Organic metrics', tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'], active:true },
-  { id:'content_creator',   em:'✍️', color:'#F59E0B', name:'Content Creator',   role:'Google RSA · Captions · Blog articles · Ad copy', tools:['generate_content','generate_google_ads_rsa','build_blog_article','review_copy','translate_copy'], active:false },
-  { id:'email_lifecycle',   em:'📧', color:'#A78BFA', name:'Email Lifecycle',   role:'Welcome · Nurture · Winback · HubSpot publish', tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'], active:false },
-  { id:'paid_media_analyst',em:'📡', color:'#4B9EFF', name:'Paid Media Analyst',role:'Ad library · Counter-creative · Paid performance', tools:['analyze_competitor_content','analyze_metrics_report','build_campaign_plan','generate_google_ads_rsa'], active:false },
-  { id:'editor_qa',         em:'🔍', color:'#F87171', name:'Editor / QA',       role:'11-rule checklist · Dialect gate · Brand voice', tools:['review_copy','translate_copy','brand_fact_lookup'], active:false },
+  {
+    id:'orchestrator', em:'🎼', color:'#2F75F2', name:'Team Manager',
+    role:'Complex briefs · Multi-agent routing · Daily digest',
+    tools:['ALL TOOLS'], active:true,
+    playbook:{
+      mission:'Route and coordinate all agent tasks — the system brain and default handler.',
+      sections:[
+        {title:'Role & Scope', items:[
+          'Default handler for all requests that need multiple specialists',
+          'Runs Daily Digest every day at 08:00 UTC — summarizes all agent activity from last 24h',
+          'Has access to every tool in the system — no whitelist',
+          'Breaks complex briefs into sub-tasks and routes each to the right specialist',
+        ]},
+        {title:'Responsibilities', items:[
+          'Route incoming requests to social_media, content_creator, email_lifecycle, or editor_qa',
+          'Call brief_to_spec first for complex or ambiguous requests',
+          'Never produce final content directly — always route to a specialist',
+          'Compile daily digest: tasks done, errors, wins, open items',
+        ]},
+        {title:'Output Format', items:[
+          '→ Drive Doc (Daily Digest — Content folder)',
+          '→ Slack summary (daily 08:00 UTC + after complex multi-agent runs)',
+          '→ Routed sub-task results from specialist agents',
+        ]},
+        {title:'Triggers', items:[
+          'Scheduled: every day 08:00 UTC (Daily Digest)',
+          'On-demand: any complex or multi-step brief',
+          'Fallback: when no specialist keyword matches the request',
+        ]},
+      ]
+    }
+  },
+  {
+    id:'social_media', em:'📱', color:'#22C55E', name:'Social Media Specialist',
+    role:'Content calendar · Competitor monitor · Social listening',
+    tools:['build_content_calendar','analyze_competitor_content','generate_content','analyze_metrics_report','content_library_save'],
+    active:true,
+    playbook:{
+      mission:"Own Qoyod's organic social presence — plan, monitor, listen, and optimize.",
+      sections:[
+        {title:'Role & Scope', items:[
+          'All organic channels: Instagram, TikTok, LinkedIn, Snapchat, Twitter/X',
+          'Monthly auto-calendar (1st of month 08:00 UTC) + weekly manual calendar',
+          'Social listening every 6h: قيود + ZATCA + الفاتورة + market mentions',
+          'Sunday 09:00 UTC: full competitor organic scan → Slides + Doc + Slack',
+        ]},
+        {title:'Responsibilities', items:[
+          'Build monthly content calendar: 30 posts across 5 channels with TOF/MOF/BOF mix (60/30/10)',
+          'Analyze which competitor organic posts are gaining traction this week',
+          'Run social listening: identify HOT mentions that need a response',
+          'Produce Weekly Market Pulse: top 3 conversations, competitor moves, Qoyod opportunities',
+          'Repurpose top-performing posts cross-channel (same message, adapted format)',
+        ]},
+        {title:'Content Rules', items:[
+          'Saudi dialect only — مو / وش / ليش. Never Egyptian markers',
+          'ONE message + ONE CTA + ONE trust element per post. No exceptions.',
+          'Instagram hook: first 6 Arabic words must stop the scroll',
+          'Reels/TikTok: pattern interrupt in first 2 seconds, logo only after 3 seconds',
+          'TOF/MOF/BOF weekly mix target: 60% / 30% / 10%',
+        ]},
+        {title:'Output Format', items:[
+          '→ Drive: Social Listening folder (every 6h run)',
+          '→ Drive: Competitor Slides folder (weekly deck)',
+          '→ Sheets: Social Mentions tab (persistent mention log)',
+          '→ Slack: HOT mentions as review threads — marked للمراجعة, never auto-sent',
+        ]},
+      ]
+    }
+  },
+  {
+    id:'content_creator', em:'✍️', color:'#F59E0B', name:'Content Creator',
+    role:'Captions · Ad copy · Counter-creative · Email sequences',
+    tools:['generate_content','review_copy','translate_copy','generate_hashtags','save_to_drive','content_library_save','brand_fact_lookup'],
+    active:false,
+    playbook:{
+      mission:'Write copy that earns its place — one message, one CTA, Saudi dialect.',
+      sections:[
+        {title:'Role & Scope', items:[
+          'Social captions with proven hooks, ad copy variants, counter-creative against competitor organic',
+          'Email and WhatsApp nurture sequences (structured by email_lifecycle)',
+          'A/B variants: two genuinely different angles — not cosmetic rewrites',
+          'Self-review via review_copy before finalizing any copy',
+        ]},
+        {title:'The Golden Rule', items:[
+          'ONE message per piece. ONE CTA. ONE trust element. Not two. Ever.',
+          'Every piece must have a funnel stage: TOF (pain) / MOF (product) / BOF (close)',
+          'Every piece must have a hypothesis: If [hook] then [metric] because [reason]',
+          'Every piece must have a kill criterion: CTR < 1% at 1,000 impressions → retire',
+        ]},
+        {title:'Dialect Rules', items:[
+          'Saudi Arabic: مو, وش, ليش, كذا, يكلفك, شوف',
+          'ZERO tolerance: مش, ايه, ازاي, بتاع, يلا as filler → flag and rewrite immediately',
+          'Scan every word before output — one slip breaks the brand',
+          'No emojis in any output',
+        ]},
+        {title:'Hook Rotation (5 angles)', items:[
+          'Fear: "غلط بسيط في الفاتورة ممكن يكلفك غرامة من الزكاة"',
+          'Time: "تضيع وقتك كل يوم على المحاسبة اليدوية؟"',
+          'Simplicity: "أصدر فاتورة معتمدة — بدون خبرة محاسبية"',
+          'Control: "اعرف أرباحك لحظياً — من جوالك"',
+          'Trust: "موثوق من أكثر من 25,000 شركة سعودية"',
+          'Rotate after 14 days running — hook fatigue is real',
+        ]},
+        {title:'Output Format', items:[
+          '→ Content Library (all generated posts)',
+          '→ Drive: Content folder (sequences, long-form)',
+          '→ Hypothesis log: declared with every piece for testing',
+        ]},
+      ]
+    }
+  },
+  {
+    id:'email_lifecycle', em:'📧', color:'#A78BFA', name:'Email Lifecycle',
+    role:'Welcome · Nurture · Winback · HubSpot publish',
+    tools:['build_email_sequence','generate_content','publish_hubspot','review_copy'],
+    active:false,
+    playbook:{
+      mission:'Turn trial signups into paying customers through Arabic-first lifecycle sequences.',
+      sections:[
+        {title:'Role & Scope', items:[
+          'Welcome, Nurture, and Winback sequences — all Arabic-first, Saudi dialect',
+          'WhatsApp conversational sequences (max 80 words, no marketing-speak)',
+          'Publishes directly to HubSpot as drafts ready to schedule',
+        ]},
+        {title:'Sequence Cadences', items:[
+          'Welcome: Day 0 (immediate), Day 2, Day 5, Day 9',
+          'Nurture: weekly cadence, 4 emails, problem-aware audience',
+          'Winback: Day 14, Day 30, Day 60 — offer-driven with urgency',
+        ]},
+        {title:'Copy Rules', items:[
+          'Subject line: max 45 Arabic characters',
+          'Preheader: max 90 characters',
+          'ONE CTA per email — never fork the reader into two paths',
+          'Body tone: trusted advisor, not marketing broadcast',
+        ]},
+        {title:'Output Format', items:[
+          '→ HubSpot Draft (ready to schedule, not auto-sent)',
+          '→ Drive: Content folder (sequence archive)',
+        ]},
+      ]
+    }
+  },
+  {
+    id:'editor_qa', em:'🔍', color:'#F87171', name:'Editor / QA',
+    role:'11-rule checklist · Dialect gate · Brand voice',
+    tools:['review_copy','translate_copy','brand_fact_lookup'],
+    active:false,
+    playbook:{
+      mission:'Nothing ships with a dialect error, an over-promise, or a second CTA.',
+      sections:[
+        {title:'Role & Scope', items:[
+          'Strict gatekeeper — runs before any content is published or handed to design',
+          'Reviews copy from any agent or manual input via the QA tab',
+          '11-rule pre-publish checklist from the Master Prompt §13',
+        ]},
+        {title:'The 11 Rules', items:[
+          '1. Message clear within 3 seconds',
+          '2. Only ONE message',
+          '3. Tone: calm, professional, never hyped',
+          '4. Only ONE trust element',
+          '5. Only ONE CTA',
+          '6. Saudi dialect throughout — zero Egyptian markers',
+          '7. No emojis',
+          '8. Funnel stage matches the audience',
+          '9. Sector-specific pain language (if sector-targeted)',
+          '10. Hypothesis declared',
+          '11. Kill criterion defined',
+        ]},
+        {title:'Hard Stops (auto-fail)', items:[
+          'Egyptian dialect: مش, ايه, ازاي, بتاع, يلا as filler',
+          'Over-promises: "100%", "مضمون", "أفضل في العالم", "توفر كل وقتك"',
+          'Unverifiable ZATCA claims or customer count inflation',
+          'More than one message, CTA, or trust element in one piece',
+          'Competitor name in any paid copy (organic-only rule)',
+        ]},
+        {title:'Output Format', items:[
+          '→ Pass/fail per rule with specific fix suggestion',
+          '→ Score 0–100 with issues list',
+          '→ Full rewrite if 3+ hard-fail rules triggered',
+        ]},
+      ]
+    }
+  },
 ];
 
 // ── Pixel art icons (crispEdges SVG, 2px pixel grid) ─────────
@@ -558,7 +710,6 @@ const AGENT_SVG = {
   social_media: `<svg viewBox="0 0 12 14" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="8" height="2"/><rect x="0" y="2" width="2" height="10"/><rect x="10" y="2" width="2" height="10"/><rect x="2" y="12" width="8" height="2"/><rect x="3" y="3" width="6" height="6"/><rect x="4" y="10" width="4" height="2"/></svg>`,
   content_creator: `<svg viewBox="0 0 12 10" fill="currentColor" shape-rendering="crispEdges"><rect x="8" y="0" width="4" height="2"/><rect x="6" y="2" width="4" height="2"/><rect x="4" y="4" width="4" height="2"/><rect x="2" y="6" width="4" height="2"/><rect x="0" y="8" width="4" height="2"/></svg>`,
   email_lifecycle: `<svg viewBox="0 0 14 10" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="14" height="2"/><rect x="0" y="0" width="2" height="10"/><rect x="12" y="0" width="2" height="10"/><rect x="0" y="8" width="14" height="2"/><rect x="2" y="2" width="2" height="2"/><rect x="10" y="2" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="8" y="4" width="2" height="2"/><rect x="6" y="6" width="2" height="2"/></svg>`,
-  paid_media_analyst: `<svg viewBox="0 0 13 10" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="7" width="2" height="3"/><rect x="4" y="4" width="2" height="6"/><rect x="8" y="1" width="2" height="9"/><rect x="12" y="5" width="1" height="1"/><rect x="0" y="9" width="13" height="1"/></svg>`,
   editor_qa: `<svg viewBox="0 0 14 14" fill="currentColor" shape-rendering="crispEdges"><rect x="2" y="0" width="6" height="2"/><rect x="0" y="2" width="2" height="6"/><rect x="8" y="2" width="2" height="6"/><rect x="2" y="8" width="6" height="2"/><rect x="8" y="8" width="2" height="2"/><rect x="10" y="10" width="2" height="2"/><rect x="12" y="12" width="2" height="2"/></svg>`,
 };
 
@@ -566,32 +717,35 @@ const AGENT_SVG = {
 
 // ── On-demand actions ─────────────────────────────────
 const ON_DEMAND = [
-  { name:'Content Calendar',         agent:'social_media',      endpoint:'/api/agent/run',                      prompt:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.',                                                                       saveToDrive:false },
-  { name:'Google RSA Ads',           agent:'content_creator',   endpoint:'/api/agent/run',                      prompt:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.',                                                                               saveToDrive:false },
-  { name:'Blog Article',             agent:'content_creator',   endpoint:'/api/agent/run',                      prompt:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.', saveToDrive:true  },
-  { name:'Welcome Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.',                                                                               saveToDrive:true  },
-  { name:'Nurture Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.',                                                    saveToDrive:true  },
-  { name:'Winback Sequence',         agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.',                                                        saveToDrive:true  },
-  { name:'Counter-Creative Brief',   agent:'paid_media_analyst',endpoint:'/api/agent/run',                      prompt:'Analyze competitor ad library, identify winning angles running >30 days, produce counter-creative briefs for Qoyod.',                                    saveToDrive:true  },
-  { name:'Daily Competitor Capture', agent:'paid_media_analyst',endpoint:'/api/agent/daily-capture/run-now',    prompt:null,                                                                                                                                                     saveToDrive:false },
-  { name:'Social Listening',         agent:'social_media',      endpoint:'/api/agent/listening/run-now',        prompt:null,                                                                                                                                                     saveToDrive:false },
-  { name:'Competitor Monitor',       agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now', prompt:null,                                                                                                                                                     saveToDrive:false },
-  { name:'Editor QA',                agent:'editor_qa',         endpoint:'/api/agent/run',                      prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.',              saveToDrive:false },
-  { name:'Daily Digest',             agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',     prompt:null,                                                                                                                                                     saveToDrive:false },
-  { name:'Daily Pulse',              agent:'orchestrator',      endpoint:'/api/reports/daily-pulse',            prompt:null,                                                                                                                                                     saveToDrive:false },
-  { name:'Monthly Review',           agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',      prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Content Calendar',         agent:'social_media',      endpoint:'/api/agent/run',                           prompt:'Build a content calendar for this week across Instagram, TikTok, LinkedIn, Snapchat, and Twitter/X.',              saveToDrive:true  },
+  { name:'Monthly Calendar',         agent:'social_media',      endpoint:'/api/agent/monthly-calendar/run-now',      prompt:null,                                                                                                               saveToDrive:false },
+  { name:'Welcome Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                           prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.',                                          saveToDrive:true  },
+  { name:'Nurture Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                           prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.',               saveToDrive:true  },
+  { name:'Winback Sequence',         agent:'email_lifecycle',   endpoint:'/api/agent/run',                           prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.',                   saveToDrive:true  },
+  { name:'Daily Competitor Capture', agent:'social_media',      endpoint:'/api/agent/daily-capture/run-now',         prompt:null,                                                                                                               saveToDrive:false },
+  { name:'Social Listening',         agent:'social_media',      endpoint:'/api/agent/listening/run-now',             prompt:null,                                                                                                               saveToDrive:false },
+  { name:'Competitor Monitor',       agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now',      prompt:null,                                                                                                               saveToDrive:false },
+  { name:'Editor QA',                agent:'editor_qa',         endpoint:'/api/agent/run',                           prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.', saveToDrive:false },
+  { name:'Daily Digest',             agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',          prompt:null,                                                                                                               saveToDrive:false },
+  { name:'Monthly Review',           agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',           prompt:null,                                                                                                               saveToDrive:false },
 ];
 
 // ── Scheduled tasks ───────────────────────────────────
 const SCHEDULED = [
-  { name:'Daily Competitor Capture', agent:'paid_media_analyst',detail:'Scrapes last 24h → counter-content briefs → Drive', cron:'Daily 07:00 UTC',  progress: computeDayProgress() },
-  { name:'Daily Team Digest',        agent:'orchestrator',      detail:'Reviews all tasks → memory + dashboard',             cron:'Daily 08:00 UTC',  progress: computeDayProgress() },
-  { name:'Social Listening',         agent:'social_media',      detail:'X + web — قيود / ZATCA / الفاتورة keywords',         cron:'Every 6h',         progress: computeListeningProgress() },
-  { name:'Competitor Monitor',       agent:'social_media',      detail:'Scrapes all channels → Slides + Doc + KB',           cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
-  { name:'Paid Media Review',        agent:'paid_media_analyst',detail:'Top/bottom performers + counter-creative recs',      cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
-  { name:'HubSpot Social Poller',    agent:'social_media',      detail:'Syncs post performance into library',                cron:'Daily (periodic)', progress: 0.5 },
+  { name:'Monthly Content Calendar', agent:'social_media',  detail:'30 posts · 5 channels · saved to Drive + Slack',        cron:'1st of month 08:00 UTC', progress: computeMonthProgress() },
+  { name:'Daily Competitor Capture', agent:'social_media',  detail:'Scrapes last 24h → counter-creative → Drive',           cron:'Daily 07:00 UTC',        progress: computeDayProgress()   },
+  { name:'Daily Team Digest',        agent:'orchestrator',  detail:'Reviews all tasks → Drive Doc + Slack',                 cron:'Daily 08:00 UTC',        progress: computeDayProgress()   },
+  { name:'Social Listening',         agent:'social_media',  detail:'X + web — قيود / ZATCA / الفاتورة keywords',            cron:'Every 6h',               progress: computeListeningProgress() },
+  { name:'Competitor Monitor',       agent:'social_media',  detail:'All channels → Slides + Doc + Knowledge Base',          cron:'Sunday 09:00 UTC',       progress: computeWeekProgress()  },
+  { name:'HubSpot Social Poller',    agent:'orchestrator',  detail:'Syncs post performance data into system',               cron:'Daily (periodic)',        progress: 0.5 },
 ];
 
+function computeMonthProgress() {
+  const now = new Date();
+  const day = now.getUTCDate();
+  const daysInMonth = new Date(now.getUTCFullYear(), now.getUTCMonth()+1, 0).getUTCDate();
+  return Math.min((day-1) / daysInMonth, 0.99);
+}
 function computeWeekProgress() {
   const now = new Date();
   const dayOfWeek = now.getUTCDay(); // 0=Sun
@@ -622,33 +776,32 @@ const HEALTH_ITEMS = [
 
 // ── Render ────────────────────────────────────────────
 const AGENT_KEYWORDS = {
-  social_media:      '@social · calendar · competitor · organic · instagram · tiktok · linkedin · snapchat',
-  content_creator:   '@writer · copy · headline · caption · google ads · blog · article · مقال',
-  email_lifecycle:   '@email · nurture · winback · welcome · sequence · drip · بريد',
-  paid_media_analyst:'@paid · @pma · ad library · meta ads · counter creative · ctr · cpl · roas',
-  editor_qa:         '@editor · review · qa · dialect check · تدقيق',
-  orchestrator:      'default fallback — handles complex / multi-step / unclear briefs',
+  orchestrator:    'default fallback — handles complex / multi-step / unclear briefs',
+  social_media:    '@social · calendar · competitor · organic · instagram · tiktok · linkedin · snapchat · listening',
+  content_creator: '@writer · @copy · caption · ad copy · counter-creative · عبارة · منشور',
+  email_lifecycle: '@email · nurture · winback · welcome · sequence · drip · بريد · ايميل',
+  editor_qa:       '@editor · review · qa · dialect check · تدقيق · مراجعة',
 };
 
 function renderAgents() {
-  const agentGridEl = document.getElementById('agentGrid');
-  if (!agentGridEl) return;
-  agentGridEl.innerHTML = AGENTS.map((a, i) => {
-    const iconHtml = AGENT_SVG[a.id]
-      ? `<span class="agent-px" style="color:${a.color}">${AGENT_SVG[a.id]}</span>`
-      : `<span class="agent-em">${a.em}</span>`;
+  const grid = document.getElementById('workflowGrid');
+  if (!grid) return;
+  grid.innerHTML = AGENTS.map((a, i) => {
+    const icon = AGENT_SVG[a.id]
+      ? `<span class="agent-px" style="color:${a.color};margin-bottom:6px">${AGENT_SVG[a.id]}</span>`
+      : `<span style="font-size:22px;margin-bottom:6px">${a.em}</span>`;
     return `
-    <div class="agent-box" style="cursor:pointer;border-color:${a.active ? a.color+'33' : ''}" onclick="showAgentModal(${i})">
-      <div class="agent-top">
-        ${iconHtml}
-        <span class="status-badge ${a.active ? 'sb-active' : 'sb-idle'}">${a.active ? 'ACTIVE' : 'IDLE'}</span>
+    <div class="wf-agent" style="cursor:pointer;border-color:${a.active ? a.color+'55':'var(--border)'};transition:border-color .2s,transform .2s"
+         onclick="showAgentModal(${i})"
+         onmouseover="this.style.borderColor='${a.color}99';this.style.transform='translateY(-2px)'"
+         onmouseout="this.style.borderColor='${a.active ? a.color+'55':'var(--border)'}';this.style.transform=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
+        ${icon}
+        <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:${a.active?'rgba(34,197,94,.15)':'rgba(100,116,139,.12)'};color:${a.active?'var(--green)':'var(--muted)'}">${a.active?'ACTIVE':'IDLE'}</span>
       </div>
-      <div class="agent-name" style="color:${a.active ? a.color : ''}">${a.name}</div>
-      <div class="agent-role">${a.role}</div>
-      <div class="agent-chips">
-        ${a.tools.slice(0,3).map(t => `<span class="chip ${t==='ALL TOOLS'?'chip-all':''}">${t}</span>`).join('')}
-        ${a.tools.length > 3 ? `<span class="chip">+${a.tools.length-3}</span>` : ''}
-      </div>
+      <div class="wf-name" style="color:${a.color};margin-bottom:4px">${a.name}</div>
+      <div style="font-size:10px;color:var(--sub);margin-bottom:8px;line-height:1.4">${a.role}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,.4);border-top:1px solid var(--border);padding-top:7px;margin-top:auto">اضغط للاطلاع على الدليل الكامل →</div>
     </div>`;
   }).join('');
 }
@@ -657,13 +810,32 @@ function showAgentModal(idx) {
   const a = AGENTS[idx];
   document.getElementById('mEm').textContent   = a.em;
   document.getElementById('mName').textContent = a.name;
-  document.getElementById('mRole').textContent = a.role;
-  document.getElementById('mTools').innerHTML  = a.tools.map(t =>
+  document.getElementById('mRole').textContent = a.playbook.mission;
+
+  // Playbook index
+  const sections = a.playbook.sections || [];
+  document.getElementById('mPbIndex').innerHTML = sections.map((s, i) =>
+    `<span class="pb-idx-item">${i+1}. ${s.title}</span>`
+  ).join('');
+
+  // Playbook sections
+  document.getElementById('mPbSections').innerHTML = sections.map((s, i) => `
+    <div class="pb-section">
+      <div class="pb-section-hd"><span class="pb-num">${i+1}</span>${s.title}</div>
+      ${s.items.map(item => `<div class="pb-bullet">${item}</div>`).join('')}
+    </div>`).join('');
+
+  // Tools
+  document.getElementById('mTools').innerHTML = a.tools.map(t =>
     `<span class="tool-chip ${t==='ALL TOOLS'?'tool-chip-all':''}">${t}</span>`
   ).join('');
+
+  // Keywords
   document.getElementById('mKeywords').textContent = AGENT_KEYWORDS[a.id] || '—';
-  const statusEl = document.getElementById('mStatus');
-  statusEl.innerHTML = `<span style="color:${a.active?'var(--green)':'var(--muted)'};font-weight:600">${a.active ? '● Active — currently processing tasks' : '○ Idle — ready for on-demand tasks'}</span>`;
+
+  // Status
+  document.getElementById('mStatus').innerHTML = `<span style="color:${a.active?'var(--green)':'var(--muted)'};font-weight:600">${a.active ? '● Active — currently processing tasks' : '○ Idle — ready for on-demand tasks'}</span>`;
+
   document.getElementById('agentModal').style.display = 'flex';
 }
 
