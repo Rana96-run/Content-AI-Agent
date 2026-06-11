@@ -861,9 +861,8 @@ function renderContentFeed() {
     return `<div class="feed-item" ${clickable}>
       <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
       <div class="fi-body">
-        <div class="fi-title">${p.channel || 'Post'}${url}</div>
+        <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview || '—'}${url}</div>
         <div class="fi-meta">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${preview}</span>
           ${statsHtml ? `<span style="color:var(--sub);font-size:9px;white-space:nowrap">${statsHtml}</span>` : ''}
           <span class="fi-time">${time}</span>
         </div>
