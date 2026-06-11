@@ -103,11 +103,33 @@ ${JSON.stringify(analysis, null, 2)}
   { label: 'write-brief' }
 )
 
+// ── Post to Slack ────────────────────────────────────────────────────────────
+await agent(
+  `Post this morning briefing to the marketing Slack channel using the Slack MCP tool (slack_post_message).
+
+Channel: Use the default marketing/content channel (search for it if needed — look for #marketing, #content-team, or #social-media).
+
+Message to post:
+---
+*بريفينج الصباح — ${date}*
+
+${brief}
+---
+
+Keep the message as-is. If the Slack MCP tool is not available, use Bash:
+curl -s -X POST "https://slack.com/api/chat.postMessage" \\
+  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"channel":"${process.env.SLACK_DEFAULT_CHANNEL || "#marketing"}","text":"*بريفينج الصباح — ${date}*\\n\\n${brief.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"}'`,
+  { label: 'post-to-slack' }
+)
+
 log(`Brief ready — ${analysis?.scheduled_today ?? 0} posts scheduled, ${analysis?.missing_platforms?.length ?? 0} gaps`)
 
 return {
   date,
   brief,
   analysis,
+  hot_mentions: analysis?.hot_mentions?.length ?? 0,
   raw: { listening: listeningRaw, scheduled: scheduledRaw },
 }

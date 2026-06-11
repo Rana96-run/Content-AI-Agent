@@ -195,9 +195,17 @@ ${groupMentions.slice(0, 5).map(m => `- [${m.urgency}] ${m.sentiment} | ${m.text
 `
 
 await agent(
-  `Save the following social listening digest to Google Drive as a Google Doc titled "Social Listening — ${today}".
+  `Do two things:
 
-Then, if there are any HOT mentions (urgency === HOT), also post a brief Slack message to the marketing channel summarizing them. Keep the Slack message under 200 words, in Arabic, and list each HOT mention with a one-line description and the draft response.
+1. Save the following social listening digest to Google Drive as a Google Doc titled "Social Listening — ${today}".
+
+2. If HOT mention count is ${hotMentions.length} (greater than 0), post to Slack using the Slack MCP tool (slack_post_message).
+   - Find the marketing/content channel (#marketing, #content-team, or #social-media)
+   - Post a REVIEW THREAD — NOT a public response. Start the message with this exact header:
+     *رصد الإشارات — ${today} — للمراجعة قبل أي رد*
+   - List each HOT mention: type, short quote, and the draft response below it
+   - End with: "راجع الردود وأرسل يدوياً — لا ترسل هذه الرسائل تلقائياً"
+   - This is internal review only, not a customer-facing message
 
 Document content:
 ${digest}

@@ -190,6 +190,23 @@ ${JSON.stringify(analysis.competitors, null, 2)}
 
 log(`Saved to Drive: ${saveResult}`)
 
+// ── Notify Slack ─────────────────────────────────────────────────────────────
+await agent(
+  `Post a brief notification to Slack using the Slack MCP tool (slack_post_message).
+Find the marketing/content channel (#marketing, #content-team, or #social-media).
+
+Message:
+*تقرير المنافسين — ${today}*
+تم تحليل ${analysis.competitors?.length ?? 0} منافس وإنشاء ${validPosts.length} منشور counter-content.
+
+الفرصة الرئيسية: ${analysis.qoyod_opportunity?.slice(0, 200) ?? '—'}
+
+${analysis.urgent_threat ? `تنبيه: ${analysis.urgent_threat?.slice(0, 150)}` : ''}
+
+التقرير الكامل محفوظ في Google Drive باسم "Counter-Content Brief — ${today}"`,
+  { label: 'notify-slack' }
+)
+
 return {
   date: today,
   competitors_analysed: analysis.competitors?.length,
