@@ -5,7 +5,8 @@
  */
 import { logger } from "./logger.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
-import { sheetsLogDocument } from "./sheets-client.js";
+import { sheetsLogDocument, sheetsLogICPSignal } from "./sheets-client.js";
+import { invalidateICPCache } from "./icp-context.js";
 import { callClaude } from "./ai-call.js";
 
 const COMPETITORS = [
@@ -115,6 +116,83 @@ ${postsText}
   }
 }
 
+// ICP archetype list sent to AI so it can tag each post
+const ICP_LIST = [
+  "P01=CFO/مدير مالي", "P02=مؤسس/CEO شركة صغيرة", "P03=مدير مالي",
+  "P04=صاحب متجر إلكتروني", "P05=مدير العمليات", "P06=محاسب/مسك دفاتر",
+  "P07=صاحب محل تجزئة", "P08=مستشار ضريبي", "P09=مستشار أعمال للـ SMEs",
+  "P10=مؤسس شركة ناشئة",
+].join(", ");
+
+const ICP_TITLE_MAP: Record<string, string> = {
+  P01:"CFO / مدير مالي", P02:"مؤسس / CEO — شركة صغيرة", P03:"مدير مالي",
+  P04:"صاحب متجر إلكتروني", P05:"مدير العمليات", P06:"محاسب / مسك دفاتر",
+  P07:"صاحب محل تجزئة", P08:"مستشار ضريبي", P09:"مستشار أعمال للـ SMEs",
+  P10:"مؤسس شركة ناشئة",
+};
+
+async function extractICPSignals(posts: CapturedPost[], date: string): Promise<void> {
+  if (posts.length === 0) return;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return;
+
+  const postsText = posts.slice(0, 10).map((p, i) =>
+    `[${i + 1}] ${p.competitor} | ${p.platform} | ${p.text.slice(0, 200)}`
+  ).join("\n\n");
+
+  const system = `You are an ICP analyst. For each competitor post, identify which customer archetype it targets.
+ICP list: ${ICP_LIST}.
+Return ONLY a valid JSON array — no markdown, no explanation.
+Schema: [{"icp_id":"P07","competitor":"Rewaa","pain_hook":"مخزون لحظي","channel":"Instagram","post_snippet":"first 100 chars of post"}]
+If a post targets multiple ICPs, emit one object per ICP. If unclear, use the closest match.`;
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+        max_tokens: 1000,
+        system,
+        messages: [{ role: "user", content: postsText }],
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!r.ok) return;
+    const data = (await r.json()) as any;
+    const raw = data.content?.[0]?.text ?? "";
+    const fi = raw.indexOf("[");
+    const li = raw.lastIndexOf("]");
+    if (fi === -1 || li === -1) return;
+    const signals: any[] = JSON.parse(raw.slice(fi, li + 1));
+
+    let saved = 0;
+    for (const s of signals) {
+      if (!s.icp_id || !ICP_TITLE_MAP[s.icp_id]) continue;
+      await sheetsLogICPSignal({
+        date,
+        icp_id: s.icp_id,
+        icp_title: ICP_TITLE_MAP[s.icp_id],
+        competitor: s.competitor || "",
+        pain_hook: (s.pain_hook || "").slice(0, 120),
+        channel: s.channel || "Instagram",
+        post_snippet: (s.post_snippet || "").slice(0, 120),
+      }).catch(() => {});
+      saved++;
+    }
+    if (saved > 0) {
+      invalidateICPCache();
+      logger.info({ saved }, "daily-capture: ICP signals logged");
+    }
+  } catch (e) {
+    logger.warn({ err: String(e) }, "daily-capture: ICP extraction failed (non-fatal)");
+  }
+}
+
 export async function runDailyCompetitorCapture(): Promise<{ ok: boolean; saved?: string; error?: string }> {
   logger.info("daily-capture: starting");
   try {
@@ -127,9 +205,13 @@ export async function runDailyCompetitorCapture(): Promise<{ ok: boolean; saved?
     const posts = await scrapeInstagramLast24h(token);
     logger.info({ count: posts.length }, "daily-capture: scraped posts");
 
-    const analysis = await analyseAndCounter(posts);
-
     const date = new Date().toISOString().slice(0, 10);
+
+    // Run content analysis + ICP extraction in parallel
+    const [analysis] = await Promise.all([
+      analyseAndCounter(posts),
+      extractICPSignals(posts, date),
+    ]);
     const title = `Daily Competitor Capture — ${date}`;
     const docResult = await driveUploadAsGoogleDoc(title, analysis, "Competitor Intel");
     if (docResult.link) {

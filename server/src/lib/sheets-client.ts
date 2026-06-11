@@ -357,6 +357,63 @@ export async function sheetsReadKnowledge(limit = 40): Promise<Array<{
   }
 }
 
+/* ── ICP Signals ──────────────────────────────────────────────── */
+const ICP_SIGNAL_HEADER = ["Date", "ICP_ID", "ICP_Title", "Competitor", "Pain_Hook", "Channel", "Post_Snippet"];
+
+export interface ICPSignal {
+  date: string;
+  icp_id: string;
+  icp_title: string;
+  competitor: string;
+  pain_hook: string;
+  channel: string;
+  post_snippet: string;
+}
+
+/** Append a competitor ICP targeting signal to the "ICP Signals" tab. */
+export async function sheetsLogICPSignal(signal: ICPSignal): Promise<void> {
+  await ensureTab("ICP Signals", ICP_SIGNAL_HEADER);
+  await appendRows("ICP Signals", [[
+    signal.date,
+    signal.icp_id,
+    signal.icp_title,
+    signal.competitor,
+    signal.pain_hook,
+    signal.channel,
+    signal.post_snippet,
+  ]]);
+}
+
+/** Read ICP signals from the last N days. */
+export async function sheetsGetICPSignals(daysBack = 30): Promise<ICPSignal[]> {
+  if (!SPREADSHEET_ID) return [];
+  try {
+    const s = getSheetsClient();
+    const r = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'ICP Signals'!A2:G",
+    });
+    const rows = r.data.values ?? [];
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - daysBack);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return rows
+      .filter(row => row[0] >= cutoffStr && row[1])
+      .map(row => ({
+        date:         row[0] || "",
+        icp_id:       row[1] || "",
+        icp_title:    row[2] || "",
+        competitor:   row[3] || "",
+        pain_hook:    row[4] || "",
+        channel:      row[5] || "",
+        post_snippet: row[6] || "",
+      }));
+  } catch (e) {
+    logger.warn({ err: String(e) }, "sheets-client: read ICP signals failed");
+    return [];
+  }
+}
+
 /** Log a Drive document to the "Documents Log" tab — central link index. */
 export async function sheetsLogDocument(entry: {
   date: string;

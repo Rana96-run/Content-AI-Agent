@@ -2134,6 +2134,25 @@ router.post("/monthly-calendar/run-now", async (_req, res) => {
   }
 });
 
+/* ── ICP Signals — competitor ICP targeting intelligence ── */
+
+router.get("/icp/signals", async (_req, res) => {
+  try {
+    const { sheetsGetICPSignals } = await import("../lib/sheets-client.js");
+    const signals = await sheetsGetICPSignals(30);
+
+    // Group by ICP for easier consumption by the client
+    const byICP: Record<string, typeof signals> = {};
+    for (const s of signals) {
+      (byICP[s.icp_id] = byICP[s.icp_id] || []).push(s);
+    }
+
+    res.json({ ok: true, signals, byICP, total: signals.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 /* ── Social posts — live from HubSpot broadcasts ── */
 
 // Cache the channel label map + HubSpot portal ID

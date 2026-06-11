@@ -6,6 +6,7 @@ import { getCustomerVoiceSnippet } from "../lib/customer-voice.js";
 import { getZatcaSnippet } from "../lib/zatca-watcher.js";
 import { getPatternLibrarySnippet } from "../lib/pattern-library.js";
 import { getKnowledgeSnippet } from "../lib/knowledge-base.js";
+import { getICPContextSnippet } from "../lib/icp-context.js";
 
 const router = Router();
 
@@ -342,10 +343,11 @@ router.post("/generate", async (req, res) => {
   const ctxSnippet = skip_competitor_context ? "" : getContextSnippet();
   const voiceSnippet = skip_customer_voice ? "" : getCustomerVoiceSnippet();
   const zatcaSnippet = skip_zatca ? "" : getZatcaSnippet();
-  // Pattern library + Knowledge base are both async (read Sheet)
-  const [patternSnippet, knowledgeSnippet] = await Promise.all([
+  // Pattern library + Knowledge base + ICP signals are all async (read Sheet)
+  const [patternSnippet, knowledgeSnippet, icpSnippet] = await Promise.all([
     skip_pattern_library ? Promise.resolve("") : getPatternLibrarySnippet(),
     skip_knowledge ? Promise.resolve("") : getKnowledgeSnippet(),
+    getICPContextSnippet(),
   ]);
   const enrichedSystem =
     lawSnippet +
@@ -355,7 +357,8 @@ router.post("/generate", async (req, res) => {
     voiceSnippet +
     zatcaSnippet +
     patternSnippet +
-    knowledgeSnippet;
+    knowledgeSnippet +
+    icpSnippet;
 
   const totalLength = enrichedSystem.length + String(user).length;
   if (totalLength > MAX_PROMPT_CHARS) {

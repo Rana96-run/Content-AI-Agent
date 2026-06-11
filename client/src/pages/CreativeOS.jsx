@@ -637,6 +637,17 @@ export default function CreativeOS(){
       .then(r=>r.json()).then(d=>setLibEntries(d.entries||[])).catch(()=>setLibEntries([]));
   },[tab]);
 
+  // Load ICP competitor signals when ICP tab opens (once per session)
+  useEffect(()=>{
+    if(tab!=="icp"||Object.keys(icpSignals).length>0||icpSignalsLd)return;
+    setIcpSignalsLd(true);
+    fetch("/api/agent/icp/signals")
+      .then(r=>r.json())
+      .then(d=>setIcpSignals(d.byICP||{}))
+      .catch(()=>{})
+      .finally(()=>setIcpSignalsLd(false));
+  },[tab]);
+
   // Sync tab ↔ URL hash so external links like /#library work
   useEffect(()=>{window.location.hash=tab;},[tab]);
   useEffect(()=>{
@@ -705,6 +716,10 @@ export default function CreativeOS(){
   const[liveAdsLd,setLiveAdsLd]=useState(false);
   const[liveAdsErr,setLiveAdsErr]=useState("");
   const[liveAdsBillingLimit,setLiveAdsBillingLimit]=useState(false);
+
+  /* ── ICP Signals (competitor targeting intel) ── */
+  const[icpSignals,setIcpSignals]=useState({});    // byICP map from /api/icp/signals
+  const[icpSignalsLd,setIcpSignalsLd]=useState(false);
 
   /* ── Agent Dashboard ── */
   const[agentStatus,setAgentStatus]=useState(null);       // GET /api/agent/status
@@ -1767,7 +1782,52 @@ export default function CreativeOS(){
 
         {tab==="icp"&&(
           <div className="qa">
-            <SH title={T("شرائح العملاء","Customer Profiles")} sub={T(`${ICP_PERSONAS.length+customPersonas.length} شرائح`,`${ICP_PERSONAS.length+customPersonas.length} personas`)}/>
+            <SH title={T("شرائح العملاء","Customer Profiles")} sub={T(`${ICP_PERSONAS.length+customPersonas.length} شريحة · مُحدَّثة من تحليل المنافسين اليومي`,`${ICP_PERSONAS.length+customPersonas.length} personas · auto-enriched from daily competitor analysis`)}/>
+
+            {/* Competitor ICP Intelligence — auto-fed from daily capture */}
+            {(icpSignalsLd||Object.keys(icpSignals).length>0)&&(
+              <div style={{...card,marginBottom:14}}>
+                <div style={cHead}>
+                  <span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("ذكاء ICP من المنافسين — آخر 30 يوم","Competitor ICP Intelligence — last 30 days")}</span>
+                  {icpSignalsLd&&<span style={{fontSize:10,color:"#2e5468"}}>{T("يحمّل...","loading...")}</span>}
+                </div>
+                {!icpSignalsLd&&Object.keys(icpSignals).length>0&&(
+                  <div style={cBody}>
+                    <p style={{fontSize:10.5,color:"#2e5468",direction:"rtl",textAlign:"right",marginBottom:10}}>{T("المنافسون يستهدفون هذه الشرائح — قيود يجب أن يرد بزاوية أحكم وأوضح.","Competitors are actively targeting these segments — Qoyod should respond with sharper, clearer angles.")}</p>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:8}}>
+                      {Object.entries(icpSignals).sort((a,b)=>b[1].length-a[1].length).slice(0,6).map(([icpId,sigs])=>{
+                        const p=ICP_PERSONAS.find(x=>x.id===icpId);
+                        const competitors=[...new Set(sigs.map(s=>s.competitor))].slice(0,3).join("، ");
+                        const hooks=[...new Set(sigs.map(s=>s.pain_hook).filter(Boolean))].slice(0,2);
+                        const channels=[...new Set(sigs.map(s=>s.channel).filter(Boolean))].slice(0,2).join("/");
+                        const latestDate=sigs.map(s=>s.date).sort().reverse()[0];
+                        return(
+                          <div key={icpId} style={{padding:"10px 12px",borderRadius:8,border:"1px solid rgba(245,166,35,.2)",background:"rgba(245,166,35,.04)"}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                <span style={{fontSize:16}}>{p?.icon||"👤"}</span>
+                                <div>
+                                  <div style={{fontSize:11,fontWeight:700,color:"#f5a623"}}>{p?.title||icpId}</div>
+                                  <div style={{fontSize:9,color:"#2e5468"}}>{sigs.length} {T("إشارة","signals")} · {latestDate}</div>
+                                </div>
+                              </div>
+                              <div style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(245,166,35,.12)",color:"#f5a623",fontWeight:600}}>{channels||"IG"}</div>
+                            </div>
+                            <div style={{fontSize:10,color:"#6a96aa",marginBottom:6,direction:"rtl",textAlign:"right"}}>{T("المنافسون:","Competitors:")} <span style={{color:"#ddeef4"}}>{competitors}</span></div>
+                            {hooks.length>0&&hooks.map((h,i)=>(
+                              <div key={i} style={{fontSize:10.5,color:"#bbd4e0",direction:"rtl",textAlign:"right",padding:"4px 8px",background:"rgba(1,53,90,.4)",borderRadius:5,marginBottom:4,borderRight:"2px solid rgba(245,166,35,.5)"}}>"{h}"</div>
+                            ))}
+                            <button onClick={()=>{setContentICP(icpId);setTab("content");}} style={{marginTop:6,width:"100%",padding:"5px",borderRadius:5,border:"1px solid rgba(23,163,164,.3)",background:"rgba(23,163,164,.07)",color:"#17a3a3",fontSize:9.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{T("ردّ على هذه الشريحة الآن","Counter this segment now")}</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {Object.keys(icpSignals).length===0&&<p style={{fontSize:10.5,color:"#2e5468",textAlign:"center",padding:"12px 0"}}>{T("لا توجد إشارات بعد — ستظهر هنا بعد أول تشغيل للرصد اليومي.","No signals yet — they'll appear here after the first daily capture run.")}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:10}}>
               {[...ICP_PERSONAS,...customPersonas].map((p,idx)=>{
                 const tCol=p.tier==="A"?"#17a3a3":"#f5a623";
