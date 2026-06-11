@@ -732,18 +732,60 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     formatted.push("Content Library");
   }
 
-  /* ── Competitor Posts (6 cols) ─────────────────────────────── */
+  /* ── Competitor Posts (9 cols: date,competitor,platform,arabic_text,media_type,url,scraped_at,engagement,notes) */
   if (idMap["Competitor Posts"] != null) {
     const id = idMap["Competitor Posts"];
-    const w = [130, 110, 340, 220, 145, 130];
+    const w = [100, 110, 110, 340, 110, 240, 145, 110, 200];
     requests.push(
       freezePane(id, 1, 0),
-      headerFormat(id, 6),
-      altRows(id, 6),
+      headerFormat(id, 9),
+      altRows(id, 9),
       ...w.map((px, i) => colWidth(id, i, px)),
-      dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat"]),
+      dropdown(id, 2, 3, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Google Ads","Web"]),
+      condFmt(id, 2, "Instagram",  "#E1306C", "#FFFFFF"),
+      condFmt(id, 2, "Facebook",   "#1877F2", "#FFFFFF"),
+      condFmt(id, 2, "YouTube",    "#FF0000", "#FFFFFF"),
+      condFmt(id, 2, "TikTok",     "#010101", "#FFFFFF"),
+      condFmt(id, 2, "Google Ads", "#4285F4", "#FFFFFF"),
     );
     formatted.push("Competitor Posts");
+  }
+
+  /* ── Qoyod Posts (10 cols: post_id,type,platform,posted_at,caption,url,topic,content_type,score,scraped_at) */
+  if (idMap["Qoyod Posts"] != null) {
+    const id = idMap["Qoyod Posts"];
+    const w = [100, 75, 110, 145, 340, 220, 200, 110, 70, 145];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 10),
+      altRows(id, 10),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 2, 3, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat"]),
+      dropdown(id, 7, 8, ["educational","promotional","community","humour","urgency","awareness"]),
+      condFmt(id, 2, "Instagram", "#E1306C", "#FFFFFF"),
+      condFmt(id, 2, "Facebook",  "#1877F2", "#FFFFFF"),
+      condFmt(id, 2, "YouTube",   "#FF0000", "#FFFFFF"),
+      condFmt(id, 2, "TikTok",    "#010101", "#FFFFFF"),
+    );
+    formatted.push("Qoyod Posts");
+  }
+
+  /* ── Content Briefs (11 cols: submitted_at,product,message,hook,cta,trust,placement,sector,persona,status,notes) */
+  if (idMap["Content Briefs"] != null) {
+    const id = idMap["Content Briefs"];
+    const w = [145, 110, 280, 200, 180, 180, 110, 120, 120, 100, 250];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 11),
+      altRows(id, 11),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 6, 7, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Email","WhatsApp"]),
+      dropdown(id, 9, 10, ["pending","approved","published","archived"]),
+      condFmt(id, 9, "approved",  "#2E7D32", "#FFFFFF"),
+      condFmt(id, 9, "published", "#1565C0", "#FFFFFF"),
+      condFmt(id, 9, "archived",  "#616161", "#FFFFFF"),
+    );
+    formatted.push("Content Briefs");
   }
 
   /* ── Knowledge Base (8 cols) ───────────────────────────────── */
