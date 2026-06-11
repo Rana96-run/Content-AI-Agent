@@ -489,6 +489,12 @@
           <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
             <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
             <div class="od-list" id="onDemandList"></div>
+            <!-- Last capture result link -->
+            <div id="lastCaptureRow" style="display:none;margin-top:8px;padding:6px 8px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;">
+              <span style="font-size:9px;font-weight:600;color:#34D399;text-transform:uppercase;letter-spacing:.05em">آخر تحليل منافسين</span>
+              <a id="lastCaptureLink" href="#" target="_blank" style="display:block;font-size:10px;color:var(--text);margin-top:2px;text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></a>
+              <span id="lastCaptureDate" style="font-size:9px;color:var(--sub)"></span>
+            </div>
             <div class="card-divider" style="margin:12px 0;"></div>
             <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
             <div class="sched-list" id="schedList"></div>
@@ -1038,6 +1044,9 @@ async function triggerTask(idx) {
       btn.textContent = 'Done'; btn.classList.remove('running'); btn.classList.add('done');
       showToast(t.name + ' started');
       setTimeout(fetchLiveTasks, 2000);
+      if (t.endpoint === '/api/agent/daily-capture/run-now') {
+        startCapturePolling(new Date().toISOString());
+      }
     } else {
       const d = await res.json().catch(() => ({}));
       btn.textContent = 'Error'; btn.classList.remove('running');
@@ -1304,8 +1313,49 @@ function init() {
   fetchListening();
   setInterval(fetchListening, 10 * 60 * 1000);
   fetchBrief();
+  fetchLastCapture();
 }
 document.addEventListener('DOMContentLoaded', init);
+
+// ── Last Capture Link ────────────────────────────────────────────────────────
+
+function renderLastCapture(latest) {
+  if (!latest || !latest.link) return;
+  const row = document.getElementById('lastCaptureRow');
+  const link = document.getElementById('lastCaptureLink');
+  const date = document.getElementById('lastCaptureDate');
+  link.href = latest.link;
+  link.textContent = latest.title || 'Daily Competitor Capture';
+  date.textContent = latest.date || '';
+  row.style.display = 'block';
+}
+
+async function fetchLastCapture() {
+  try {
+    const r = await fetch('/api/agent/last-capture');
+    const d = await r.json();
+    if (d.latest) renderLastCapture(d.latest);
+  } catch(e) { /* non-fatal */ }
+}
+
+let _capturePoller = null;
+
+function startCapturePolling(triggeredAt) {
+  let attempts = 0;
+  _capturePoller = setInterval(async () => {
+    attempts++;
+    if (attempts > 36) { clearInterval(_capturePoller); return; } // stop after 6 min
+    try {
+      const r = await fetch('/api/agent/last-capture');
+      const d = await r.json();
+      if (d.latest && d.latest.date >= triggeredAt.slice(0, 10)) {
+        renderLastCapture(d.latest);
+        showToast('تحليل المنافسين جاهز — اضغط للفتح');
+        clearInterval(_capturePoller);
+      }
+    } catch(e) { /* keep polling */ }
+  }, 10000); // every 10 sec
+}
 
 // ── Campaign Brief ───────────────────────────────────────────────────────────
 

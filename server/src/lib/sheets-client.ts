@@ -432,6 +432,29 @@ export async function sheetsLogDocument(entry: {
   ]]);
 }
 
+/** Read the most recent N rows from "Documents Log", optionally filtered by type. */
+export async function sheetsReadDocumentsLog(limit = 20, filterType?: string): Promise<Array<{
+  date: string; type: string; title: string; link: string; source: string;
+}>> {
+  if (!SPREADSHEET_ID) return [];
+  try {
+    const s = getSheetsClient();
+    const res = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Documents Log'!A2:E",
+    });
+    const rows = (res.data.values || []) as string[][];
+    const mapped = rows
+      .map(r => ({ date: r[0] ?? "", type: r[1] ?? "", title: r[2] ?? "", link: r[3] ?? "", source: r[4] ?? "" }))
+      .filter(r => r.link)
+      .filter(r => !filterType || r.type === filterType);
+    return mapped.slice(-limit).reverse(); // newest first
+  } catch (e) {
+    logger.warn({ err: String(e) }, "sheets-client: readDocumentsLog failed (non-fatal)");
+    return [];
+  }
+}
+
 /** Append Twitter/X and web mentions to the "Social Mentions" tab. */
 export async function sheetsAppendMentions(runAt: string, mentions: Array<{
   keyword: string;

@@ -2430,6 +2430,17 @@ router.post("/daily-capture/run-now", (_req, res) => {
   );
 });
 
+router.get("/last-capture", async (_req, res) => {
+  try {
+    const { sheetsReadDocumentsLog } = await import("../lib/sheets-client.js");
+    const rows = await sheetsReadDocumentsLog(5, "Competitor Intel");
+    const latest = rows[0] ?? null;
+    res.json({ ok: true, latest });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 // ── HubSpot Social API proxy ──────────────────────────────────────────────────
 // Workflows call these endpoints so HUBSPOT_ACCESS_TOKEN stays on Railway only.
 
