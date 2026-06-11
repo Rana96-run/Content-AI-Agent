@@ -17,17 +17,14 @@ phase('Analytics')
 
 const [hubspotData, listeningData, competitorData] = await parallel([
   async () => await agent(
-    `Fetch social performance data from HubSpot for the past 7 days using the Bash tool.
+    `Fetch social performance data from HubSpot for the past 7 days.
 
-Step 1 — Get published broadcasts (posts) from the last 7 days:
-curl -s "https://api.hubapi.com/marketing/v3/social/broadcasts?state=PUBLISHED&limit=50" \\
-  -H "Authorization: Bearer $HUBSPOT_ACCESS_TOKEN"
+Step 1 — Get published broadcasts (posts) from the last 7 days via our Railway proxy:
+curl -s "${RAILWAY}/api/hubspot/social/broadcasts?state=PUBLISHED&limit=50"
 
 Step 2 — For each broadcast, note: channelId, content.body (first 80 chars), publishedAt, engagement metrics if available.
 
-Step 3 — Get campaign analytics using the HubSpot MCP tool if available, or via:
-curl -s "https://api.hubapi.com/analytics/v2/reports/social-media/total?startDate=${date}&endDate=${date}&breakdown=SOCIAL_CHANNEL" \\
-  -H "Authorization: Bearer $HUBSPOT_ACCESS_TOKEN"
+Step 3 — Get campaign analytics using the HubSpot MCP tool (get_campaign_analytics).
 
 Return JSON: { total_posts: number, posts: [...], top_performing: [...], total_engagement: number }`,
     { label: 'hubspot-analytics' }

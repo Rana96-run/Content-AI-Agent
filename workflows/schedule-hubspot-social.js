@@ -35,14 +35,12 @@ if (!posts.length) {
 // ── Phase 1: Discover HubSpot social channels ────────────────────────────────
 phase('Channels')
 
+const RAILWAY = 'https://somaa-ai-agent-production.up.railway.app'
+
 const channels = await agent(
-  `Fetch the connected social channels from HubSpot Social API using the Bash tool:
+  `Fetch the connected social channels from HubSpot using the Bash tool:
 
-curl -s "https://api.hubapi.com/marketing/v3/social/channels" \\
-  -H "Authorization: Bearer $HUBSPOT_ACCESS_TOKEN" \\
-  -H "Content-Type: application/json"
-
-(Read $HUBSPOT_ACCESS_TOKEN from the environment)
+curl -s "${RAILWAY}/api/hubspot/social/channels"
 
 Parse the JSON response and return an array of channels with their id, type (INSTAGRAM/LINKEDIN/FACEBOOK), and name.
 Return JSON: { channels: [{ id: string, type: string, name: string }] }`,
@@ -85,21 +83,9 @@ const scheduled = await parallel(
     }
 
     return await agent(
-      `Schedule this social post in HubSpot using the Bash tool:
+      `Schedule this social post via our Railway proxy using the Bash tool:
 
-POST body:
-${JSON.stringify({
-  channelId: channel.id,
-  scheduledAt: post.scheduled_time,
-  content: {
-    body: post.caption,
-    ...(post.image_url ? { photoUrl: post.image_url } : {}),
-  },
-}, null, 2)}
-
-Command:
-curl -s -X POST "https://api.hubapi.com/marketing/v3/social/channels/${channel.id}/broadcasts" \\
-  -H "Authorization: Bearer $HUBSPOT_ACCESS_TOKEN" \\
+curl -s -X POST "${RAILWAY}/api/hubspot/social/broadcasts/${channel.id}" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify({ scheduledAt: post.scheduled_time, content: { body: post.caption, ...(post.image_url ? { photoUrl: post.image_url } : {}) } })}'
 

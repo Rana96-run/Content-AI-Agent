@@ -24,10 +24,9 @@ Return the full JSON as-is.`,
     { label: 'fetch-listening' }
   ),
   async () => await agent(
-    `Fetch today's scheduled social posts from HubSpot using Bash:
+    `Fetch today's scheduled social posts using Bash:
 
-curl -s "https://api.hubapi.com/marketing/v3/social/broadcasts?state=SCHEDULED&limit=20" \\
-  -H "Authorization: Bearer $HUBSPOT_ACCESS_TOKEN"
+curl -s "${RAILWAY}/api/hubspot/social/broadcasts?state=SCHEDULED&limit=20"
 
 Return the JSON response — list of broadcasts with their scheduledAt, channelId, content.body, and id.`,
     { label: 'fetch-scheduled' }

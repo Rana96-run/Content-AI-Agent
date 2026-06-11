@@ -45,20 +45,7 @@ Workflow({ scriptPath: "D:\\AI Content Agent\\workflows\\morning-briefing.js", a
 
 | Workflow | Args required | What it does |
 |----------|--------------|--------------|
-| `publish-instagram.js` | `caption`, `image_url`, `date` | Brand-validates → publishes to IG → logs to Drive |
 | `schedule-hubspot-social.js` | `posts[]`, `date` | Schedules posts across IG/LI/FB in HubSpot |
-
-**Publish example:**
-```
-Workflow({
-  scriptPath: "D:\\AI Content Agent\\workflows\\publish-instagram.js",
-  args: {
-    caption: "أصدر فاتورة معتمدة من ZATCA في أقل من دقيقة — جرّب مجاناً لمدة 14 يوم.",
-    image_url: "https://your-cdn.com/image.jpg",
-    date: "2026-06-12"
-  }
-})
-```
 
 **Schedule example:**
 ```

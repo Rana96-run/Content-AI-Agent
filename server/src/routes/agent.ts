@@ -2452,4 +2452,40 @@ router.post("/daily-capture/run-now", (_req, res) => {
   );
 });
 
+// ── HubSpot Social API proxy ──────────────────────────────────────────────────
+// Workflows call these endpoints so HUBSPOT_ACCESS_TOKEN stays on Railway only.
+
+router.get("/hubspot/social/broadcasts", async (req, res) => {
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HUBSPOT_ACCESS_TOKEN not set" });
+  const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+  const r = await fetch(`https://api.hubapi.com/marketing/v3/social/broadcasts${qs ? "?" + qs : ""}`, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  const data = await r.json();
+  return res.status(r.status).json(data);
+});
+
+router.get("/hubspot/social/channels", async (_req, res) => {
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HUBSPOT_ACCESS_TOKEN not set" });
+  const r = await fetch("https://api.hubapi.com/marketing/v3/social/channels", {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  const data = await r.json();
+  return res.status(r.status).json(data);
+});
+
+router.post("/hubspot/social/broadcasts/:channelId", async (req, res) => {
+  const token = process.env.HUBSPOT_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HUBSPOT_ACCESS_TOKEN not set" });
+  const r = await fetch(`https://api.hubapi.com/marketing/v3/social/channels/${req.params.channelId}/broadcasts`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(req.body),
+  });
+  const data = await r.json();
+  return res.status(r.status).json(data);
+});
+
 export default router;

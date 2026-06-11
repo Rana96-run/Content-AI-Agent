@@ -16,7 +16,7 @@ const COMPETITORS = ['Daftra', 'Rewaa', 'Wafeq', 'Smacc', 'Dafater'];
 phase('Capture')
 
 const captureResult = await agent(
-  `Use the Bash tool to trigger the daily competitor Instagram capture on our Railway server, then fetch the results:
+  `Use the Bash tool to trigger the daily competitor Instagram capture on our Railway server, then read the results from Google Drive:
 
 1. Trigger the capture:
    curl -s -X POST "${RAILWAY}/api/agent/daily-capture/run-now" -H "Content-Type: application/json"
@@ -24,10 +24,9 @@ const captureResult = await agent(
 2. Wait 120 seconds (the scrape takes ~2 minutes):
    sleep 120
 
-3. Fetch the listening results to see if capture completed:
-   curl -s "${RAILWAY}/api/agent/listening/latest"
+3. Use the Google Drive MCP tool to search for the most recent Google Doc named "Daily Competitor Capture" (today's capture is saved there automatically). Read its content and return it as text.
 
-Return whatever JSON came back from step 3, plus any error messages from steps 1-3.`,
+Return the Drive document content. If the Drive doc isn't found yet, return whatever text you can from the trigger response.`,
   { label: 'trigger-capture' }
 )
 
