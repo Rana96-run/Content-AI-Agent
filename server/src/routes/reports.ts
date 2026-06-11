@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { logger } from "../lib/logger.js";
+import { driveUploadAsGoogleDoc } from "./drive.js";
 
 const router = Router();
 
@@ -52,6 +53,9 @@ Worst performer:  ${d.worst_performer ? `\`${d.worst_performer.creative_id}\` ($
 Anomaly: ${d.anomaly || "—"}
 One action for tomorrow: ${d.one_action || "—"}`;
 
+  driveUploadAsGoogleDoc(`Daily Pulse — ${today}`, markdown).catch(err =>
+    logger.warn({ err: String(err) }, "reports: daily-pulse drive save failed (non-fatal)")
+  );
   res.status(200).json({
     ok: true,
     date: today,
@@ -119,6 +123,9 @@ router.post("/reports/monthly-strategic", (req, res) => {
   }
 
   const markdown = sections.join("\n\n");
+  driveUploadAsGoogleDoc(`Monthly Strategic Review — ${month}`, markdown).catch(err =>
+    logger.warn({ err: String(err) }, "reports: monthly-strategic drive save failed (non-fatal)")
+  );
   res.status(200).json({ ok: true, month, markdown });
 });
 

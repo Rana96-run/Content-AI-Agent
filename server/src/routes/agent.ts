@@ -1483,6 +1483,7 @@ async function runAgent(task: Task) {
       });
       log.info({ steps: task.steps.length }, "agent.run.done");
       await replyToSource(task);
+      await maybeSaveToDrive(task);
       return;
     }
 
@@ -1545,6 +1546,7 @@ async function runAgent(task: Task) {
   });
   task.summary = task.summary ?? "Reached step cap.";
   await replyToSource(task);
+  await maybeSaveToDrive(task);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1552,6 +1554,18 @@ async function runAgent(task: Task) {
    teammate who mentioned us sees what we did without opening the UI.
    Currently supports Slack channels (needs SLACK_BOT_TOKEN).
    ───────────────────────────────────────────────────────────── */
+async function maybeSaveToDrive(task: Task): Promise<void> {
+  if (!(task.trigger.context as any)?.saveToDrive) return;
+  const content = task.summary || "";
+  if (!content.trim()) return;
+  const titleBase = task.trigger.title || task.trigger.body?.slice(0, 60) || "Agent Output";
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `${titleBase} — ${date}`;
+  await driveUploadAsGoogleDoc(filename, content).catch(err =>
+    logger.warn({ err: String(err) }, "maybeSaveToDrive: failed (non-fatal)")
+  );
+}
+
 async function replyToSource(task: Task) {
   const token = process.env.SLACK_BOT_TOKEN;
   if (!token) return;
@@ -1700,9 +1714,9 @@ export function spawnTask(
 
 /* Manual UI trigger */
 router.post("/run", async (req, res) => {
-  const { title, body, context, actor, priority, persona } = req.body ?? {};
+  const { title, body, context, actor, priority, persona, saveToDrive } = req.body ?? {};
   const task = spawnTask(
-    { source: "ui", title, body, context, actor: actor ?? "ui" },
+    { source: "ui", title, body, context: { ...(context ?? {}), saveToDrive: Boolean(saveToDrive) }, actor: actor ?? "ui" },
     { priority, persona: persona as PersonaId | undefined },
   );
   if (!task) return res.status(202).json({ deduped: true });
@@ -2141,6 +2155,12 @@ router.post("/daily-digest/run-now", async (_req, res) => {
   try {
     const { runDailyDigest } = await import("../lib/daily-digest.js");
     const out = await runDailyDigest();
+    if (out.ok && out.summary) {
+      const date = new Date().toISOString().slice(0, 10);
+      driveUploadAsGoogleDoc(`Daily Digest — ${date}`, out.summary).catch(err =>
+        logger.warn({ err: String(err) }, "daily-digest: drive save failed (non-fatal)")
+      );
+    }
     res.json(out);
   } catch (e) {
     res.status(500).json({ error: String(e) });

@@ -500,18 +500,18 @@ const AGENT_SVG = {
 
 // ── On-demand actions ─────────────────────────────────
 const ON_DEMAND = [
-  { name:'Content Calendar',       agent:'social_media',      endpoint:'/api/agent/run',                     prompt:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.' },
-  { name:'Google RSA Ads',         agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.' },
-  { name:'Blog Article',           agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.' },
-  { name:'Welcome Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.' },
-  { name:'Nurture Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.' },
-  { name:'Winback Sequence',       agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.' },
-  { name:'Counter-Creative Brief', agent:'paid_media_analyst',endpoint:'/api/agent/run',                     prompt:'Analyze competitor ad library, identify winning angles running >30 days, produce counter-creative briefs for Qoyod.' },
-  { name:'Competitor Monitor',     agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now',prompt:null },
-  { name:'Editor QA',              agent:'editor_qa',         endpoint:'/api/agent/run',                     prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.' },
-  { name:'Daily Digest',           agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',    prompt:null },
-  { name:'Daily Pulse',            agent:'orchestrator',      endpoint:'/api/reports/daily-pulse',           prompt:null },
-  { name:'Monthly Review',         agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',     prompt:null },
+  { name:'Content Calendar',       agent:'social_media',      endpoint:'/api/agent/run',                     prompt:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.',                                                                             saveToDrive:false },
+  { name:'Google RSA Ads',         agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.',                                                                                   saveToDrive:false },
+  { name:'Blog Article',           agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.',       saveToDrive:true  },
+  { name:'Welcome Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.',                                                                                   saveToDrive:true  },
+  { name:'Nurture Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.',                                                        saveToDrive:true  },
+  { name:'Winback Sequence',       agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.',                                                            saveToDrive:true  },
+  { name:'Counter-Creative Brief', agent:'paid_media_analyst',endpoint:'/api/agent/run',                     prompt:'Analyze competitor ad library, identify winning angles running >30 days, produce counter-creative briefs for Qoyod.',                                        saveToDrive:true  },
+  { name:'Competitor Monitor',     agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now',prompt:null,                                                                                                                                                         saveToDrive:false },
+  { name:'Editor QA',              agent:'editor_qa',         endpoint:'/api/agent/run',                     prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.',                  saveToDrive:false },
+  { name:'Daily Digest',           agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',    prompt:null,                                                                                                                                                         saveToDrive:false },
+  { name:'Daily Pulse',            agent:'orchestrator',      endpoint:'/api/reports/daily-pulse',           prompt:null,                                                                                                                                                         saveToDrive:false },
+  { name:'Monthly Review',         agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',     prompt:null,                                                                                                                                                         saveToDrive:false },
 ];
 
 // ── Scheduled tasks ───────────────────────────────────
@@ -681,7 +681,7 @@ async function triggerTask(idx) {
   try {
     let body = {};
     if (t.endpoint === '/api/agent/run' && t.prompt) {
-      body = { body: t.prompt, persona: t.agent };
+      body = { body: t.prompt, persona: t.agent, saveToDrive: t.saveToDrive === true };
     }
     const res = await fetch(BASE + t.endpoint, {
       method: 'POST',
