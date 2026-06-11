@@ -7,6 +7,8 @@ import { getZatcaSnippet } from "../lib/zatca-watcher.js";
 import { getPatternLibrarySnippet } from "../lib/pattern-library.js";
 import { getKnowledgeSnippet } from "../lib/knowledge-base.js";
 import { getICPContextSnippet } from "../lib/icp-context.js";
+import { getTimingContextSnippet } from "../lib/timing-context.js";
+import { getContentBriefSnippet } from "../lib/content-brief.js";
 
 const router = Router();
 
@@ -337,17 +339,22 @@ router.post("/generate", async (req, res) => {
   //                            anti-patterns extracted from every weekly monitor run.
   //                            This layer COMPOUNDS over time — unlike 3-6 which are
   //                            weekly snapshots, this grows indefinitely.
+  //   8. ICP signals         — which ICPs competitors are targeting right now (30-day)
+  //   9. Timing context      — active Saudi occasions + upcoming ZATCA deadlines (sync)
+  //  10. Campaign brief      — current campaign, sector focus, weekly performance notes
   // All can be opted out per request for non-creative endpoints.
   const lawSnippet = skip_brand_law ? "" : `\n\n${getBrandLawSnippet(persona)}\n\n`;
   const kitSnippet = creative_kit ? `\n\n${getCreativeKit()}\n\n` : "";
   const ctxSnippet = skip_competitor_context ? "" : getContextSnippet();
   const voiceSnippet = skip_customer_voice ? "" : getCustomerVoiceSnippet();
   const zatcaSnippet = skip_zatca ? "" : getZatcaSnippet();
-  // Pattern library + Knowledge base + ICP signals are all async (read Sheet)
-  const [patternSnippet, knowledgeSnippet, icpSnippet] = await Promise.all([
+  const timingSnippet = getTimingContextSnippet(); // sync — no external deps
+  // Async layers: Pattern library + Knowledge base + ICP signals + Campaign brief
+  const [patternSnippet, knowledgeSnippet, icpSnippet, briefSnippet] = await Promise.all([
     skip_pattern_library ? Promise.resolve("") : getPatternLibrarySnippet(),
     skip_knowledge ? Promise.resolve("") : getKnowledgeSnippet(),
     getICPContextSnippet(),
+    getContentBriefSnippet(),
   ]);
   const enrichedSystem =
     lawSnippet +
@@ -358,7 +365,9 @@ router.post("/generate", async (req, res) => {
     zatcaSnippet +
     patternSnippet +
     knowledgeSnippet +
-    icpSnippet;
+    icpSnippet +
+    timingSnippet +
+    briefSnippet;
 
   const totalLength = enrichedSystem.length + String(user).length;
   if (totalLength > MAX_PROMPT_CHARS) {

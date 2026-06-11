@@ -2466,4 +2466,41 @@ router.post("/hubspot/social/broadcasts/:channelId", async (req, res) => {
   return res.status(r.status).json(data);
 });
 
+// ── Content Brief — campaign + weekly performance context ─────────────────────
+
+router.get("/content-brief", async (_req, res) => {
+  const { getContentBrief } = await import("../lib/content-brief.js");
+  const brief = await getContentBrief();
+  res.json({ ok: true, brief: brief ?? null });
+});
+
+router.post("/content-brief", async (req, res) => {
+  const { setContentBrief, invalidateContentBriefCache } = await import("../lib/content-brief.js");
+  const brief = req.body;
+  if (!brief || typeof brief !== "object" || Array.isArray(brief)) {
+    return res.status(400).json({ error: "Invalid brief payload" });
+  }
+  // Ensure arrays are arrays, not undefined
+  const safe = {
+    updated_monthly: brief.updated_monthly ?? new Date().toISOString().slice(0, 10),
+    updated_weekly: brief.updated_weekly ?? new Date().toISOString().slice(0, 10),
+    monthly: {
+      campaign:       brief.monthly?.campaign ?? "",
+      sector_focus:   brief.monthly?.sector_focus ?? "",
+      zatca_wave:     brief.monthly?.zatca_wave ?? "",
+      product_focus:  brief.monthly?.product_focus ?? "",
+      active_channels: Array.isArray(brief.monthly?.active_channels) ? brief.monthly.active_channels : [],
+      budget_channels: Array.isArray(brief.monthly?.budget_channels) ? brief.monthly.budget_channels : [],
+    },
+    weekly: {
+      top_hooks:    Array.isArray(brief.weekly?.top_hooks)    ? brief.weekly.top_hooks    : [],
+      bottom_hooks: Array.isArray(brief.weekly?.bottom_hooks) ? brief.weekly.bottom_hooks : [],
+      key_insight:  brief.weekly?.key_insight ?? "",
+    },
+  };
+  await setContentBrief(safe);
+  invalidateContentBriefCache();
+  res.json({ ok: true, brief: safe });
+});
+
 export default router;

@@ -456,6 +456,44 @@ export async function sheetsAppendMentions(runAt: string, mentions: Array<{
   ]));
 }
 
+// ── Content Brief — persists the campaign/weekly brief across deploys ─────────
+const BRIEF_TAB = "Content Brief";
+
+/** Read the raw JSON blob from the Content Brief tab (A2:B2). Returns null if empty. */
+export async function sheetsGetBriefJson(): Promise<string | null> {
+  if (!SPREADSHEET_ID) return null;
+  try {
+    await ensureTab(BRIEF_TAB, ["key", "value"]);
+    const s = getSheetsClient();
+    const res = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${BRIEF_TAB}'!A2:B2`,
+    });
+    return (res.data.values?.[0]?.[1] as string) ?? null;
+  } catch (e) {
+    logger.warn({ err: String(e) }, "sheets-client: getBriefJson failed (non-fatal)");
+    return null;
+  }
+}
+
+/** Write the raw JSON blob to A2:B2 of the Content Brief tab. */
+export async function sheetsSetBriefJson(json: string): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  try {
+    await ensureTab(BRIEF_TAB, ["key", "value"]);
+    const s = getSheetsClient();
+    await s.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'${BRIEF_TAB}'!A2:B2`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["brief", json]] },
+    });
+    logger.info("sheets-client: content brief saved");
+  } catch (e) {
+    logger.warn({ err: String(e) }, "sheets-client: setBriefJson failed (non-fatal)");
+  }
+}
+
 /** Health check — returns true if the sheet is reachable. */
 export async function sheetsHealthCheck(): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!SPREADSHEET_ID) return { ok: false, error: "GOOGLE_SHEETS_ID not configured" };
