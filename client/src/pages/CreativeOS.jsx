@@ -700,9 +700,6 @@ export default function CreativeOS(){
   const[mRes,setMRes]=useState(null);
   const[mLd,setMLd]=useState(false);
   const[mErr,setMErr]=useState("");
-  const[analyzeUrl,setAnalyzeUrl]=useState("");
-  const[analyzingUrl,setAnalyzingUrl]=useState(false);
-  const[analyzeResult,setAnalyzeResult]=useState("");
   const[ilog,setIlog]=useState([]);
   const[liveAds,setLiveAds]=useState([]);
   const[liveAdsLd,setLiveAdsLd]=useState(false);
@@ -1091,7 +1088,7 @@ export default function CreativeOS(){
       :isLinkedIn&&!isUrl
       ?`LINKEDIN POST TEXT (pasted by analyst):\n---\n${trimmed}\n---\nAnalyze this real LinkedIn post content.`
       :`Input: ${trimmed}`;
-    const sys=`You are a competitive intelligence analyst for Qoyod (Saudi cloud accounting SaaS).\n${inputCtx}\nAnalyze the competitor's content or website DEEPLY. Write in Saudi Arabic dialect.\nReturn ONLY valid JSON:\n{"_mode":"analyze","competitor":"${mComp}","platform":"${mChan}","summary":"2-sentence summary of what they're doing","hook":"their main hook or headline","angle":"fear|authority|social_proof|offer|aspiration|comparison","target_audience":"who they're targeting","strengths":["strength 1","strength 2"],"gaps":["gap Qoyod can exploit 1","gap 2"],"keywords":["key terms they use"],"funnel_stage":"TOF/MOF/BOF","qoyod_angle":"how Qoyod should position against this specifically"}`;
+    const sys=`You are a competitive intelligence analyst for Qoyod (Saudi cloud accounting SaaS).\n${inputCtx}\nAnalyze this competitor's ORGANIC SOCIAL MEDIA POST deeply — focus on messaging strategy, not product features. Write in Saudi Arabic dialect.\nReturn ONLY valid JSON:\n{"_mode":"analyze","competitor":"${mComp}","platform":"${mChan}","summary":"2-sentence summary of their organic social strategy","hook":"their exact hook or opening line","angle":"fear|authority|social_proof|offer|aspiration|comparison","target_audience":"who they're targeting","strengths":["strength 1","strength 2"],"gaps":["gap Qoyod can exploit 1","gap 2"],"keywords":["key terms they use"],"funnel_stage":"TOF/MOF/BOF","qoyod_angle":"how Qoyod should position against this specific organic post"}`;
     const usr=`Competitor:${mComp} Channel:${mChan} URL/Input:${trimmed}`;
     try{
       const r=await callAI(sys,usr,2000);
@@ -1100,29 +1097,6 @@ export default function CreativeOS(){
       setMRes(r);
     }catch(e){setMErr(e.message);}finally{setMLd(false);}
   },[lang,mComp,mChan,mDesc]);
-
-  const handleAnalyzeUrl=useCallback(async()=>{
-    const trimmed=analyzeUrl.trim();
-    if(!trimmed||!/^https?:\/\//i.test(trimmed)){
-      setAnalyzeResult(T("الصق رابطاً صحيحاً يبدأ بـ http","Paste a valid URL starting with http"));
-      return;
-    }
-    setAnalyzingUrl(true);setAnalyzeResult("");
-    try{
-      const fr=await fetchWithTimeout("/api/fetch-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:trimmed})},20000);
-      const fj=await fr.json().catch(()=>({}));
-      if(!fj.ok){
-        setAnalyzeResult(fj.message||fj.error||T("تعذّر جلب المحتوى","Could not fetch content"));
-        return;
-      }
-      const sys=`أنت محلل تسويقي لـ Qoyod. لخّص محتوى هذه الصفحة في 3-5 جمل: ما المنتج/الخدمة المُسوَّقة، الرسالة الرئيسية، أبرز المزايا أو العروض، وأي نقاط ضعف يمكن استغلالها. اكتب بأسلوب احترافي موجز.`;
-      const usr=`الرابط: ${trimmed}\n\nالمحتوى:\n${fj.content.slice(0,3000)}`;
-      const summary=await callAI(sys,usr,500,true);
-      setAnalyzeResult(summary);
-      if(!mDesc)setMDesc(fj.content.slice(0,800));
-    }catch(e){setAnalyzeResult(e.message);}
-    finally{setAnalyzingUrl(false);}
-  },[analyzeUrl,mDesc,lang]);
 
   /* ── Content Calendar ── */
   const genCalendar=useCallback(async()=>{
@@ -1593,49 +1567,46 @@ export default function CreativeOS(){
                 )}
               </div>
             </div>
-            {/* Quick URL Analyzer — fetch any public URL and get an AI summary */}
             <div style={{...card,marginTop:10}}>
-              <div style={cHead}><span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("تحليل رابط سريع","Quick URL Analysis")}</span></div>
-              <div style={cBody}>
-                <div style={{display:"flex",gap:6}}>
-                  <input
-                    value={analyzeUrl}
-                    onChange={e=>setAnalyzeUrl(e.target.value)}
-                    onKeyDown={e=>e.key==="Enter"&&handleAnalyzeUrl()}
-                    placeholder={T("الصق أي رابط — موقع · صفحة أسعار · بوست · إعلان","Paste any URL — website · pricing · post · ad")}
-                    style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid rgba(1,53,90,.45)",background:"rgba(1,18,50,.6)",color:"#ddeef4",fontSize:11,fontFamily:"inherit",direction:"ltr"}}
-                  />
-                  <Btn ch={analyzingUrl?T("⏳","⏳"):T("تحليل","Analyze")} xs onClick={handleAnalyzeUrl} dis={analyzingUrl}/>
-                </div>
-                {analyzingUrl&&<div style={{marginTop:8,fontSize:10.5,color:"#17a3a3",direction:"rtl",textAlign:"right"}}>{T("⏳ يجلب المحتوى ويحلله...","⏳ Fetching and analyzing...")}</div>}
-                {analyzeResult&&!analyzingUrl&&(
-                  <div style={{marginTop:10,padding:"10px 12px",borderRadius:6,background:"rgba(23,163,164,.05)",border:"1px solid rgba(23,163,164,.2)",fontSize:11,color:"#ddeef4",direction:"rtl",textAlign:"right",lineHeight:1.7,whiteSpace:"pre-wrap"}}>
-                    {analyzeResult}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div style={{...card,marginTop:10}}>
-              <div style={cHead}><span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("تحليل إعلان منافس","Analyze Competitor Ad")}</span></div>
+              <div style={cHead}><span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("تحليل منشور منافس","Analyze Competitor Post")}</span></div>
               <div style={cBody}>
                 <div style={row2}>
                   <Fld label={T("المنافس","Competitor")}><select value={mComp} onChange={e=>setMComp(e.target.value)}><option value="">{T("— اختر —","— Select —")}</option>{COMPS.map(c=><option key={c.id} value={lang==="en"?c.en:c.n}>{lang==="en"?c.en:c.n}</option>)}</select></Fld>
-                  <Fld label={T("القناة","Channel")}><select value={mChan} onChange={e=>setMChan(e.target.value)}>{["Instagram","Facebook","TikTok","Snapchat","LinkedIn","Twitter/X","Website","Google Search"].map(v=><option key={v}>{v}</option>)}</select></Fld>
+                  <Fld label={T("القناة","Channel")}><select value={mChan} onChange={e=>setMChan(e.target.value)}>{["Instagram","Facebook","TikTok","Snapchat","LinkedIn","Twitter/X"].map(v=><option key={v}>{v}</option>)}</select></Fld>
                 </div>
-                {/* Quick-fill links for selected competitor */}
-                {(()=>{const comp=COMPS.find(c=>(lang==="en"?c.en:c.n)===mComp||c.en===mComp||c.n===mComp);if(!comp)return null;const chip=(label,url,icon)=>(<button key={label} onClick={()=>setMDesc(url)} style={{padding:"3px 9px",borderRadius:4,fontSize:9.5,fontWeight:600,background:"rgba(1,53,90,.5)",border:"1px solid rgba(106,150,170,.25)",color:"#8aafc4",cursor:"pointer",fontFamily:"inherit"}}>{icon} {label}</button>);return(<div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:10}}>{chip(`${comp.domain}`,`https://www.${comp.domain}`,"🌐")}{comp.pricing&&chip("Pricing",comp.pricing,"💰")}{chip("Google Search",`https://www.google.com/search?q=${encodeURIComponent((lang==="en"?comp.en:comp.n)+" "+comp.domain)}`,"🔍")}{chip("Google Ads",`https://adstransparency.google.com/?region=SA&domain=${comp.domain}`,"📢")}</div>);})()}
-                <Fld label={T("رابط البوست / الإعلان أو وصفه","Post / Ad URL or Description")}>
+                {/* Social profile shortcuts — open in new tab to find posts, copy URL back */}
+                {(()=>{
+                  const comp=COMPS.find(c=>(lang==="en"?c.en:c.n)===mComp||c.en===mComp||c.n===mComp);
+                  if(!comp)return null;
+                  const CH_MAP={
+                    IG:  {label:"Instagram", url:`https://www.instagram.com/${comp.id}/`},
+                    FB:  {label:"Facebook",  url:`https://www.facebook.com/${comp.id}/`},
+                    TK:  {label:"TikTok",    url:`https://www.tiktok.com/search?q=${encodeURIComponent(comp.en)}`},
+                    LI:  {label:"LinkedIn",  url:`https://www.linkedin.com/company/${comp.id}/posts/`},
+                    X:   {label:"Twitter/X", url:`https://x.com/search?q=${encodeURIComponent(comp.en)}&f=live`},
+                    SNAP:{label:"Snapchat",  url:`https://www.snapchat.com/add/${comp.id}`},
+                  };
+                  return(
+                    <div style={{marginBottom:10}}>
+                      <p style={{fontSize:9,color:"#2e5468",marginBottom:5,direction:"rtl"}}>{T("افتح حساب المنافس، انسخ رابط البوست، والصقه أدناه","Open their profile, copy a post URL, paste below")}</p>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                        {(comp.chs||[]).map(ch=>{const m=CH_MAP[ch];if(!m)return null;return(<a key={ch} href={m.url} target="_blank" rel="noreferrer" style={{padding:"3px 9px",borderRadius:4,fontSize:9.5,fontWeight:600,background:"rgba(1,53,90,.5)",border:"1px solid rgba(106,150,170,.25)",color:"#8aafc4",textDecoration:"none"}}>{m.label} ↗</a>);})}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <Fld label={T("رابط المنشور أو نصه","Post URL or text")}>
                   <textarea value={mDesc} onChange={e=>setMDesc(e.target.value)} rows={3}
-                    placeholder={mChan==="LinkedIn"
-                      ? T("الصق نص البوست من LinkedIn هنا مباشرةً — افتح الصفحة بزر 🔗 LinkedIn أعلاه، انسخ نص البوست، والصقه هنا","Open LinkedIn via 🔗 above → copy the post text → paste it here")
-                      : T("الصق أي رابط — موقع المنافس · صفحة الأسعار · بوست IG/FB · إعلان · نتائج Google — أو اكتب وصفاً يدوياً","Paste any URL — competitor website · pricing page · IG/FB post · ad · Google results — or describe manually")
+                    placeholder={["LinkedIn","Twitter/X"].includes(mChan)
+                      ? T("الصق نص المنشور مباشرةً — "+mChan+" يحجب الروابط","Paste the post text directly — "+mChan+" blocks URL fetching")
+                      : T("الصق رابط البوست من IG · FB · TikTok · Snap — أو انسخ النص مباشرة","Paste a post URL from IG · FB · TikTok · Snap — or paste the post text directly")
                     }
                     dir="rtl" style={{textAlign:"right"}}
                   />
-                  <p style={{fontSize:9.5,color:mChan==="LinkedIn"?"#f5a623":"#6a96aa",marginTop:4,direction:"rtl"}}>
-                    {mChan==="LinkedIn"
-                      ? T("⚠ LinkedIn يحجب الروابط — الصق نص البوست مباشرةً للتحليل","⚠ LinkedIn blocks URL fetching — paste post text directly to analyze")
-                      : T("يجلب المحتوى الحقيقي من الرابط تلقائياً — يعمل مع المواقع والبوستات والإعلانات","Auto-fetches real content from any URL — websites, posts, ads, pricing pages")
+                  <p style={{fontSize:9.5,color:["LinkedIn","Twitter/X"].includes(mChan)?"#f5a623":"#6a96aa",marginTop:4,direction:"rtl"}}>
+                    {["LinkedIn","Twitter/X"].includes(mChan)
+                      ? T("⚠ الروابط محجوبة — الصق نص المنشور للتحليل","⚠ Links blocked — paste the post text to analyze")
+                      : T("يجلب محتوى المنشور تلقائياً من الرابط","Auto-fetches post content from URL")
                     }
                   </p>
                 </Fld>
