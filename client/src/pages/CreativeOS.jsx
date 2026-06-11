@@ -629,6 +629,14 @@ export default function CreativeOS(){
   const[tab,setTab]=useState(()=>hashTab()||"content");
   const[aiHealth,setAiHealth]=useState(null); // {ok, provider, latency_ms, degraded?}
 
+  // Dynamic content library (published posts saved by agents)
+  const[libEntries,setLibEntries]=useState(null);
+  useEffect(()=>{
+    if(tab!=="library"||libEntries!==null)return;
+    fetch("/api/agent/content-library/entries?limit=50")
+      .then(r=>r.json()).then(d=>setLibEntries(d.entries||[])).catch(()=>setLibEntries([]));
+  },[tab]);
+
   // Sync tab ↔ URL hash so external links like /#library work
   useEffect(()=>{window.location.hash=tab;},[tab]);
   useEffect(()=>{
@@ -1679,7 +1687,40 @@ export default function CreativeOS(){
 
         {tab==="library"&&(
           <div className="qa">
-            <SH title={T("مكتبة الإعلانات","Ad Library")} sub={T("14 إعلاناً مرجعياً","14 reference ads")}/>
+            <SH title={T("مكتبة الإعلانات","Ad Library")} sub={T(`${(libEntries||[]).length} منشور محفوظ · 14 مرجع ثابت`,`${(libEntries||[]).length} saved posts · 14 reference ads`)}/>
+
+            {/* ── Published posts saved by agents ── */}
+            {libEntries===null&&<div style={{textAlign:"center",padding:"20px 0",color:"#6a96aa",fontSize:11}}>{T("جاري التحميل…","Loading…")}</div>}
+            {libEntries&&libEntries.length>0&&(
+              <div style={{marginBottom:24}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#17a3a3",marginBottom:8,letterSpacing:.04}}>{T("منشورات محفوظة","SAVED POSTS")}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {libEntries.map(e=>{
+                    const chColor=e.channel==="Instagram"?"#E1306C":e.channel==="Facebook"?"#1877F2":e.channel==="TikTok"?"#010101":e.channel==="Twitter/X"?"#1DA1F2":e.channel==="YouTube"?"#FF0000":"#6a96aa";
+                    const q=e.quality||{};
+                    const score=q.brand_voice||q.hook_strength||q.clarity;
+                    const scoreColor=score>=8?"#5dc87a":score>=6?"#f5a623":"#f07070";
+                    return(
+                      <div key={e.id} onClick={()=>e.post_url&&window.open(e.post_url,"_blank")} style={{...card,marginBottom:0,padding:"10px 14px",cursor:e.post_url?"pointer":"default",display:"flex",gap:12,alignItems:"flex-start"}}>
+                        <div style={{width:6,minHeight:40,borderRadius:3,background:chColor,flexShrink:0,marginTop:2}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                            <span style={{fontSize:9.5,fontWeight:700,color:chColor}}>{e.channel}</span>
+                            {e.tone&&<span style={{fontSize:9,color:"#6a96aa",background:"rgba(1,53,90,.08)",padding:"1px 5px",borderRadius:3}}>{e.tone}</span>}
+                            {score&&<span style={{fontSize:9,fontWeight:700,color:scoreColor,marginLeft:"auto"}}>{score}/10</span>}
+                          </div>
+                          <p style={{fontSize:11.5,direction:"rtl",textAlign:"right",lineHeight:1.6,margin:0,color:"#2e5468",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical"}}>{e.content_text||e.title||"—"}</p>
+                          {e.hashtags&&e.hashtags.length>0&&<p style={{fontSize:9,color:"#17a3a3",marginTop:4,direction:"rtl",textAlign:"right"}}>#{e.hashtags.slice(0,4).join("  #")}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── Static reference library ── */}
+            <div style={{fontSize:11,fontWeight:700,color:"#6a96aa",marginBottom:8,letterSpacing:.04}}>{T("مراجع ثابتة","REFERENCE ADS")}</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
               {CREATIVE_LIBRARY.map(ad=>{
                 const fCol=ad.funnel==="TOF"?"#f5a623":ad.funnel==="MOF"?"#17a3a3":"#5dc87a";
