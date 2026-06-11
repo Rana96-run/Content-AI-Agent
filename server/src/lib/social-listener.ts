@@ -6,8 +6,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
-import { driveUploadAsGoogleDoc } from "../routes/drive.js";
-import { sheetsAppendMentions, sheetsLogDocument } from "./sheets-client.js";
+import { sheetsAppendMentions } from "./sheets-client.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
@@ -33,7 +32,6 @@ export interface ListeningResult {
   runAt: string;
   mentions: ListeningMention[];
   summary: string;
-  driveLink?: string;
 }
 
 async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
@@ -167,23 +165,7 @@ export async function runSocialListener(): Promise<ListeningResult> {
 
   const summary = await summarise(unique);
 
-  let driveLink: string | undefined;
-  if (unique.length > 0) {
-    const date = runAt.slice(0, 10);
-    const doc = `رصد السوشيال — ${date}\n\n${summary}\n\n---\n\n` +
-      unique.map(m => `[${m.platform}] ${m.keyword}\n${m.text}\n${m.url}`).join("\n\n");
-    try {
-      const result = await driveUploadAsGoogleDoc(`Social Listening — ${date}`, doc, "Social Listening");
-      driveLink = result.link;
-      if (result.link) {
-        sheetsLogDocument({ date, type: "Social Listening", title: `Social Listening — ${date}`, link: result.link }).catch(() => {});
-      }
-    } catch (e) {
-      logger.warn({ err: String(e) }, "social-listener: drive upload failed (non-fatal)");
-    }
-  }
-
-  const result: ListeningResult = { runAt, mentions: unique, summary, driveLink };
+  const result: ListeningResult = { runAt, mentions: unique, summary };
 
   try {
     fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });

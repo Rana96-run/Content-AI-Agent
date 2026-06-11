@@ -1,11 +1,10 @@
 /**
  * Daily Competitor Capture — runs at 07:00 UTC
  * Scrapes last 24h of competitor Instagram posts, identifies weaknesses,
- * generates 2 Qoyod counter-content pieces, saves to Google Drive.
+ * generates 2 Qoyod counter-content pieces, saves to Sheets.
  */
 import { logger } from "./logger.js";
-import { driveUploadAsGoogleDoc } from "../routes/drive.js";
-import { sheetsLogDocument, sheetsLogICPSignal } from "./sheets-client.js";
+import { sheetsLogICPSignal } from "./sheets-client.js";
 import { invalidateICPCache } from "./icp-context.js";
 import { callClaude } from "./ai-call.js";
 
@@ -212,13 +211,8 @@ export async function runDailyCompetitorCapture(): Promise<{ ok: boolean; saved?
       analyseAndCounter(posts),
       extractICPSignals(posts, date),
     ]);
-    const title = `Daily Competitor Capture — ${date}`;
-    const docResult = await driveUploadAsGoogleDoc(title, analysis, "Competitor Intel");
-    if (docResult.link) {
-      sheetsLogDocument({ date, type: "Competitor Intel", title, link: docResult.link }).catch(() => {});
-    }
-    logger.info({ link: docResult.link }, "daily-capture: saved to Drive");
-    return { ok: true, saved: docResult.link ?? "" };
+    logger.info({ posts: posts.length }, "daily-capture: analysis complete");
+    return { ok: true, saved: "" };
   } catch (err) {
     logger.error({ err: String(err) }, "daily-capture: failed");
     return { ok: false, error: String(err) };

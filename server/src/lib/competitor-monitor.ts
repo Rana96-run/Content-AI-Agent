@@ -25,8 +25,6 @@ import { sheetsAppendCompetitorPosts, sheetsHealthCheck } from "./sheets-client.
 import type { CompetitorPost } from "./content-library.js";
 import { buildContextPrompt, renderContextMarkdown, saveContext } from "./competitor-context.js";
 import { extractKnowledgeFromMonitor } from "./knowledge-base.js";
-import { renderWeeklyDocHtml } from "./competitor-doc-renderer.js";
-import { driveUploadAsGoogleDoc } from "../routes/drive.js";
 import { createWeeklySlidesPresentation } from "./competitor-slides-renderer.js";
 import { logger } from "./logger.js";
 
@@ -187,7 +185,6 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
   diffs: any[];
   ai: any;
   slack_posted: boolean;
-  report_doc_url?: string;
   report_slides_url?: string;
   sheet_url?: string;
 }> {
@@ -311,26 +308,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     // non-fatal — message just won't include the sheet link
   }
 
-  // 6. Generate the visual Google Doc report (full HTML with embedded images)
-  let reportDocUrl: string | undefined;
-  try {
-    const html = renderWeeklyDocHtml(diffs, ai, weekLabel, sheetUrl);
-    const filename = `Competitor Intel — ${weekLabel}`;
-    const upload = await driveUploadAsGoogleDoc(filename, html, "Competitor Intel");
-    if (upload.ok && upload.link) {
-      reportDocUrl = upload.link;
-      logger.info({ url: reportDocUrl }, "monitor: weekly doc generated");
-    } else {
-      logger.warn({ error: upload.error }, "monitor: doc upload failed (non-fatal)");
-    }
-  } catch (err) {
-    logger.warn(
-      { err: err instanceof Error ? err.message : String(err) },
-      "monitor: doc generation failed (non-fatal)",
-    );
-  }
-
-  // 7. Generate the Google Slides presentation (visual deck for team sharing)
+  // 6. Generate the Google Slides presentation (visual deck for team sharing)
   let reportSlidesUrl: string | undefined;
   try {
     const slidesResult = await createWeeklySlidesPresentation(diffs, ai, weekLabel);
@@ -347,8 +325,8 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     );
   }
 
-  // 8. Slack — narrative, human-readable format with links to Slides + Doc + Sheet
-  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, reportDocUrl, reportSlidesUrl);
+  // 7. Slack — narrative, human-readable format with links to Slides + Sheet
+  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, undefined, reportSlidesUrl);
   let slackPosted = false;
   if (opts.postToSlack !== false) {
     await postToSlack(blocks, ai.headline || `Competitor Intel — ${weekLabel}`);
@@ -362,7 +340,6 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     diffs,
     ai,
     slack_posted: slackPosted,
-    report_doc_url: reportDocUrl,
     report_slides_url: reportSlidesUrl,
     sheet_url: sheetUrl,
   };
