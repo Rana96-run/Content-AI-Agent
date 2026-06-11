@@ -754,6 +754,7 @@ const TOOLS = [
         thumb_url: { type: "string" },
         media_type: { type: "string" },
         topic: { type: "string", description: "What product/concept this covers" },
+        funnel: { type: "string", enum: ["TOF", "MOF", "BOF"], description: "Funnel stage" },
         hashtags: { type: "array", items: { type: "string" } },
         tone: { type: "string", description: "educational / promotional / community / humour" },
         quality: {
@@ -1244,6 +1245,7 @@ JSON: {"ar":{"headline":"...","lede":"...","body":"...","quote":"...","boilerpla
         thumb_url: input.thumb_url,
         media_type: input.media_type,
         topic: input.topic,
+        funnel: input.funnel,
         hashtags: Array.isArray(input.hashtags) ? input.hashtags : undefined,
         tone: input.tone,
         quality: input.quality,
@@ -2274,6 +2276,25 @@ router.get("/content-library/entries", (_req, res) => {
       limit: Number(limit) || 30,
     });
     res.json({ entries });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+/* Backfill all local content library entries to Google Sheets */
+router.post("/content-library/sync", async (_req, res) => {
+  try {
+    const { sheetsUpsertContentEntry } = await import("../lib/sheets-client.js");
+    const entries = listEntries({ limit: 500 });
+    if (entries.length === 0) {
+      return res.json({ synced: 0, message: "No entries to sync" });
+    }
+    let synced = 0;
+    for (const e of entries) {
+      await sheetsUpsertContentEntry(e);
+      synced++;
+    }
+    res.json({ synced, message: `Synced ${synced} entries to Content Library sheet` });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

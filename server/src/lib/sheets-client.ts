@@ -7,10 +7,15 @@
  *   GOOGLE_SHEETS_ID             — spreadsheet ID
  *
  * Sheet tabs:
+ *   "Content Library"  — every Qoyod post saved by agents (upsert by ID)
  *   "Competitor Posts" — scraped competitor posts
  *   "Content Briefs"   — briefs submitted via Zapier sheets_brief trigger
  *   "Social Mentions"  — Twitter/X and web mentions
  *   "Documents Log"    — central index of all Drive docs
+ *   "ICP Signals"      — competitor ICP targeting signals
+ *   "Knowledge Base"   — weekly insights from market analysis
+ *   "Hypothesis Ledger"— A/B test hypotheses and results
+ *   "Content Brief"    — live campaign/weekly brief blob
  */
 
 import { google } from "googleapis";
@@ -140,7 +145,86 @@ async function updateRow(tab: string, rowIndex: number, values: (string | number
 
 /* ── Public API ───────────────────────────────────────────────── */
 
-import type { CompetitorPost } from "./content-library.js";
+import type { CompetitorPost, ContentEntry } from "./content-library.js";
+
+/* ── Content Library (Qoyod owned posts) ─────────────────────── */
+
+const CONTENT_LIB_TAB = "Content Library";
+const CONTENT_LIB_HEADER = [
+  "ID",          // A — unique key used for upsert
+  "Date",        // B — published_at YYYY-MM-DD
+  "Channel",     // C — Instagram / LinkedIn / Facebook / etc.
+  "Type",        // D — post / reel / story / email / ad / blog
+  "Funnel",      // E — TOF / MOF / BOF
+  "Topic",       // F — product / concept
+  "Tone",        // G — educational / promotional / etc.
+  "Content",     // H — caption / body (500 char max)
+  "Hashtags",    // I — #joined #by #space
+  "Post URL",    // J — live link
+  "Media",       // K — VIDEO / IMAGE / TEXT
+  "Brand Voice", // L — 1–10
+  "Hook",        // M — 1–10
+  "Clarity",     // N — 1–10
+  "Dialect OK",  // O — TRUE / FALSE
+  "QA Notes",    // P — quality.notes
+  "What Works",  // Q — optimization.what_works
+  "To Improve",  // R — optimization.what_to_improve
+  "Variant",     // S — optimization.suggested_variant
+  "Analyzed At", // T — ISO timestamp
+];
+
+function contentEntryToRow(e: ContentEntry): (string | number | null)[] {
+  return [
+    e.id,
+    e.published_at.slice(0, 10),
+    e.channel,
+    e.type,
+    e.funnel ?? null,
+    e.topic ?? null,
+    e.tone ?? null,
+    (e.content_text || "").slice(0, 500),
+    e.hashtags?.length ? e.hashtags.map(h => `#${h}`).join(" ") : null,
+    e.post_url ?? null,
+    e.media_type ?? null,
+    e.quality?.brand_voice ?? null,
+    e.quality?.hook_strength ?? null,
+    e.quality?.clarity ?? null,
+    e.quality?.dialect_correct != null ? String(e.quality.dialect_correct).toUpperCase() : null,
+    e.quality?.notes ?? null,
+    e.optimization?.what_works ?? null,
+    e.optimization?.what_to_improve ?? null,
+    e.optimization?.suggested_variant ?? null,
+    e.analyzed_at ?? null,
+  ];
+}
+
+/**
+ * Upsert a Qoyod content entry into the "Content Library" tab.
+ * Matches on ID (col A) — updates existing row, appends if new.
+ */
+export async function sheetsUpsertContentEntry(entry: ContentEntry): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  try {
+    await ensureTab(CONTENT_LIB_TAB, CONTENT_LIB_HEADER);
+    const row = contentEntryToRow(entry);
+    const existingRowIdx = await findRowById(CONTENT_LIB_TAB, entry.id);
+    if (existingRowIdx > 0) {
+      await updateRow(CONTENT_LIB_TAB, existingRowIdx, row);
+      logger.info({ id: entry.id }, "sheets-client: content entry updated");
+    } else {
+      await appendRows(CONTENT_LIB_TAB, [row]);
+      logger.info({ id: entry.id }, "sheets-client: content entry appended");
+    }
+  } catch (e) {
+    logger.warn({ id: entry.id, err: String(e) }, "sheets-client: content entry upsert failed (non-fatal)");
+  }
+}
+
+/* ── Competitor Posts ─────────────────────────────────────────── */
+
+const COMPETITOR_POSTS_HEADER = [
+  "Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement",
+];
 
 function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
   return [
@@ -160,8 +244,8 @@ export async function sheetsAppendCompetitorPosts(posts: CompetitorPost[]): Prom
     logger.warn("sheets-client: GOOGLE_SHEETS_ID not set — skipping competitor sheet write");
     return;
   }
-  // Read existing URLs to deduplicate
   try {
+    await ensureTab("Competitor Posts", COMPETITOR_POSTS_HEADER);
     const s = getSheetsClient();
     const r = await s.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,

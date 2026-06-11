@@ -11,7 +11,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
-import { sheetsAppendCompetitorPosts } from "./sheets-client.js";
+import { sheetsAppendCompetitorPosts, sheetsUpsertContentEntry } from "./sheets-client.js";
 
 const DATA_DIR   = path.resolve(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "content-library.json");
@@ -28,6 +28,7 @@ export interface ContentEntry {
   thumb_url?: string;         // image/video thumbnail
   media_type?: string;        // VIDEO / IMAGE / TEXT
   topic?: string;             // what product/concept this covers
+  funnel?: "TOF" | "MOF" | "BOF"; // funnel stage
   hashtags?: string[];
   tone?: string;              // educational / promotional / community / etc.
 
@@ -106,14 +107,21 @@ function save(lib: Library) {
 export function upsertEntry(entry: ContentEntry): ContentEntry {
   const lib = load();
   const idx = lib.entries.findIndex((e) => e.id === entry.id);
+  let saved: ContentEntry;
   if (idx >= 0) {
     lib.entries[idx] = { ...lib.entries[idx], ...entry };
+    saved = lib.entries[idx];
   } else {
     lib.entries.unshift(entry);            // newest first
     if (lib.entries.length > 500) lib.entries = lib.entries.slice(0, 500);
+    saved = entry;
   }
   save(lib);
-  return entry;
+  // Mirror to Google Sheets asynchronously (non-blocking)
+  sheetsUpsertContentEntry(saved).catch((e) =>
+    logger.warn({ id: saved.id, err: String(e) }, "content-library: sheets sync failed")
+  );
+  return saved;
 }
 
 /** Get entries, optionally filtered by channel or type. Newest first. */
@@ -166,13 +174,17 @@ export function saveCompetitorPosts(posts: CompetitorPost[]) {
 /** Update quality/optimization fields on an existing entry. */
 export function annotateEntry(
   id: string,
-  annotation: Partial<Pick<ContentEntry, "quality" | "optimization" | "analyzed_at" | "topic" | "tone">>
+  annotation: Partial<Pick<ContentEntry, "quality" | "optimization" | "analyzed_at" | "topic" | "tone" | "funnel">>
 ) {
   const lib = load();
   const entry = lib.entries.find((e) => e.id === id);
   if (entry) {
     Object.assign(entry, annotation);
     save(lib);
+    // Mirror updated annotation to Sheets
+    sheetsUpsertContentEntry(entry).catch((e) =>
+      logger.warn({ id, err: String(e) }, "content-library: sheets annotation sync failed")
+    );
   }
 }
 
