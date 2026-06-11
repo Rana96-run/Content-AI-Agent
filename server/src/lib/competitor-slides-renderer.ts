@@ -943,32 +943,56 @@ export async function createWeeklySlidesPresentation(
   ai: AIOutput,
   weekLabel: string,
 ): Promise<{ ok: boolean; link?: string; error?: string }> {
-  const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
+  const FOLDER_ID    = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
+  const TEMPLATE_ID  = process.env.GOOGLE_SLIDES_TEMPLATE_ID ?? "";
   if (!FOLDER_ID) return { ok: false, error: "GOOGLE_DRIVE_FOLDER_ID not configured" };
 
   try {
     const { slides, drive } = getClients();
 
-    const driveFile = await drive.files.create({
-      requestBody: {
-        name: `رصد المنافسين — ${weekLabel}`,
-        mimeType: "application/vnd.google-apps.presentation",
-        parents: [FOLDER_ID],
-      },
-      supportsAllDrives: true,
-      fields: "id,webViewLink",
-    });
-    const presId = driveFile.data.id!;
+    /* ── Create presentation ──────────────────────────────────────────────
+       If a template PPTX/Slides ID is set, copy + convert it so the deck
+       inherits the Qoyod master theme (background, fonts, logo placement).
+       Fall back to a blank presentation when the env var is absent. */
+    let presId: string;
+    let webViewLink: string;
 
-    const presInfo = await slides.presentations.get({ presentationId: presId });
-    const defaultSlide = presInfo.data.slides?.[0];
+    if (TEMPLATE_ID) {
+      const copied = await drive.files.copy({
+        fileId: TEMPLATE_ID,
+        requestBody: {
+          name: `رصد المنافسين — ${weekLabel}`,
+          mimeType: "application/vnd.google-apps.presentation",
+          parents: [FOLDER_ID],
+        },
+        supportsAllDrives: true,
+        fields: "id,webViewLink",
+      });
+      presId      = copied.data.id!;
+      webViewLink = copied.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
+    } else {
+      const created = await drive.files.create({
+        requestBody: {
+          name: `رصد المنافسين — ${weekLabel}`,
+          mimeType: "application/vnd.google-apps.presentation",
+          parents: [FOLDER_ID],
+        },
+        supportsAllDrives: true,
+        fields: "id,webViewLink",
+      });
+      presId      = created.data.id!;
+      webViewLink = created.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
+    }
+
+    /* ── Get existing slides (from template) to delete after adding ours ── */
+    const presInfo     = await slides.presentations.get({ presentationId: presId });
+    const templateSlides = (presInfo.data.slides ?? []).map(s => s.objectId).filter(Boolean) as string[];
 
     const total = diffs.reduce((s, d) =>
       s + d.facebook_new + d.google_new + d.instagram_new_posts +
       d.youtube_new_videos + d.tiktok_new_videos + d.snapchat_new_posts + d.linkedin_new_posts, 0);
 
     const requests: any[] = [];
-    if (defaultSlide?.objectId) requests.push({ deleteObject: { objectId: defaultSlide.objectId } });
 
     // 1. Cover
     requests.push(...coverSlide(eid("slide"), weekLabel, total, diffs.length));
@@ -990,7 +1014,7 @@ export async function createWeeklySlidesPresentation(
       requests.push(...competitorSlide(eid("slide"), d, ct));
     }
 
-    // 5. Knowledge insights (top 8 from notable angles + recommended actions)
+    // 5. Knowledge insights
     const insights = [
       ...diffs.flatMap(d => (d.notable_angles || []).map(a => `${d.competitor}: ${a}`)),
       ...(ai.tasks || []).map(t => t.title),
@@ -1004,15 +1028,18 @@ export async function createWeeklySlidesPresentation(
       requests.push(...actionPlanSlide(eid("slide"), ai.tasks!));
     }
 
-    // 7. Closing — Qoyod's move
+    // 7. Closing
     requests.push(...closingSlide(eid("slide"), (ai.tasks || []).map(t => t.title), weekLabel));
+
+    /* Delete all original template slides AFTER new slides are added
+       (Slides API requires at least 1 slide to exist at all times). */
+    for (const sid of templateSlides) {
+      requests.push({ deleteObject: { objectId: sid } });
+    }
 
     await slides.presentations.batchUpdate({ presentationId: presId, requestBody: { requests } });
 
-    return {
-      ok: true,
-      link: driveFile.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`,
-    };
+    return { ok: true, link: webViewLink };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
