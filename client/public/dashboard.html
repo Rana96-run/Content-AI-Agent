@@ -356,6 +356,13 @@
   .brief-save-btn { margin-top:18px;width:100%;padding:10px;border-radius:8px;background:var(--bright);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer; }
   .brief-save-btn:hover { background:var(--accent); }
   @media (max-width: 700px) { .brief-grid { grid-template-columns: 1fr 1fr; } }
+  /* Foldable sections */
+  .fold-hdr { cursor:pointer; user-select:none; display:flex !important; justify-content:space-between; align-items:center; }
+  .fold-hdr:hover { color:var(--text); }
+  .fold-chev { font-size:9px; color:var(--sub); transition:transform .18s; display:inline-block; margin-left:6px; flex-shrink:0; }
+  .fold-chev.closed { transform:rotate(-90deg); }
+  .fold-body { overflow:hidden; transition:opacity .15s; }
+  .fold-body.closed { display:none; }
 </style>
 </head>
 <body>
@@ -415,20 +422,27 @@
   </div>
 
   <!-- Agent Workflow Map — populated by renderAgents() -->
-  <div class="section-label">Agent Workflow — من يفعل ماذا · اضغط على أي دور للاطلاع على الدليل الكامل</div>
-  <div class="workflow-grid" id="workflowGrid"></div>
+  <div class="section-label fold-hdr" onclick="toggleFold('agents')">Agent Workflow — من يفعل ماذا · اضغط للاطلاع على الدليل الكامل<span class="fold-chev" id="fc-agents">▼</span></div>
+  <div class="fold-body" id="fb-agents">
+    <div class="workflow-grid" id="workflowGrid"></div>
+  </div>
 
   <!-- Campaign Brief -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px">
-    <div class="section-label" style="margin-bottom:0">Campaign Brief — ما يُعرض الآن</div>
-    <button onclick="openBriefModal()" style="padding:5px 12px;border-radius:6px;background:rgba(47,117,242,.15);border:1px solid rgba(47,117,242,.35);color:var(--bright);font-size:10px;font-weight:600;cursor:pointer;">تحديث البريف</button>
+  <div class="section-label fold-hdr" style="margin-top:20px" onclick="toggleFold('brief')">
+    Campaign Brief — ما يُعرض الآن
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="event.stopPropagation();openBriefModal()" style="padding:4px 10px;border-radius:6px;background:rgba(47,117,242,.15);border:1px solid rgba(47,117,242,.35);color:var(--bright);font-size:10px;font-weight:600;cursor:pointer;">تحديث</button>
+      <span class="fold-chev" id="fc-brief">▼</span>
+    </div>
   </div>
-  <div class="brief-grid" id="briefGrid">
-    <div class="brief-tile"><div class="brief-tile-lbl">الحملة الحالية</div><div class="brief-tile-val empty" id="bfCampaign">لم يُحدَّث بعد</div></div>
-    <div class="brief-tile"><div class="brief-tile-lbl">القطاع + المنتج</div><div class="brief-tile-val empty" id="bfSector">—</div></div>
-    <div class="brief-tile"><div class="brief-tile-lbl">القنوات النشطة</div><div class="brief-tile-val empty" id="bfChannels">—</div></div>
-    <div class="brief-tile" style="grid-column:span 2"><div class="brief-tile-lbl">ما نجح هذا الأسبوع</div><div class="brief-tile-val" id="bfWins">—</div></div>
-    <div class="brief-tile"><div class="brief-tile-lbl">ما لم ينجح</div><div class="brief-tile-val" id="bfLosses">—</div></div>
+  <div class="fold-body" id="fb-brief">
+    <div class="brief-grid" id="briefGrid">
+      <div class="brief-tile"><div class="brief-tile-lbl">الحملة الحالية</div><div class="brief-tile-val empty" id="bfCampaign">لم يُحدَّث بعد</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">القطاع + المنتج</div><div class="brief-tile-val empty" id="bfSector">—</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">القنوات النشطة</div><div class="brief-tile-val empty" id="bfChannels">—</div></div>
+      <div class="brief-tile" style="grid-column:span 2"><div class="brief-tile-lbl">ما نجح هذا الأسبوع</div><div class="brief-tile-val" id="bfWins">—</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">ما لم ينجح</div><div class="brief-tile-val" id="bfLosses">—</div></div>
+    </div>
   </div>
 
   <!-- 2-col layout: content left, sidebar right -->
@@ -439,41 +453,47 @@
 
       <!-- Social Pulse — counts only -->
       <div>
-        <div class="section-label">Social Pulse — Published Posts</div>
-        <div class="card" style="padding:16px">
-          <div class="social-counts" id="socialCounts">
-            <div class="sc-item"><span class="sc-num" id="sc-ig-n">—</span><span class="sc-lbl">Instagram</span><span class="sc-sub" id="sc-ig-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-fb-n">—</span><span class="sc-lbl">Facebook</span><span class="sc-sub" id="sc-fb-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-tt-n">—</span><span class="sc-lbl">TikTok</span><span class="sc-sub" id="sc-tt-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-li-n">—</span><span class="sc-lbl">LinkedIn</span><span class="sc-sub" id="sc-li-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-yt-n">—</span><span class="sc-lbl">YouTube</span><span class="sc-sub" id="sc-yt-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-tw-n">—</span><span class="sc-lbl">Twitter/X</span><span class="sc-sub" id="sc-tw-d">—</span></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('social')">Social Pulse — Published Posts<span class="fold-chev" id="fc-social">▼</span></div>
+        <div class="fold-body" id="fb-social">
+          <div class="card" style="padding:16px">
+            <div class="social-counts" id="socialCounts">
+              <div class="sc-item"><span class="sc-num" id="sc-ig-n">—</span><span class="sc-lbl">Instagram</span><span class="sc-sub" id="sc-ig-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-fb-n">—</span><span class="sc-lbl">Facebook</span><span class="sc-sub" id="sc-fb-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-tt-n">—</span><span class="sc-lbl">TikTok</span><span class="sc-sub" id="sc-tt-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-li-n">—</span><span class="sc-lbl">LinkedIn</span><span class="sc-sub" id="sc-li-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-yt-n">—</span><span class="sc-lbl">YouTube</span><span class="sc-sub" id="sc-yt-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-tw-n">—</span><span class="sc-lbl">Twitter/X</span><span class="sc-sub" id="sc-tw-d">—</span></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Email Campaigns — count summary -->
       <div>
-        <div class="section-label">Email — HubSpot Campaigns</div>
-        <div class="card" style="padding:16px">
-          <div class="social-counts" style="grid-template-columns:repeat(2,1fr)">
-            <div class="sc-item"><span class="sc-num" id="ec-active">—</span><span class="sc-lbl">Active</span><span class="sc-sub" id="ec-active-types">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="ec-scheduled">—</span><span class="sc-lbl">Scheduled</span><span class="sc-sub" id="ec-scheduled-sub">campaigns</span></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('email')">Email — HubSpot Campaigns<span class="fold-chev" id="fc-email">▼</span></div>
+        <div class="fold-body" id="fb-email">
+          <div class="card" style="padding:16px">
+            <div class="social-counts" style="grid-template-columns:repeat(2,1fr)">
+              <div class="sc-item"><span class="sc-num" id="ec-active">—</span><span class="sc-lbl">Active</span><span class="sc-sub" id="ec-active-types">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="ec-scheduled">—</span><span class="sc-lbl">Scheduled</span><span class="sc-sub" id="ec-scheduled-sub">campaigns</span></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Social Listening Panel -->
       <div>
-        <div class="section-label">Social Listening — Brand + ZATCA + Market</div>
-        <div class="card" style="padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:11px;font-weight:600;color:var(--text)">Latest Monitor</span>
-            <span id="listeningCount" style="font-size:10px;color:var(--sub)">—</span>
+        <div class="section-label fold-hdr" onclick="toggleFold('listening')">Social Listening — Brand + ZATCA + Market<span class="fold-chev" id="fc-listening">▼</span></div>
+        <div class="fold-body" id="fb-listening">
+          <div class="card" style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--text)">Latest Monitor</span>
+              <span id="listeningCount" style="font-size:10px;color:var(--sub)">—</span>
+            </div>
+            <div id="listeningSummary" style="font-size:11px;color:rgba(255,255,255,.75);line-height:1.7;min-height:36px">جاري التحميل...</div>
+            <div style="margin-top:8px" id="listeningBadges"></div>
+            <div style="margin-top:6px;font-size:9px;color:var(--sub)" id="listeningTime"></div>
           </div>
-          <div id="listeningSummary" style="font-size:11px;color:rgba(255,255,255,.75);line-height:1.7;min-height:36px">جاري التحميل...</div>
-          <div style="margin-top:8px" id="listeningBadges"></div>
-          <div style="margin-top:6px;font-size:9px;color:var(--sub)" id="listeningTime"></div>
         </div>
       </div>
 
@@ -484,47 +504,52 @@
 
       <!-- Agent Activity (pure log, no tabs) -->
       <div>
-        <div class="section-label">Agent Activity</div>
-        <div class="card">
-          <div class="feed" id="agentFeed" style="max-height:340px;"></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('activity')">Agent Activity<span class="fold-chev" id="fc-activity">▼</span></div>
+        <div class="fold-body" id="fb-activity">
+          <div class="card">
+            <div class="feed" id="agentFeed" style="max-height:340px;"></div>
+          </div>
         </div>
       </div>
 
       <!-- Actions & Schedule (combined) -->
       <div>
-        <div class="section-label">Actions &amp; Schedule</div>
-        <div class="card">
-          <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
-            <div class="od-list" id="onDemandList"></div>
-            <!-- Last capture result link -->
-            <div id="lastCaptureRow" style="display:none;margin-top:8px;padding:6px 8px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;">
-              <span style="font-size:9px;font-weight:600;color:#34D399;text-transform:uppercase;letter-spacing:.05em">آخر تحليل منافسين</span>
-              <a id="lastCaptureLink" href="#" target="_blank" style="display:block;font-size:10px;color:var(--text);margin-top:2px;text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></a>
-              <span id="lastCaptureDate" style="font-size:9px;color:var(--sub)"></span>
+        <div class="section-label fold-hdr" onclick="toggleFold('actions')">Actions &amp; Schedule<span class="fold-chev" id="fc-actions">▼</span></div>
+        <div class="fold-body" id="fb-actions">
+          <div class="card">
+            <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
+              <div class="od-list" id="onDemandList"></div>
+              <div id="lastCaptureRow" style="display:none;margin-top:8px;padding:6px 8px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;">
+                <span style="font-size:9px;font-weight:600;color:#34D399;text-transform:uppercase;letter-spacing:.05em">آخر تحليل منافسين</span>
+                <a id="lastCaptureLink" href="#" target="_blank" style="display:block;font-size:10px;color:var(--text);margin-top:2px;text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></a>
+                <span id="lastCaptureDate" style="font-size:9px;color:var(--sub)"></span>
+              </div>
+              <div class="card-divider" style="margin:12px 0;"></div>
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
+              <div class="sched-list" id="schedList"></div>
             </div>
-            <div class="card-divider" style="margin:12px 0;"></div>
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
-            <div class="sched-list" id="schedList"></div>
           </div>
         </div>
       </div>
 
       <!-- System: Review + Health + Countdown -->
       <div>
-        <div class="section-label">System</div>
-        <div class="card">
-          <div class="card-body">
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Last Team Review</div>
-            <div id="reviewPanel">
-              <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
-            </div>
-            <div class="card-divider" style="margin:10px 0;"></div>
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">System Health</div>
-            <div id="healthList"></div>
-            <div class="cdown-box">
-              <div class="cdown-lbl">Next competitor monitor — Sun 09:00 UTC</div>
-              <div class="cdown-val" id="cdownVal">–</div>
+        <div class="section-label fold-hdr" onclick="toggleFold('system')">System<span class="fold-chev" id="fc-system">▼</span></div>
+        <div class="fold-body" id="fb-system">
+          <div class="card">
+            <div class="card-body">
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Last Team Review</div>
+              <div id="reviewPanel">
+                <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
+              </div>
+              <div class="card-divider" style="margin:10px 0;"></div>
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">System Health</div>
+              <div id="healthList"></div>
+              <div class="cdown-box">
+                <div class="cdown-lbl">Next competitor monitor — Sun 09:00 UTC</div>
+                <div class="cdown-val" id="cdownVal">–</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1301,8 +1326,36 @@ function renderDigest(d) {
   el.innerHTML = html;
 }
 
+// ── Foldable Sections ─────────────────────────────────
+function toggleFold(id) {
+  const body = document.getElementById('fb-' + id);
+  const chev = document.getElementById('fc-' + id);
+  if (!body) return;
+  const closing = !body.classList.contains('closed');
+  body.classList.toggle('closed', closing);
+  if (chev) chev.classList.toggle('closed', closing);
+  try {
+    const s = JSON.parse(localStorage.getItem('dashFolds') || '{}');
+    s[id] = closing;
+    localStorage.setItem('dashFolds', JSON.stringify(s));
+  } catch {}
+}
+function initFolds() {
+  try {
+    const s = JSON.parse(localStorage.getItem('dashFolds') || '{}');
+    for (const [id, closed] of Object.entries(s)) {
+      if (!closed) continue;
+      const body = document.getElementById('fb-' + id);
+      const chev = document.getElementById('fc-' + id);
+      if (body) body.classList.add('closed');
+      if (chev) chev.classList.add('closed');
+    }
+  } catch {}
+}
+
 // ── Init ──────────────────────────────────────────────
 function init() {
+  initFolds();
   renderAgents();
   renderAgentFeed();
   renderOnDemand();
