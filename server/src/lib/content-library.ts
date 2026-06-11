@@ -11,7 +11,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
-import { sheetsUpsertEntry, sheetsAppendCompetitorPosts } from "./sheets-client.js";
+import { sheetsAppendCompetitorPosts } from "./sheets-client.js";
 
 const DATA_DIR   = path.resolve(process.cwd(), "data");
 const STORE_PATH = path.join(DATA_DIR, "content-library.json");
@@ -113,10 +113,6 @@ export function upsertEntry(entry: ContentEntry): ContentEntry {
     if (lib.entries.length > 500) lib.entries = lib.entries.slice(0, 500);
   }
   save(lib);
-  // Mirror to Google Sheets (non-blocking — failure is logged, not thrown)
-  sheetsUpsertEntry(entry).catch((e) =>
-    logger.warn({ err: String(e) }, "content-library: sheets sync failed")
-  );
   return entry;
 }
 

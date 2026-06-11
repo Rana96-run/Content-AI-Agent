@@ -61,11 +61,6 @@ const TABS = [
     columns: ["Brief ID", "Created At", "Submitted By", "Campaign Name", "Target Channel", "Tone", "Topic", "Keywords", "Notes", "Status", "Generated Content"],
     widths: [160, 140, 160, 200, 140, 100, 200, 200, 200, 100, 400],
   },
-  {
-    name: "Qoyod Posts",
-    columns: ["ID", "Type", "Channel", "Published At", "Content Text", "Post URL", "Thumb URL", "Media Type", "Topic", "Hashtags", "Tone", "Quality Score", "Analyzed At"],
-    widths: [160, 100, 120, 140, 400, 200, 200, 100, 160, 200, 100, 100, 140],
-  },
 ] as const;
 
 // Header style: dark blue-grey background (#2C3E50), white bold text

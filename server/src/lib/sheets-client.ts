@@ -7,9 +7,10 @@
  *   GOOGLE_SHEETS_ID             — spreadsheet ID
  *
  * Sheet tabs:
- *   "Qoyod Posts"      — Qoyod's own published social content
  *   "Competitor Posts" — scraped competitor posts
  *   "Content Briefs"   — briefs submitted via Zapier sheets_brief trigger
+ *   "Social Mentions"  — Twitter/X and web mentions
+ *   "Documents Log"    — central index of all Drive docs
  */
 
 import { google } from "googleapis";
@@ -139,27 +140,7 @@ async function updateRow(tab: string, rowIndex: number, values: (string | number
 
 /* ── Public API ───────────────────────────────────────────────── */
 
-import type { ContentEntry, CompetitorPost } from "./content-library.js";
-
-function entryToRow(e: ContentEntry): (string | number | null)[] {
-  return [
-    e.id,
-    e.type,
-    e.channel,
-    e.published_at,
-    e.content_text,
-    e.post_url ?? null,
-    e.thumb_url ?? null,
-    e.media_type ?? null,
-    e.topic ?? null,
-    e.hashtags?.join(", ") ?? null,
-    e.tone ?? null,
-    e.quality ? (
-      (e.quality.brand_voice + e.quality.hook_strength + e.quality.clarity) / 3
-    ).toFixed(1) : null,
-    e.analyzed_at ?? null,
-  ];
-}
+import type { CompetitorPost } from "./content-library.js";
 
 function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
   return [
@@ -170,16 +151,6 @@ function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
     p.fetched_at,
     p.engagement_hint ?? null,
   ];
-}
-
-/** Upsert a Qoyod content entry in the "Qoyod Posts" tab. */
-export async function sheetsUpsertEntry(entry: ContentEntry): Promise<void> {
-  const existing = await findRowById("Qoyod Posts", entry.id);
-  if (existing >= 2) {
-    await updateRow("Qoyod Posts", existing, entryToRow(entry));
-  } else {
-    await appendRows("Qoyod Posts", [entryToRow(entry)]);
-  }
 }
 
 /** Append competitor posts to the "Competitor Posts" tab (skip duplicates by URL). */
