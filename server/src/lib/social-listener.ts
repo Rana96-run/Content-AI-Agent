@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
-import { sheetsAppendMentions } from "./sheets-client.js";
+import { sheetsAppendMentions, sheetsLogDocument } from "./sheets-client.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
@@ -173,8 +173,11 @@ export async function runSocialListener(): Promise<ListeningResult> {
     const doc = `رصد السوشيال — ${date}\n\n${summary}\n\n---\n\n` +
       unique.map(m => `[${m.platform}] ${m.keyword}\n${m.text}\n${m.url}`).join("\n\n");
     try {
-      const link = await driveUploadAsGoogleDoc(`Social Listening — ${date}`, doc);
-      driveLink = typeof link === "string" ? link : undefined;
+      const result = await driveUploadAsGoogleDoc(`Social Listening — ${date}`, doc, "Social Listening");
+      driveLink = result.link;
+      if (result.link) {
+        sheetsLogDocument({ date, type: "Social Listening", title: `Social Listening — ${date}`, link: result.link }).catch(() => {});
+      }
     } catch (e) {
       logger.warn({ err: String(e) }, "social-listener: drive upload failed (non-fatal)");
     }

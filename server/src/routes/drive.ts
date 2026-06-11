@@ -206,23 +206,62 @@ router.post("/list", async (_req, res) => {
 
 export default router;
 
+/* ── Subfolder cache — looks up or creates a named subfolder under FOLDER_ID ─ */
+const _subfolderCache = new Map<string, string>(); // name → id
+
+export async function getOrCreateSubfolder(name: string): Promise<string> {
+  if (!FOLDER_ID) throw new Error("GOOGLE_DRIVE_FOLDER_ID not configured");
+  if (_subfolderCache.has(name)) return _subfolderCache.get(name)!;
+  const drive = getDriveClient();
+  const { data } = await drive.files.list({
+    q: `'${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false`,
+    fields: "files(id)",
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  if (data.files?.length) {
+    _subfolderCache.set(name, data.files[0].id!);
+    return data.files[0].id!;
+  }
+  const { data: created } = await drive.files.create({
+    requestBody: { name, parents: [FOLDER_ID], mimeType: "application/vnd.google-apps.folder" },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  _subfolderCache.set(name, created.id!);
+  return created.id!;
+}
+
 /* Helper reused by the autonomous agent */
 export async function driveUploadText(
   filename: string,
   content: string,
-  mimeType = "text/plain"
+  mimeType = "text/plain",
+  subfolder?: string
 ): Promise<{ ok: boolean; link?: string; error?: string }> {
   try {
     if (!FOLDER_ID) return { ok: false, error: "GOOGLE_DRIVE_FOLDER_ID not configured" };
+    const parentId = subfolder ? await getOrCreateSubfolder(subfolder) : FOLDER_ID;
     const drive = getDriveClient();
-    const existing = await listFolderFiles(drive);
-    const { id } = await createOrUpdateFile(
-      drive,
-      existing,
-      filename,
-      Buffer.from(content, "utf-8"),
-      mimeType
-    );
+    const existing = subfolder
+      ? new Map<string, string>()  // subfolders always create fresh
+      : await listFolderFiles(drive);
+    const buf = Buffer.from(content, "utf-8");
+    const body = Readable.from(buf);
+    const existingId = existing.get(filename);
+    let id: string;
+    if (existingId) {
+      await drive.files.update({ fileId: existingId, media: { mimeType, body }, supportsAllDrives: true });
+      id = existingId;
+    } else {
+      const { data } = await drive.files.create({
+        requestBody: { name: filename, parents: [parentId], mimeType },
+        media: { mimeType, body },
+        fields: "id",
+        supportsAllDrives: true,
+      });
+      id = data.id!;
+    }
     const { data } = await drive.files.get({ fileId: id, fields: "webViewLink", supportsAllDrives: true });
     return { ok: true, link: data.webViewLink ?? `https://drive.google.com/file/d/${id}/view` };
   } catch (err) {
@@ -230,33 +269,28 @@ export async function driveUploadText(
   }
 }
 
-/* Upload HTML and have Drive auto-convert it to a native Google Doc.
-   Returns the Doc's edit URL. Used for the weekly visual competitor report. */
+/* Upload HTML and have Drive auto-convert it to a native Google Doc. */
 export async function driveUploadAsGoogleDoc(
   filename: string,
-  htmlContent: string
+  htmlContent: string,
+  subfolder?: string
 ): Promise<{ ok: boolean; link?: string; error?: string }> {
   try {
     if (!FOLDER_ID) return { ok: false, error: "GOOGLE_DRIVE_FOLDER_ID not configured" };
+    const parentId = subfolder ? await getOrCreateSubfolder(subfolder) : FOLDER_ID;
     const drive = getDriveClient();
     const buf = Buffer.from(htmlContent, "utf-8");
     const body = Readable.from(buf);
-
-    // Always create a new doc per week (not update — we want history)
     const { data } = await drive.files.create({
       requestBody: {
         name: filename,
-        parents: [FOLDER_ID],
-        mimeType: "application/vnd.google-apps.document", // target: Google Doc
+        parents: [parentId],
+        mimeType: "application/vnd.google-apps.document",
       },
-      media: {
-        mimeType: "text/html", // source: HTML, Drive auto-converts
-        body,
-      },
+      media: { mimeType: "text/html", body },
       fields: "id,webViewLink",
       supportsAllDrives: true,
     });
-
     return {
       ok: true,
       link: data.webViewLink ?? `https://docs.google.com/document/d/${data.id}/edit`,

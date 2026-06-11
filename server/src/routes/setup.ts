@@ -29,17 +29,17 @@ function getAuth() {
   return new google.auth.GoogleAuth({ scopes });
 }
 
-// ── Tab definitions ──────────────────────────────────────────────────────────
+// ── Tab definitions — ORDER here defines the final left-to-right tab order ──
 const TABS = [
   {
-    name: "Hypothesis Ledger",
-    columns: ["ID", "Shipped At", "Hypothesis", "Expected Lift", "Actual Result", "Verdict", "Lesson", "Atomic ID", "Sector", "Channel", "Funnel Stage"],
-    widths: [160, 120, 400, 160, 200, 100, 300, 120, 120, 120, 120],
+    name: "Documents Log",
+    columns: ["Date", "Type", "Title", "Link", "Source"],
+    widths: [120, 160, 300, 300, 100],
   },
   {
-    name: "Qoyod Posts",
-    columns: ["ID", "Type", "Channel", "Published At", "Content Text", "Post URL", "Thumb URL", "Media Type", "Topic", "Hashtags", "Tone", "Quality Score", "Analyzed At"],
-    widths: [160, 100, 120, 140, 400, 200, 200, 100, 160, 200, 100, 100, 140],
+    name: "Social Mentions",
+    columns: ["Run At", "Group", "Platform", "Keyword", "Author", "Posted At", "Text", "URL"],
+    widths: [160, 100, 120, 200, 160, 160, 500, 260],
   },
   {
     name: "Competitor Posts",
@@ -47,9 +47,9 @@ const TABS = [
     widths: [140, 120, 400, 220, 140, 160],
   },
   {
-    name: "Content Briefs",
-    columns: ["Brief ID", "Created At", "Submitted By", "Campaign Name", "Target Channel", "Tone", "Topic", "Keywords", "Notes", "Status", "Generated Content"],
-    widths: [160, 140, 160, 200, 140, 100, 200, 200, 200, 100, 400],
+    name: "Hypothesis Ledger",
+    columns: ["ID", "Shipped At", "Hypothesis", "Expected Lift", "Actual Result", "Verdict", "Lesson", "Atomic ID", "Sector", "Channel", "Funnel Stage"],
+    widths: [160, 120, 400, 160, 200, 100, 300, 120, 120, 120, 120],
   },
   {
     name: "Knowledge Base",
@@ -57,9 +57,14 @@ const TABS = [
     widths: [100, 140, 120, 120, 400, 160, 100, 140],
   },
   {
-    name: "Social Mentions",
-    columns: ["Run At", "Group", "Platform", "Keyword", "Author", "Posted At", "Text", "URL"],
-    widths: [160, 100, 120, 200, 160, 160, 500, 260],
+    name: "Content Briefs",
+    columns: ["Brief ID", "Created At", "Submitted By", "Campaign Name", "Target Channel", "Tone", "Topic", "Keywords", "Notes", "Status", "Generated Content"],
+    widths: [160, 140, 160, 200, 140, 100, 200, 200, 200, 100, 400],
+  },
+  {
+    name: "Qoyod Posts",
+    columns: ["ID", "Type", "Channel", "Published At", "Content Text", "Post URL", "Thumb URL", "Media Type", "Topic", "Hashtags", "Tone", "Quality Score", "Analyzed At"],
+    widths: [160, 100, 120, 140, 400, 200, 200, 100, 160, 200, 100, 100, 140],
   },
 ] as const;
 
@@ -200,6 +205,32 @@ router.post("/sheets", async (_req, res) => {
           spreadsheetId: sheetId,
           requestBody: { requests: withoutBanding },
         });
+      }
+    }
+
+    // ── Step 5: Reorder tabs to match TABS array order ──────────────────────
+    // Each updateSheetProperties sets index; must be done one at a time (later
+    // indices shift as earlier ones are placed) — batch them in order.
+    const reorderRequests = TABS
+      .flatMap((tab, targetIndex) => {
+        const sid = sheetIdMap.get(tab.name);
+        if (sid === undefined) return [];
+        return [{
+          updateSheetProperties: {
+            properties: { sheetId: sid, index: targetIndex },
+            fields: "index",
+          },
+        }];
+      });
+
+    if (reorderRequests.length > 0) {
+      try {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: sheetId,
+          requestBody: { requests: reorderRequests },
+        });
+      } catch (e) {
+        logger.warn({ err: String(e) }, "setup: tab reorder failed (non-fatal)");
       }
     }
 

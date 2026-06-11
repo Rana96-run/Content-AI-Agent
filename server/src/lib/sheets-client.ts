@@ -386,6 +386,24 @@ export async function sheetsReadKnowledge(limit = 40): Promise<Array<{
   }
 }
 
+/** Log a Drive document to the "Documents Log" tab — central link index. */
+export async function sheetsLogDocument(entry: {
+  date: string;
+  type: string;
+  title: string;
+  link: string;
+  source?: string;
+}): Promise<void> {
+  await ensureTab("Documents Log", ["Date", "Type", "Title", "Link", "Source"]);
+  await appendRows("Documents Log", [[
+    entry.date,
+    entry.type,
+    entry.title,
+    entry.link,
+    entry.source ?? "server",
+  ]]);
+}
+
 /** Append Twitter/X and web mentions to the "Social Mentions" tab. */
 export async function sheetsAppendMentions(runAt: string, mentions: Array<{
   keyword: string;

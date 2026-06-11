@@ -5,6 +5,7 @@
  */
 import { logger } from "./logger.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
+import { sheetsLogDocument } from "./sheets-client.js";
 import { callClaude } from "./ai-call.js";
 
 const COMPETITORS = [
@@ -129,10 +130,13 @@ export async function runDailyCompetitorCapture(): Promise<{ ok: boolean; saved?
     const analysis = await analyseAndCounter(posts);
 
     const date = new Date().toISOString().slice(0, 10);
-    const docLink = await driveUploadAsGoogleDoc(`Daily Competitor Capture — ${date}`, analysis);
-
-    logger.info({ link: docLink }, "daily-capture: saved to Drive");
-    return { ok: true, saved: typeof docLink === "string" ? docLink : String(docLink) };
+    const title = `Daily Competitor Capture — ${date}`;
+    const docResult = await driveUploadAsGoogleDoc(title, analysis, "Competitor Intel");
+    if (docResult.link) {
+      sheetsLogDocument({ date, type: "Competitor Intel", title, link: docResult.link }).catch(() => {});
+    }
+    logger.info({ link: docResult.link }, "daily-capture: saved to Drive");
+    return { ok: true, saved: docResult.link ?? "" };
   } catch (err) {
     logger.error({ err: String(err) }, "daily-capture: failed");
     return { ok: false, error: String(err) };

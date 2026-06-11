@@ -188,7 +188,7 @@ async function buildDesignForRec(rec: Recommendation): Promise<DesignResult> {
     const out: DesignResult = { rec };
 
     // Save SVG to Drive
-    const drv = await driveUploadText(fname, d.svg, "image/svg+xml");
+    const drv = await driveUploadText(fname, d.svg, "image/svg+xml", "Weekly Digests");
     if (drv.ok && drv.link) out.drive_link = drv.link;
 
     // Try Canva (best-effort; may be disconnected)

@@ -16,6 +16,8 @@
 
 import { google } from "googleapis";
 import type { WeekDiff } from "./competitor-weekly-report.js";
+import { getOrCreateSubfolder } from "../routes/drive.js";
+import { sheetsLogDocument } from "./sheets-client.js";
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 const W  = 9_144_000;   // 10 in
@@ -950,6 +952,8 @@ export async function createWeeklySlidesPresentation(
   try {
     const { slides, drive } = getClients();
 
+    const subfolderId = await getOrCreateSubfolder("Competitor Slides");
+
     /* ── Create presentation ──────────────────────────────────────────────
        If a template PPTX/Slides ID is set, copy + convert it so the deck
        inherits the Qoyod master theme (background, fonts, logo placement).
@@ -963,7 +967,7 @@ export async function createWeeklySlidesPresentation(
         requestBody: {
           name: `رصد المنافسين — ${weekLabel}`,
           mimeType: "application/vnd.google-apps.presentation",
-          parents: [FOLDER_ID],
+          parents: [subfolderId],
         },
         supportsAllDrives: true,
         fields: "id,webViewLink",
@@ -975,7 +979,7 @@ export async function createWeeklySlidesPresentation(
         requestBody: {
           name: `رصد المنافسين — ${weekLabel}`,
           mimeType: "application/vnd.google-apps.presentation",
-          parents: [FOLDER_ID],
+          parents: [subfolderId],
         },
         supportsAllDrives: true,
         fields: "id,webViewLink",
@@ -1038,6 +1042,14 @@ export async function createWeeklySlidesPresentation(
     }
 
     await slides.presentations.batchUpdate({ presentationId: presId, requestBody: { requests } });
+
+    const date = new Date().toISOString().slice(0, 10);
+    sheetsLogDocument({
+      date,
+      type: "Competitor Slides",
+      title: `رصد المنافسين — ${weekLabel}`,
+      link: webViewLink,
+    }).catch(() => {});
 
     return { ok: true, link: webViewLink };
   } catch (err) {

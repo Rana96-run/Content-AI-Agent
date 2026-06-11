@@ -1061,9 +1061,9 @@ JSON: {"sequence":[{"idx":1,"subject":"...","preview":"...","body_html":"<p>…<
         const htmlBody = mimeType === "text/html"
           ? content
           : `<html><body style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;max-width:800px;margin:40px auto;direction:rtl;text-align:right"><pre style="white-space:pre-wrap;font-family:inherit">${escaped}</pre></body></html>`;
-        return driveUploadAsGoogleDoc(filename, htmlBody);
+        return driveUploadAsGoogleDoc(filename, htmlBody, "Content");
       }
-      return driveUploadText(filename, content, mimeType);
+      return driveUploadText(filename, content, mimeType, "Content");
     }
     case "analyze_landing_page": {
       const { url, focus = "all" } = input;
@@ -1569,7 +1569,7 @@ async function maybeSaveToDrive(task: Task): Promise<void> {
   const titleBase = task.trigger.title || task.trigger.body?.slice(0, 60) || "Agent Output";
   const date = new Date().toISOString().slice(0, 10);
   const filename = `${titleBase} — ${date}`;
-  await driveUploadAsGoogleDoc(filename, content).catch(err =>
+  await driveUploadAsGoogleDoc(filename, content, "Content").catch(err =>
     logger.warn({ err: String(err) }, "maybeSaveToDrive: failed (non-fatal)")
   );
 }
@@ -2165,7 +2165,7 @@ router.post("/daily-digest/run-now", async (_req, res) => {
     const out = await runDailyDigest();
     if (out.ok && out.summary) {
       const date = new Date().toISOString().slice(0, 10);
-      driveUploadAsGoogleDoc(`Daily Digest — ${date}`, out.summary).catch(err =>
+      driveUploadAsGoogleDoc(`Daily Digest — ${date}`, out.summary, "Content").catch(err =>
         logger.warn({ err: String(err) }, "daily-digest: drive save failed (non-fatal)")
       );
     }

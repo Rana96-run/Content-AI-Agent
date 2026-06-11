@@ -316,7 +316,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
   try {
     const html = renderWeeklyDocHtml(diffs, ai, weekLabel, sheetUrl);
     const filename = `Competitor Intel — ${weekLabel}`;
-    const upload = await driveUploadAsGoogleDoc(filename, html);
+    const upload = await driveUploadAsGoogleDoc(filename, html, "Competitor Intel");
     if (upload.ok && upload.link) {
       reportDocUrl = upload.link;
       logger.info({ url: reportDocUrl }, "monitor: weekly doc generated");
