@@ -375,10 +375,19 @@ export function startMonitorScheduler(): void {
 
   setInterval(() => {
     if (!shouldRunNow()) return;
+    // Competitor intel first, then paid media review alongside
     runMonitorOnce().catch((err) =>
       logger.error(
         { err: err instanceof Error ? err.message : String(err) },
         "monitor: scheduled run failed",
+      ),
+    );
+    import("./paid-media-weekly-review.js").then(m =>
+      m.runPaidMediaWeeklyReview().catch((err: unknown) =>
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "paid-media-review: scheduled run failed",
+        ),
       ),
     );
   }, CHECK_INTERVAL_MS);

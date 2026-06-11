@@ -517,9 +517,10 @@ const ON_DEMAND = [
 // ── Scheduled tasks ───────────────────────────────────
 const SCHEDULED = [
   { name:'Daily Team Digest',     agent:'orchestrator',      detail:'Reviews all tasks → memory + dashboard',    cron:'Daily 08:00 UTC',  progress: computeDayProgress() },
-  { name:'Competitor Monitor',    agent:'social_media',      detail:'Scrapes all channels → Slides + Doc + KB',  cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
-  { name:'HubSpot Social Poller', agent:'social_media',      detail:'Syncs post performance into library',       cron:'Daily (periodic)', progress: 0.5 },
-  { name:'Knowledge Compound',    agent:'orchestrator',      detail:'Extracts insights after each monitor run',  cron:'After monitor',    progress: computeWeekProgress() },
+  { name:'Competitor Monitor',    agent:'social_media',      detail:'Scrapes all channels → Slides + Doc + KB',       cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
+  { name:'Paid Media Review',     agent:'paid_media_analyst',detail:'Reviews week\'s posts: top/bottom performers + recs', cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
+  { name:'HubSpot Social Poller', agent:'social_media',      detail:'Syncs post performance into library',            cron:'Daily (periodic)', progress: 0.5 },
+  { name:'Knowledge Compound',    agent:'orchestrator',      detail:'Extracts insights after each monitor run',       cron:'After monitor',    progress: computeWeekProgress() },
 ];
 
 function computeWeekProgress() {

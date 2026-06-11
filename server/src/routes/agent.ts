@@ -1666,7 +1666,7 @@ function truncateForClaude(output: unknown): unknown {
    ───────────────────────────────────────────────────────────── */
 
 /* Spawn + kick off an agent task. Returns null when deduped. */
-function spawnTask(
+export function spawnTask(
   trigger: Trigger,
   opts: { priority?: Task["priority"]; schedule_id?: string; persona?: PersonaId } = {},
 ): Task | null {
