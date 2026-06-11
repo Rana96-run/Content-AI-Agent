@@ -166,8 +166,7 @@
     transition: border-color .2s;
   }
   .od-item:hover { border-color: rgba(47,117,242,.4); }
-  .od-icon { font-size: 16px; width: 26px; text-align: center; flex-shrink: 0; }
-  .od-info { flex: 1; min-width: 0; }
+.od-info { flex: 1; min-width: 0; }
   .od-name  { font-size: 11px; font-weight: 600; margin-bottom: 1px; }
   .od-agent { font-size: 9px; color: var(--sub); }
   .od-btn {
@@ -546,14 +545,6 @@ const HEALTH_ITEMS = [
   { key:'hubspot',   label:'HubSpot',         id:'hHubspot' },
 ];
 
-// ── Channel data ──────────────────────────────────────
-const CHANNELS = [
-  { em:'📸', name:'Instagram',  count:47, delta:'+12' },
-  { em:'🎵', name:'TikTok',     count:31, delta:'+8'  },
-  { em:'▶️', name:'YouTube',    count:12, delta:'+3'  },
-  { em:'💼', name:'LinkedIn',   count:28, delta:'+6'  },
-  { em:'👻', name:'Snapchat',   count:19, delta:'+4'  },
-];
 
 // ── Render ────────────────────────────────────────────
 const AGENT_KEYWORDS = {
@@ -605,10 +596,6 @@ function closeAgentModal() {
 }
 
 // ── Live task feed ────────────────────────────────────
-const PERSONA_EM_MAP = {
-  social_media:'📱', content_creator:'✍️', email_lifecycle:'📧',
-  paid_media_analyst:'📡', editor_qa:'🔍', orchestrator:'🎼',
-};
 const STATUS_BADGE = {
   done:    { label:'done',    cls:'b-green'  },
   running: { label:'live',    cls:'b-blue'   },
@@ -616,7 +603,6 @@ const STATUS_BADGE = {
   queued:  { label:'queue',   cls:'b-yellow' },
   error:   { label:'error',   cls:'b-red'    },
 };
-const SOURCE_TAG = { schedule:'auto', webhook:'auto' };
 
 let liveTasks = [];
 
@@ -736,16 +722,6 @@ function renderHealth() {
   ).join('');
 }
 
-function renderChannels() {
-  document.getElementById('channelList').innerHTML = CHANNELS.map(c => `
-    <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(47,117,242,.06)">
-      <span style="font-size:16px;width:24px;text-align:center">${c.em}</span>
-      <span style="flex:1;font-size:11px;font-weight:600">${c.name}</span>
-      <span style="font-size:9px;color:var(--green)">▲${c.delta}</span>
-      <span style="font-size:11px;font-weight:700;color:var(--bright);background:rgba(47,117,242,.1);padding:2px 8px;border-radius:5px">${c.count}</span>
-    </div>
-  `).join('').replace(/border-bottom[^"]*"[^>]*>[^<]*$/, '');
-}
 
 // ── Countdown ─────────────────────────────────────────
 function tick() {
@@ -894,10 +870,7 @@ function renderContentFeed() {
 }
 
 // ── Email Campaigns ────────────────────────────────────
-let emailCampaigns  = null;  // null = not fetched yet
-let emailFeedItems  = [];
-
-const EM_STATE_CLASS = { SENT:'es-sent', SCHEDULED:'es-scheduled', SENDING:'es-sending', DRAFT:'es-draft' };
+let emailCampaigns = null;  // null = not fetched yet
 
 async function fetchEmailCampaigns() {
   try {
@@ -908,14 +881,6 @@ async function fetchEmailCampaigns() {
       return;
     }
     emailCampaigns = d.results || [];
-    emailFeedItems = emailCampaigns.map(e => ({
-      tag:'email', em:'📧',
-      title: e.name || e.subject || '(no name)',
-      sub: e.subject || '',
-      badge: (e.currentState || 'DRAFT').toLowerCase(),
-      bc: EM_STATE_CLASS[e.currentState] || 'b-muted',
-      time: e.currentlyPublishedAt ? new Date(e.currentlyPublishedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '',
-    }));
     renderEmailSection(emailCampaigns, null);
   } catch (err) {
     renderEmailSection(null, String(err));
