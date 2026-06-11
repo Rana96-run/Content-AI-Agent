@@ -1543,18 +1543,13 @@ export default function CreativeOS(){
             {/* Live ads loader (Apify-powered: Meta + Google + Instagram organic) */}
             <div style={{...card,marginTop:10}}>
               <div style={cHead}>
-                <span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("إعلانات ومنشورات المنافس","Competitor Ads & Posts")}{liveAds.length>0&&<span style={{fontSize:9,color:"#6a96aa",marginRight:6}}>({liveAds.length})</span>}</span>
+                <span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("منشورات المنافس الأورجانيك","Competitor Organic Posts")}{liveAds.length>0&&<span style={{fontSize:9,color:"#6a96aa",marginRight:6}}>({liveAds.length})</span>}</span>
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                   {liveAds.length>0&&<Btn ch={T("مسح","Clear")} xs onClick={()=>{setLiveAds([]);setLiveAdsErr(null);}}/>}
-                  <Btn ch="Meta Ads" xs onClick={()=>loadLiveAds("facebook")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="FB Organic" xs onClick={()=>loadLiveAds("facebook_organic")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="Google" xs onClick={()=>loadLiveAds("google")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="IG" xs onClick={()=>loadLiveAds("instagram")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="TikTok Ads" xs onClick={()=>loadLiveAds("tiktok_ads")} dis={liveAdsLd||!mComp}/>
+                  <Btn ch="Instagram" xs onClick={()=>loadLiveAds("instagram")} dis={liveAdsLd||!mComp}/>
+                  <Btn ch="Facebook" xs onClick={()=>loadLiveAds("facebook_organic")} dis={liveAdsLd||!mComp}/>
                   <Btn ch="TikTok" xs onClick={()=>loadLiveAds("tiktok")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="Snap" xs onClick={()=>loadLiveAds("snapchat")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="LI Posts" xs onClick={()=>loadLiveAds("linkedin")} dis={liveAdsLd||!mComp}/>
-                  <Btn ch="LI Ads" xs onClick={()=>loadLiveAds("linkedin_ads")} dis={liveAdsLd||!mComp}/>
+                  <Btn ch="LinkedIn" xs onClick={()=>loadLiveAds("linkedin")} dis={liveAdsLd||!mComp}/>
                   <Btn ch="YouTube" xs onClick={()=>loadLiveAds("youtube")} dis={liveAdsLd||!mComp}/>
                 </div>
               </div>
@@ -1568,7 +1563,7 @@ export default function CreativeOS(){
                   </span>
                 </div>}
                 {liveAdsErr&&<div style={{padding:"6px 10px",borderRadius:5,background:"rgba(245,166,35,.06)",border:"1px solid rgba(245,166,35,.25)",fontSize:10.5,color:"#f5a623",direction:"rtl",textAlign:"right",marginBottom:8}}>{liveAdsErr}</div>}
-                {!liveAdsLd&&!liveAdsBillingLimit&&liveAds.length===0&&!liveAdsErr&&<p style={{fontSize:10.5,color:"#6a96aa",direction:"rtl",textAlign:"right"}}>{T("اختر منافساً ثم اضغط أي قناة — Ads = مدفوع · Organic/IG/TikTok/Snap/YT = Organic","Pick a competitor then tap a channel — Ads = Paid · Organic/IG/TikTok/Snap/YT = Organic")}</p>}
+                {!liveAdsLd&&!liveAdsBillingLimit&&liveAds.length===0&&!liveAdsErr&&<p style={{fontSize:10.5,color:"#6a96aa",direction:"rtl",textAlign:"right"}}>{T("اختر منافساً ثم اضغط القناة لجلب منشوراته الأورجانيك الأخيرة","Pick a competitor then tap a channel to fetch their latest organic posts")}</p>}
                 {liveAds.length>0&&(
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
                     {[...liveAds].sort((a,b)=>{const ta=a.started?new Date(typeof a.started==="number"?a.started*1000:a.started).getTime():0;const tb=b.started?new Date(typeof b.started==="number"?b.started*1000:b.started).getTime():0;return tb-ta;}).map((ad,i)=>{const isPaid=["facebook","google","tiktok_ads","linkedin_ads"].includes(ad._source);return(

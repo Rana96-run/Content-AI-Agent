@@ -11,10 +11,12 @@ import { callClaude } from "./ai-call.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
-const KEYWORDS = {
-  brand:  ["قيود", "qoyod", "برنامج قيود"],
-  zatca:  ["هيئة الزكاة والضريبة", "ZATCA", "الفاتورة الالكترونية", "المرحلة الثانية للفاتورة", "فاتورة ضريبية"],
-  market: ["وزارة التجارة السعودية", "برنامج محاسبي سعودي", "نظام ERP سعودي"],
+// Twitter/X is the primary source — all groups are scraped on X first.
+// Web search is used only for zatca/market (regulatory news, not brand chatter).
+const KEYWORDS: Record<"brand" | "zatca" | "market", { terms: string[]; webSearch: boolean }> = {
+  brand:  { terms: ["قيود", "qoyod", "برنامج قيود", "تطبيق قيود", "#قيود", "@qoyod"], webSearch: false },
+  zatca:  { terms: ["هيئة الزكاة والضريبة", "ZATCA", "الفاتورة الالكترونية", "المرحلة الثانية للفاتورة", "فاتورة ضريبية", "#فاتورة_الكترونية", "فوترة إلكترونية"], webSearch: true },
+  market: { terms: ["وزارة التجارة السعودية", "برنامج محاسبة", "نظام محاسبي", "فاتورة معتمدة", "#محاسبة_سعودية"], webSearch: true },
 };
 
 export interface ListeningMention {
@@ -34,23 +36,28 @@ export interface ListeningResult {
   driveLink?: string;
 }
 
-async function scrapeX(keyword: string, apifyToken: string): Promise<ListeningMention[]> {
+async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
-    const run = await fetch("https://api.apify.com/v2/acts/apidojo~tweet-flash/run-sync-get-dataset-items?token=" + encodeURIComponent(apifyToken) + "&timeout=60", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        searchTerms: [keyword],
-        maxTweets: 15,
-        language: "ar",
-      }),
-      signal: AbortSignal.timeout(70_000),
-    });
+    const run = await fetch(
+      "https://api.apify.com/v2/acts/apidojo~tweet-flash/run-sync-get-dataset-items?token=" +
+        encodeURIComponent(apifyToken) +
+        "&timeout=90",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          searchTerms: [keyword],
+          maxTweets: 30,
+          lang: "ar",
+          sort: "Latest",
+        }),
+        signal: AbortSignal.timeout(100_000),
+      }
+    );
     if (!run.ok) return [];
     const items = (await run.json()) as any[];
-    return (Array.isArray(items) ? items : []).slice(0, 15).map((t: any) => ({
+    return (Array.isArray(items) ? items : []).slice(0, 30).map((t: any) => ({
       keyword,
-      group: "brand" as const,
       platform: "Twitter/X",
       text: t.full_text ?? t.text ?? "",
       url: `https://x.com/i/web/status/${t.id_str ?? t.id ?? ""}`,
@@ -63,20 +70,19 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<ListeningMe
   }
 }
 
-async function searchWeb(keyword: string): Promise<ListeningMention[]> {
+async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
-    const encoded = encodeURIComponent(`"${keyword}"`);
-    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa`, {
-      headers: { Accept: "text/plain", "X-Timeout": "10" },
-      signal: AbortSignal.timeout(15_000),
+    const encoded = encodeURIComponent(`${keyword} site:twitter.com OR site:x.com OR site:arabianbusiness.com OR site:argaam.com`);
+    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=10`, {
+      headers: { Accept: "text/plain", "X-Timeout": "12" },
+      signal: AbortSignal.timeout(18_000),
     });
     if (!resp.ok) return [];
     const text = await resp.text();
     const kw5 = keyword.slice(0, 5);
-    const snippets = text.split("\n").filter(l => l.length > 60 && l.includes(kw5));
-    return snippets.slice(0, 4).map(s => ({
+    const snippets = text.split("\n").filter(l => l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5))));
+    return snippets.slice(0, 5).map(s => ({
       keyword,
-      group: "brand" as const,
       platform: "Web",
       text: s.slice(0, 300),
       url: "",
@@ -120,12 +126,16 @@ export async function runSocialListener(): Promise<ListeningResult> {
   const runAt = new Date().toISOString();
   const allMentions: ListeningMention[] = [];
 
-  for (const [group, keywords] of Object.entries(KEYWORDS) as [keyof typeof KEYWORDS, string[]][]) {
-    for (const kw of keywords) {
+  for (const [group, cfg] of Object.entries(KEYWORDS) as ["brand" | "zatca" | "market", { terms: string[]; webSearch: boolean }][]) {
+    for (const kw of cfg.terms) {
+      // Twitter/X is always primary
       const xResults = token ? await scrapeX(kw, token) : [];
       allMentions.push(...xResults.map(m => ({ ...m, group })));
-      const webResults = await searchWeb(kw);
-      allMentions.push(...webResults.map(m => ({ ...m, group })));
+      // Web search only for regulatory/market keywords, not brand chatter
+      if (cfg.webSearch) {
+        const webResults = await searchWeb(kw);
+        allMentions.push(...webResults.map(m => ({ ...m, group })));
+      }
     }
   }
 
