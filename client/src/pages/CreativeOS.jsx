@@ -624,8 +624,18 @@ async function callAI(sys,usr,max_tokens=1400,raw_text=false,_retrying=false){
 /* ─── APP ─── */
 export default function CreativeOS(){
   const[lang,setLang]=useState("ar");
-  const[tab,setTab]=useState("content");
+  const VALID_TABS=["content","campaign","calendar","email","market","library","icp","agent"];
+  const hashTab=()=>{const h=window.location.hash.replace("#","");return VALID_TABS.includes(h)?h:null;};
+  const[tab,setTab]=useState(()=>hashTab()||"content");
   const[aiHealth,setAiHealth]=useState(null); // {ok, provider, latency_ms, degraded?}
+
+  // Sync tab ↔ URL hash so external links like /#library work
+  useEffect(()=>{window.location.hash=tab;},[tab]);
+  useEffect(()=>{
+    const onHash=()=>{const h=hashTab();if(h&&h!==tab)setTab(h);};
+    window.addEventListener("hashchange",onHash);
+    return()=>window.removeEventListener("hashchange",onHash);
+  },[tab]);
 
   // Probe AI health on mount + every 5 min. Shows a banner if degraded.
   useEffect(()=>{

@@ -643,7 +643,9 @@ function renderAgentFeed() {
     const color = ag ? ag.color : 'var(--bright)';
     const primaryLabel = t.summary || t.title || '(untitled)';
     const secondaryLabel = t.summary && t.title ? t.title : '';
-    return `<div class="feed-item">
+    const isLibrarySave = (t.summary || '').toLowerCase().includes('library') || (t.title || '').toLowerCase().includes('library');
+    const itemClick = isLibrarySave ? `onclick="window.open('/#library','_blank')" style="cursor:pointer"` : '';
+    return `<div class="feed-item" ${itemClick}>
       <div class="fi-icon" style="background:${color}22;color:${color};font-size:10px;font-weight:700;letter-spacing:.04em">${ag ? ag.name.slice(0,2).toUpperCase() : '??'}</div>
       <div class="fi-body">
         <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${primaryLabel}</div>
@@ -848,20 +850,18 @@ function renderContentFeed() {
     const em      = chanEm(p.channel);
     const time    = p.published_at ? new Date(p.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
     const preview = (p.content || '').slice(0, 110) + ((p.content || '').length > 110 ? '…' : '');
-    const url     = p.url ? `<a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:4px">↗</a>` : '';
     const s       = p.stats || {};
     const statsHtml = [
-      s.impressions != null ? `👁 ${s.impressions.toLocaleString()}` : '',
-      s.reach       != null ? `📡 ${s.reach.toLocaleString()}`       : '',
-      s.reactions   != null ? `❤️ ${s.reactions}`                    : '',
-      s.clicks      != null ? `🔗 ${s.clicks}`                       : '',
-      s.shares      != null ? `↗ ${s.shares}`                        : '',
-    ].filter(Boolean).join('  ');
+      s.impressions != null ? `${s.impressions.toLocaleString()} views` : '',
+      s.reactions   != null ? `${s.reactions} reactions`               : '',
+      s.clicks      != null ? `${s.clicks} clicks`                     : '',
+      s.shares      != null ? `${s.shares} shares`                     : '',
+    ].filter(Boolean).join('  ·  ');
     const clickable = p.url ? `onclick="window.open('${p.url}','_blank')" style="cursor:pointer"` : '';
     return `<div class="feed-item" ${clickable}>
       <div class="fi-icon" style="background:rgba(47,117,242,.1)">${em}</div>
       <div class="fi-body">
-        <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview || '—'}${url}</div>
+        <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview || '—'}</div>
         <div class="fi-meta">
           ${statsHtml ? `<span style="color:var(--sub);font-size:9px;white-space:nowrap">${statsHtml}</span>` : ''}
           <span class="fi-time">${time}</span>
