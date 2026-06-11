@@ -25,7 +25,8 @@ import { sheetsAppendCompetitorPosts, sheetsHealthCheck } from "./sheets-client.
 import type { CompetitorPost } from "./content-library.js";
 import { buildContextPrompt, renderContextMarkdown, saveContext } from "./competitor-context.js";
 import { extractKnowledgeFromMonitor } from "./knowledge-base.js";
-import { createWeeklySlidesPresentation } from "./competitor-slides-renderer.js";
+import { createWeeklySlidesPresentation, createListeningSlidePresentation } from "./competitor-slides-renderer.js";
+import { getLatestListeningResult } from "./social-listener.js";
 import { logger } from "./logger.js";
 
 // Tracked competitors — each entry is the COMPETITORS key from competitor-ads.ts
@@ -186,6 +187,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
   ai: any;
   slack_posted: boolean;
   report_slides_url?: string;
+  listening_slides_url?: string;
   sheet_url?: string;
 }> {
   const competitors = opts.competitors || TRACKED;
@@ -325,8 +327,30 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     );
   }
 
-  // 7. Slack — narrative, human-readable format with links to Slides + Sheet
-  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, undefined, reportSlidesUrl);
+  // 7. Generate Social Listening slides from latest cached listener run
+  let listeningSlideUrl: string | undefined;
+  try {
+    const listeningResult = getLatestListeningResult();
+    if (listeningResult) {
+      const lSlides = await createListeningSlidePresentation(listeningResult, weekLabel);
+      if (lSlides.ok && lSlides.link) {
+        listeningSlideUrl = lSlides.link;
+        logger.info({ url: listeningSlideUrl }, "monitor: listening slides generated");
+      } else {
+        logger.warn({ error: lSlides.error }, "monitor: listening slides failed (non-fatal)");
+      }
+    } else {
+      logger.info("monitor: no listening cache found, skipping listening slides");
+    }
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "monitor: listening slides failed (non-fatal)",
+    );
+  }
+
+  // 8. Slack — narrative, human-readable format with links to Slides + Sheet
+  const blocks = formatSlackBlocks(diffs, ai, weekLabel, sheetUrl, undefined, reportSlidesUrl, listeningSlideUrl);
   let slackPosted = false;
   if (opts.postToSlack !== false) {
     await postToSlack(blocks, ai.headline || `Competitor Intel — ${weekLabel}`);
@@ -341,6 +365,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
     ai,
     slack_posted: slackPosted,
     report_slides_url: reportSlidesUrl,
+    listening_slides_url: listeningSlideUrl,
     sheet_url: sheetUrl,
   };
 }

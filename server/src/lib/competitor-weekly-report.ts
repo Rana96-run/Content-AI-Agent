@@ -251,6 +251,7 @@ export function formatSlackBlocks(
   sheetUrl?: string,
   reportDocUrl?: string,
   reportSlidesUrl?: string,
+  listeningSlideUrl?: string,
 ) {
   const totalNew = diffs.reduce(
     (s, d) => s + d.facebook_new + d.google_new + d.instagram_new_posts + d.youtube_new_videos,
@@ -414,8 +415,9 @@ export function formatSlackBlocks(
     });
   }
 
-  // Secondary links — Doc archive + raw Sheet
+  // Secondary links — Listening slides + Doc archive + raw Sheet
   const secondaryLinks: string[] = [];
+  if (listeningSlideUrl) secondaryLinks.push(`<${listeningSlideUrl}|رصد السوشيال والسوق (Slides)>`);
   if (reportDocUrl) secondaryLinks.push(`<${reportDocUrl}|أرشيف Google Doc>`);
   if (sheetUrl) secondaryLinks.push(`<${sheetUrl}|البيانات الخام في Google Sheet>`);
   if (secondaryLinks.length > 0) {

@@ -18,6 +18,7 @@ import { google } from "googleapis";
 import type { WeekDiff } from "./competitor-weekly-report.js";
 import { getOrCreateSubfolder } from "../routes/drive.js";
 import { sheetsLogDocument } from "./sheets-client.js";
+import { logger } from "./logger.js";
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 const W  = 9_144_000;   // 10 in
@@ -1051,6 +1052,182 @@ export async function createWeeklySlidesPresentation(
       link: webViewLink,
     }).catch(() => {});
 
+    return { ok: true, link: webViewLink };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ─── SOCIAL LISTENING + MARKET WATCH SLIDES ──────────────────────────────────
+import type { ListeningResult, ListeningMention } from "./social-listener.js";
+
+function listeningCoverSlide(
+  sId: string, dateLabel: string,
+  brandN: number, zatcaN: number, marketN: number,
+): any[] {
+  const R: any[] = [newSlide(sId), setBg(sId, C.navy)];
+  R.push(...ellipse(eid(), sId, W * 0.70, -IN * 1.5, IN * 4.2, IN * 4.2, C.navyLight));
+  R.push(...ellipse(eid(), sId, W * 0.82, -IN * 0.6, IN * 2.2, IN * 2.2, C.royalBlue));
+  R.push(...ellipse(eid(), sId, -IN * 0.6, H * 0.6, IN * 2.0, IN * 2.0, C.navyLight));
+  R.push(...box(eid(), sId, 0, 0, IN * 0.07, H, C.brightBlue));
+  R.push(...box(eid(), sId, 0, H - IN * 0.07, W, IN * 0.07, C.brightBlue));
+  R.push(...rBox(eid(), sId, IN * 0.55, IN * 0.72, IN * 2.6, IN * 0.40, C.brightBlue));
+  R.push(...txt(sId, IN * 0.55, IN * 0.73, IN * 2.6, IN * 0.38,
+    dateLabel, { size: 10, color: C.white, bold: true, align: "CENTER" }));
+  R.push(...txt(sId, IN * 0.55, IN * 1.30, IN * 6.2, IN * 2.0,
+    "رصد السوشيال\nوالسوق",
+    { bold: true, size: 54, color: C.white, lh: 112 }));
+  R.push(...txt(sId, IN * 0.55, IN * 3.40, IN * 5.0, IN * 0.60,
+    "تقرير رصد أسبوعي — قيود",
+    { size: 16, color: C.skyBlue }));
+  // 3 stat cards bottom row
+  const stats = [
+    { label: "علامة تجارية", n: brandN,  accent: C.brightBlue },
+    { label: "ZATCA",        n: zatcaN,  accent: C.amberSolid },
+    { label: "السوق",        n: marketN, accent: C.greenSolid },
+  ];
+  stats.forEach(({ label, n, accent }, i) => {
+    const x = IN * 0.55 + i * (IN * 1.55);
+    const y = H - IN * 1.30;
+    R.push(...rBox(eid(), sId, x, y, IN * 1.38, IN * 0.88, C.navyLight, accent, 2));
+    R.push(...txt(sId, x, y + IN * 0.04, IN * 1.38, IN * 0.46,
+      String(n), { size: 30, bold: true, color: accent, align: "CENTER" }));
+    R.push(...txt(sId, x, y + IN * 0.48, IN * 1.38, IN * 0.34,
+      label, { size: 9, color: C.white, align: "CENTER" }));
+  });
+  return R;
+}
+
+function listeningMentionsSlide(
+  sId: string, title: string, accentHex: string, mentions: ListeningMention[],
+): any[] {
+  const R: any[] = [newSlide(sId), setBg(sId, C.offWhite)];
+  // Header strip
+  R.push(...box(eid(), sId, 0, 0, W, IN * 0.80, C.navy));
+  R.push(...txt(sId, IN * 0.4, IN * 0.14, W - IN * 0.8, IN * 0.55,
+    title, { size: 20, bold: true, color: C.white }));
+  // Accent bottom stripe
+  R.push(...box(eid(), sId, 0, H - IN * 0.07, W, IN * 0.07, accentHex));
+
+  const shown = mentions.slice(0, 4);
+  const cols  = shown.length <= 2 ? 2 : shown.length <= 3 ? 3 : 4;
+  const cardW = (W - IN * 0.55 * (cols + 1)) / cols;
+  const cardH = H - IN * 1.30;
+  shown.forEach((m, i) => {
+    const x = IN * 0.55 + i * (cardW + IN * 0.25);
+    const y = IN * 1.00;
+    const snippet = m.text.slice(0, 140) + (m.text.length > 140 ? "…" : "");
+    R.push(...rBox(eid(), sId, x, y, cardW, cardH, C.white, accentHex, 1.5));
+    // Platform badge
+    R.push(...rBox(eid(), sId, x + IN * 0.12, y + IN * 0.10, IN * 0.85, IN * 0.24, accentHex));
+    R.push(...txt(sId, x + IN * 0.12, y + IN * 0.10, IN * 0.85, IN * 0.24,
+      m.platform, { size: 7.5, bold: true, color: C.white, align: "CENTER" }));
+    // Keyword tag
+    R.push(...txt(sId, x + IN * 0.12, y + IN * 0.38, cardW - IN * 0.24, IN * 0.22,
+      `#${m.keyword}`, { size: 8, color: accentHex, bold: true }));
+    // Mention text
+    R.push(...txt(sId, x + IN * 0.12, y + IN * 0.64, cardW - IN * 0.24, cardH - IN * 0.82,
+      snippet, { size: 9, color: C.textMid }));
+  });
+  return R;
+}
+
+function listeningSummarySlide(sId: string, summary: string, dateLabel: string): any[] {
+  const R: any[] = [newSlide(sId), setBg(sId, C.navy)];
+  R.push(...box(eid(), sId, 0, 0, W, IN * 0.80, C.royalBlue));
+  R.push(...txt(sId, IN * 0.4, IN * 0.14, W - IN * 0.8, IN * 0.55,
+    "ملخص وتوصيات", { size: 20, bold: true, color: C.white }));
+  R.push(...box(eid(), sId, 0, H - IN * 0.07, W, IN * 0.07, C.brightBlue));
+
+  // Split summary into lines, show first 8
+  const lines = summary
+    .split(/[\n•\-]/)
+    .map(l => l.trim())
+    .filter(l => l.length > 10)
+    .slice(0, 8);
+
+  const lineH = IN * 0.48;
+  lines.forEach((line, i) => {
+    const y = IN * 1.00 + i * lineH;
+    R.push(...rBox(eid(), sId, IN * 0.50, y, W - IN * 1.0, IN * 0.40, C.navyLight));
+    R.push(...txt(sId, IN * 0.65, y + IN * 0.04, W - IN * 1.3, IN * 0.34,
+      `← ${line}`, { size: 10, color: C.white }));
+  });
+
+  R.push(...txt(sId, IN * 0.4, H - IN * 0.55, W - IN * 0.8, IN * 0.40,
+    `تقرير رصد ${dateLabel} — قيود`, { size: 9, color: C.textLight, align: "CENTER" }));
+  return R;
+}
+
+/**
+ * Create a Google Slides social listening report using the Qoyod template.
+ * 5 slides: Cover → Brand Mentions → ZATCA Signals → Market Signals → AI Summary
+ */
+export async function createListeningSlidePresentation(
+  result: ListeningResult,
+  dateLabel: string,
+): Promise<{ ok: boolean; link?: string; error?: string }> {
+  const FOLDER_ID   = process.env.GOOGLE_DRIVE_FOLDER_ID ?? "";
+  const TEMPLATE_ID = process.env.GOOGLE_SLIDES_TEMPLATE_ID ?? "";
+  if (!FOLDER_ID) return { ok: false, error: "GOOGLE_DRIVE_FOLDER_ID not configured" };
+
+  try {
+    const { slides, drive } = getClients();
+    const subfolderId = await getOrCreateSubfolder("Social Listening Slides");
+
+    const presName = `رصد السوشيال — ${dateLabel}`;
+    let presId: string;
+    let webViewLink: string;
+
+    if (TEMPLATE_ID) {
+      const copied = await drive.files.copy({
+        fileId: TEMPLATE_ID,
+        requestBody: { name: presName, mimeType: "application/vnd.google-apps.presentation", parents: [subfolderId] },
+        supportsAllDrives: true, fields: "id,webViewLink",
+      });
+      presId      = copied.data.id!;
+      webViewLink = copied.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
+    } else {
+      const created = await drive.files.create({
+        requestBody: { name: presName, mimeType: "application/vnd.google-apps.presentation", parents: [subfolderId] },
+        supportsAllDrives: true, fields: "id,webViewLink",
+      });
+      presId      = created.data.id!;
+      webViewLink = created.data.webViewLink ?? `https://docs.google.com/presentation/d/${presId}/edit`;
+    }
+
+    const presInfo     = await slides.presentations.get({ presentationId: presId });
+    const templateSlides = (presInfo.data.slides ?? []).map(s => s.objectId).filter(Boolean) as string[];
+
+    const byGroup = (g: "brand" | "zatca" | "market") =>
+      result.mentions.filter(m => m.group === g);
+    const brand  = byGroup("brand");
+    const zatca  = byGroup("zatca");
+    const market = byGroup("market");
+
+    const requests: any[] = [
+      ...listeningCoverSlide(eid("slide"), dateLabel, brand.length, zatca.length, market.length),
+      ...(brand.length  > 0 ? listeningMentionsSlide(eid("slide"), "رصد العلامة التجارية — قيود",       C.brightBlue, brand)  : []),
+      ...(zatca.length  > 0 ? listeningMentionsSlide(eid("slide"), "رصد ZATCA والتنظيم",                C.amberSolid, zatca)  : []),
+      ...(market.length > 0 ? listeningMentionsSlide(eid("slide"), "استخبارات السوق والمنافسين",        C.greenSolid, market) : []),
+      ...listeningSummarySlide(eid("slide"), result.summary || "لا يوجد ملخص متاح.", dateLabel),
+    ];
+
+    // Delete template slides after adding ours
+    for (const sid of templateSlides) {
+      requests.push({ deleteObject: { objectId: sid } });
+    }
+
+    await slides.presentations.batchUpdate({ presentationId: presId, requestBody: { requests } });
+
+    sheetsLogDocument({
+      date: dateLabel,
+      type: "Social Listening Slides",
+      title: presName,
+      link: webViewLink,
+    }).catch(() => {});
+
+    logger.info({ link: webViewLink }, "listening-slides: presentation created");
     return { ok: true, link: webViewLink };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
