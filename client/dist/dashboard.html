@@ -640,13 +640,15 @@ function renderAgentFeed() {
     const ag   = agMap[t.persona] || agMap['orchestrator'];
     const time = new Date(t.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     const color = ag ? ag.color : 'var(--bright)';
+    const primaryLabel = t.summary || t.title || '(untitled)';
+    const secondaryLabel = t.summary && t.title ? t.title : '';
     return `<div class="feed-item">
       <div class="fi-icon" style="background:${color}22;color:${color};font-size:10px;font-weight:700;letter-spacing:.04em">${ag ? ag.name.slice(0,2).toUpperCase() : '??'}</div>
       <div class="fi-body">
-        <div class="fi-title">${t.title || '(untitled)'}</div>
+        <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${primaryLabel}</div>
         <div class="fi-meta">
           <span style="color:${color}">${ag ? ag.name : ''}</span>
-          ${t.summary ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${t.summary}</span>` : ''}
+          ${secondaryLabel ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;opacity:.7">${secondaryLabel}</span>` : ''}
           <span class="badge ${sb.cls}">${sb.label}</span>
           <span class="fi-time">${time}</span>
         </div>
