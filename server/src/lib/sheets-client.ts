@@ -386,6 +386,30 @@ export async function sheetsReadKnowledge(limit = 40): Promise<Array<{
   }
 }
 
+/** Append Twitter/X and web mentions to the "Social Mentions" tab. */
+export async function sheetsAppendMentions(runAt: string, mentions: Array<{
+  keyword: string;
+  group: string;
+  platform: string;
+  text: string;
+  url: string;
+  author?: string;
+  postedAt?: string;
+}>): Promise<void> {
+  if (mentions.length === 0) return;
+  await ensureTab("Social Mentions", ["Run At", "Group", "Platform", "Keyword", "Author", "Posted At", "Text", "URL"]);
+  await appendRows("Social Mentions", mentions.map(m => [
+    runAt,
+    m.group,
+    m.platform,
+    m.keyword,
+    m.author ?? null,
+    m.postedAt ?? null,
+    m.text.slice(0, 500),
+    m.url ?? null,
+  ]));
+}
+
 /** Health check — returns true if the sheet is reachable. */
 export async function sheetsHealthCheck(): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!SPREADSHEET_ID) return { ok: false, error: "GOOGLE_SHEETS_ID not configured" };

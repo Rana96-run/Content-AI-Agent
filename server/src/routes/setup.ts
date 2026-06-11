@@ -56,6 +56,11 @@ const TABS = [
     columns: ["Week", "Type", "Sector", "Channel", "Insight", "Source", "Confidence", "Added At"],
     widths: [100, 140, 120, 120, 400, 160, 100, 140],
   },
+  {
+    name: "Social Mentions",
+    columns: ["Run At", "Group", "Platform", "Keyword", "Author", "Posted At", "Text", "URL"],
+    widths: [160, 100, 120, 200, 160, 160, 500, 260],
+  },
 ] as const;
 
 // Header style: dark blue-grey background (#2C3E50), white bold text

@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
 import { driveUploadAsGoogleDoc } from "../routes/drive.js";
+import { sheetsAppendMentions } from "./sheets-client.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
@@ -185,6 +186,11 @@ export async function runSocialListener(): Promise<ListeningResult> {
     fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
     fs.writeFileSync(CACHE_PATH, JSON.stringify(result, null, 2));
   } catch {}
+
+  // Persist mentions to Sheets for queryable history
+  sheetsAppendMentions(runAt, unique).catch(err =>
+    logger.warn({ err: String(err) }, "social-listener: sheets append failed (non-fatal)")
+  );
 
   logger.info({ count: unique.length }, "social-listener: done");
   return result;
