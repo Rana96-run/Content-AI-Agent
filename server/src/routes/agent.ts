@@ -65,6 +65,14 @@ import {
 
 const router = Router();
 
+// ─── TTL in-memory cache helper ─────────────────────────────────────────────
+const _cache = new Map<string, { data: unknown; ts: number }>();
+function ttlCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.ts < ttlMs) return Promise.resolve(hit.data as T);
+  return fn().then(data => { _cache.set(key, { data, ts: Date.now() }); return data; });
+}
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 
@@ -2233,43 +2241,47 @@ function resolveChannel(channelKey: string, _map: Record<string, string>): strin
   return channelKey.split(":")[0] ?? channelKey;
 }
 
+async function fetchSocialPostsData(token: string, limit: number) {
+  const [broadcastRes, channelMap, portalId] = await Promise.all([
+    fetch(`https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    getChannelMap(token),
+    getPortalId(token),
+  ]);
+  if (!broadcastRes.ok) throw new Error(`HubSpot ${broadcastRes.status}`);
+  const data = await broadcastRes.json() as Array<{
+    broadcastGuid: string; channelKey: string; finishedAt: number;
+    status: string; messageUrl?: string;
+    content?: { body?: string; title?: string; thumbUrl?: string };
+    statistics?: { clicks?: number; impressions?: number; reach?: number; reactions?: number; shares?: number };
+  }>;
+  const posts = (Array.isArray(data) ? data : []).map((b) => ({
+    id:           b.broadcastGuid,
+    channel:      resolveChannel(b.channelKey, channelMap),
+    channelKey:   b.channelKey,
+    published_at: b.finishedAt ? new Date(b.finishedAt).toISOString() : null,
+    content:      b.content?.body || b.content?.title || "",
+    url:          b.messageUrl || (portalId ? `https://app.hubspot.com/social/${portalId}/published/${b.broadcastGuid}` : null),
+    thumb:        b.content?.thumbUrl || null,
+    stats: {
+      clicks:      b.statistics?.clicks      ?? null,
+      impressions: b.statistics?.impressions ?? null,
+      reach:       b.statistics?.reach       ?? null,
+      reactions:   b.statistics?.reactions   ?? null,
+      shares:      b.statistics?.shares      ?? null,
+    },
+  }));
+  return { posts, total: posts.length };
+}
+
 router.get("/social-posts", async (req, res) => {
   const token = process.env.HS_ACCESS_TOKEN;
   if (!token) return res.status(503).json({ error: "HubSpot not configured" });
   try {
-    const limit = Math.min(Number(req.query.limit) || 40, 50);
-    const [broadcastRes, channelMap, portalId] = await Promise.all([
-      fetch(`https://api.hubapi.com/broadcast/v1/broadcasts?status=SUCCESS&limit=${limit}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-      getChannelMap(token),
-      getPortalId(token),
-    ]);
-    if (!broadcastRes.ok) return res.status(broadcastRes.status).json({ error: await broadcastRes.text() });
-    const data = await broadcastRes.json() as Array<{
-      broadcastGuid: string; channelKey: string; finishedAt: number;
-      status: string; messageUrl?: string;
-      content?: { body?: string; title?: string; thumbUrl?: string };
-      statistics?: { clicks?: number; impressions?: number; reach?: number; reactions?: number; shares?: number };
-    }>;
-
-    const posts = (Array.isArray(data) ? data : []).map((b) => ({
-      id:           b.broadcastGuid,
-      channel:      resolveChannel(b.channelKey, channelMap),
-      channelKey:   b.channelKey,
-      published_at: b.finishedAt ? new Date(b.finishedAt).toISOString() : null,
-      content:      b.content?.body || b.content?.title || "",
-      url:          b.messageUrl || (portalId ? `https://app.hubspot.com/social/${portalId}/published/${b.broadcastGuid}` : null),
-      thumb:        b.content?.thumbUrl || null,
-      stats: {
-        clicks:      b.statistics?.clicks      ?? null,
-        impressions: b.statistics?.impressions ?? null,
-        reach:       b.statistics?.reach       ?? null,
-        reactions:   b.statistics?.reactions   ?? null,
-        shares:      b.statistics?.shares      ?? null,
-      },
-    }));
-    res.json({ posts, total: posts.length });
+    const limit = Math.min(Number(req.query.limit) || 40, 200);
+    const data = await ttlCache(`social-posts-${limit}`, 2 * 60 * 1000, () => fetchSocialPostsData(token, limit));
+    res.json(data);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -2289,11 +2301,8 @@ router.get("/content-library/entries", (_req, res) => {
   }
 });
 
-router.get("/email-campaigns", async (_req, res) => {
-  const token = process.env.HS_ACCESS_TOKEN;
-  if (!token) return res.status(503).json({ error: "HubSpot not configured" });
-  try {
-    const portalId = await getPortalId(token);
+async function fetchEmailCampaignsData(token: string) {
+  const portalId = await getPortalId(token);
     // Request specific properties — v3 returns only id/name/subject by default
     const props = [
       "hs_email_status","state","publishDate","scheduledAt","updatedAt",
@@ -2306,7 +2315,7 @@ router.get("/email-campaigns", async (_req, res) => {
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
     );
     const data = await r.json() as { results?: Record<string, unknown>[]; message?: string };
-    if (!r.ok) return res.status(r.status).json({ error: data.message || "HubSpot error" });
+    if (!r.ok) throw new Error(data.message || `HubSpot ${r.status}`);
     const now = Date.now();
     const cutoff2026 = new Date("2026-01-01").getTime();
     const slim = (data.results || [])
@@ -2347,7 +2356,15 @@ router.get("/email-campaigns", async (_req, res) => {
         ...rest,
         viewUrl: portalId ? `https://app.hubspot.com/email/${portalId}/details/${rest.id}/performance` : null,
       }));
-    res.json({ results: slim, total: slim.length });
+  return { results: slim, total: slim.length };
+}
+
+router.get("/email-campaigns", async (_req, res) => {
+  const token = process.env.HS_ACCESS_TOKEN;
+  if (!token) return res.status(503).json({ error: "HubSpot not configured" });
+  try {
+    const data = await ttlCache("email-campaigns", 5 * 60 * 1000, () => fetchEmailCampaignsData(token));
+    res.json(data);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -2404,6 +2421,35 @@ router.get("/stats", async (_req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
+});
+
+// ─── Social Listening endpoints ─────────────────────────────────────────────
+
+router.get("/listening/latest", async (_req, res) => {
+  try {
+    const { getLatestListeningResult } = await import("../lib/social-listener.js");
+    const result = getLatestListeningResult();
+    if (!result) return res.json({ ok: false, message: "No listening data yet — trigger a run first" });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+router.post("/listening/run-now", (_req, res) => {
+  res.status(202).json({ ok: true, message: "Listening run started — check back in ~5 min" });
+  import("../lib/social-listener.js").then(({ runSocialListener }) =>
+    runSocialListener().catch(err => logger.error({ err: String(err) }, "social-listener: manual trigger error"))
+  );
+});
+
+// ─── Daily Competitor Capture endpoint ──────────────────────────────────────
+
+router.post("/daily-capture/run-now", (_req, res) => {
+  res.status(202).json({ ok: true, message: "Daily capture started — check Drive in ~3 min" });
+  import("../lib/daily-competitor-capture.js").then(({ runDailyCompetitorCapture }) =>
+    runDailyCompetitorCapture().catch(err => logger.error({ err: String(err) }, "daily-capture: manual trigger error"))
+  );
 });
 
 export default router;

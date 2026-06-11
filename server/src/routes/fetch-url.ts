@@ -57,24 +57,7 @@ router.post("/fetch-url", async (req, res) => {
     return;
   }
 
-  // Detect platforms that always block bots — short-circuit with a clear message
   const host = parsed.hostname.toLowerCase();
-  const wallPlatforms = [
-    { match: ["instagram.com"], name: "Instagram" },
-    { match: ["facebook.com", "fb.com"], name: "Facebook" },
-    { match: ["tiktok.com"], name: "TikTok" },
-  ];
-  for (const w of wallPlatforms) {
-    if (w.match.some((m) => host.includes(m))) {
-      res.status(200).json({
-        ok: false,
-        blocked: true,
-        platform: w.name,
-        message: `${w.name} requires login to view posts. Paste the caption/text directly into the description field instead of the URL.`,
-      });
-      return;
-    }
-  }
 
   // Use jina reader proxy — it returns clean markdown of any public URL
   const controller = new AbortController();

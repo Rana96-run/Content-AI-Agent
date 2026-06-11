@@ -700,6 +700,9 @@ export default function CreativeOS(){
   const[mRes,setMRes]=useState(null);
   const[mLd,setMLd]=useState(false);
   const[mErr,setMErr]=useState("");
+  const[analyzeUrl,setAnalyzeUrl]=useState("");
+  const[analyzingUrl,setAnalyzingUrl]=useState(false);
+  const[analyzeResult,setAnalyzeResult]=useState("");
   const[ilog,setIlog]=useState([]);
   const[liveAds,setLiveAds]=useState([]);
   const[liveAdsLd,setLiveAdsLd]=useState(false);
@@ -1097,6 +1100,29 @@ export default function CreativeOS(){
       setMRes(r);
     }catch(e){setMErr(e.message);}finally{setMLd(false);}
   },[lang,mComp,mChan,mDesc]);
+
+  const handleAnalyzeUrl=useCallback(async()=>{
+    const trimmed=analyzeUrl.trim();
+    if(!trimmed||!/^https?:\/\//i.test(trimmed)){
+      setAnalyzeResult(T("الصق رابطاً صحيحاً يبدأ بـ http","Paste a valid URL starting with http"));
+      return;
+    }
+    setAnalyzingUrl(true);setAnalyzeResult("");
+    try{
+      const fr=await fetchWithTimeout("/api/fetch-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:trimmed})},20000);
+      const fj=await fr.json().catch(()=>({}));
+      if(!fj.ok){
+        setAnalyzeResult(fj.message||fj.error||T("تعذّر جلب المحتوى","Could not fetch content"));
+        return;
+      }
+      const sys=`أنت محلل تسويقي لـ Qoyod. لخّص محتوى هذه الصفحة في 3-5 جمل: ما المنتج/الخدمة المُسوَّقة، الرسالة الرئيسية، أبرز المزايا أو العروض، وأي نقاط ضعف يمكن استغلالها. اكتب بأسلوب احترافي موجز.`;
+      const usr=`الرابط: ${trimmed}\n\nالمحتوى:\n${fj.content.slice(0,3000)}`;
+      const summary=await callAI(sys,usr,500,true);
+      setAnalyzeResult(summary);
+      if(!mDesc)setMDesc(fj.content.slice(0,800));
+    }catch(e){setAnalyzeResult(e.message);}
+    finally{setAnalyzingUrl(false);}
+  },[analyzeUrl,mDesc,lang]);
 
   /* ── Content Calendar ── */
   const genCalendar=useCallback(async()=>{
@@ -1568,6 +1594,28 @@ export default function CreativeOS(){
                         </div>
                       </div>
                     );})}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Quick URL Analyzer — fetch any public URL and get an AI summary */}
+            <div style={{...card,marginTop:10}}>
+              <div style={cHead}><span style={{fontSize:11,fontWeight:600,color:"#6a96aa"}}>{T("تحليل رابط سريع","Quick URL Analysis")}</span></div>
+              <div style={cBody}>
+                <div style={{display:"flex",gap:6}}>
+                  <input
+                    value={analyzeUrl}
+                    onChange={e=>setAnalyzeUrl(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&handleAnalyzeUrl()}
+                    placeholder={T("الصق أي رابط — موقع · صفحة أسعار · بوست · إعلان","Paste any URL — website · pricing · post · ad")}
+                    style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid rgba(1,53,90,.45)",background:"rgba(1,18,50,.6)",color:"#ddeef4",fontSize:11,fontFamily:"inherit",direction:"ltr"}}
+                  />
+                  <Btn ch={analyzingUrl?T("⏳","⏳"):T("تحليل","Analyze")} xs onClick={handleAnalyzeUrl} dis={analyzingUrl}/>
+                </div>
+                {analyzingUrl&&<div style={{marginTop:8,fontSize:10.5,color:"#17a3a3",direction:"rtl",textAlign:"right"}}>{T("⏳ يجلب المحتوى ويحلله...","⏳ Fetching and analyzing...")}</div>}
+                {analyzeResult&&!analyzingUrl&&(
+                  <div style={{marginTop:10,padding:"10px 12px",borderRadius:6,background:"rgba(23,163,164,.05)",border:"1px solid rgba(23,163,164,.2)",fontSize:11,color:"#ddeef4",direction:"rtl",textAlign:"right",lineHeight:1.7,whiteSpace:"pre-wrap"}}>
+                    {analyzeResult}
                   </div>
                 )}
               </div>

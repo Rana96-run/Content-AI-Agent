@@ -439,15 +439,12 @@ router.post("/competitor-ads", async (req, res) => {
       res.status(400).json({ error: `No Facebook page handle known for ${competitor}` });
       return;
     }
-    // apify/facebook-pages-scraper: scrapes organic posts from a public Facebook page
-    actor = "apify~facebook-pages-scraper";
+    // apify/facebook-posts-scraper: no login cookie required, uses residential proxies
+    actor = "apify~facebook-posts-scraper";
     input = {
       startUrls: [{ url: `https://www.facebook.com/${c.fb_page}/` }],
-      maxPosts: apifyMinCount,
-      maxPostComments: 0,
-      maxReviews: 0,
-      scrapeAbout: false,
-      scrapePosts: true,
+      resultsLimit: apifyMinCount,
+      onlyPostsNewerThan: "7 days",
     };
   } else if (source === "google") {
     // Google Ads doesn't go through Apify — we use the FREE r.jina.ai
@@ -539,14 +536,35 @@ router.post("/competitor-ads", async (req, res) => {
       res.status(200).json({ ok: true, source: "linkedin", competitor: c.domain, country, actor: "linkedin-api-v2", count: ads.length, ads });
       return;
     }
-    // Fallback: public company posts page via jina (no auth needed)
+    // Fallback: Apify residential proxy scraper for LinkedIn organic posts
+    const apifyResult = await runActor(
+      "curious_coder~linkedin-company-posts-scraper",
+      { companyUrls: [`https://www.linkedin.com/company/${c.linkedin}/`], maxResults: cap },
+      token,
+    );
+    if (apifyResult.ok && apifyResult.items.length > 0) {
+      const ads = apifyResult.items.slice(0, cap).map((p: any) => ({
+        page_name:  c.linkedin,
+        hook:       (p.text ?? "").split("\n")[0]?.slice(0, 80) || "",
+        body:       p.text ?? "",
+        caption:    p.text ?? "",
+        image_url:  p.imageUrl ?? null,
+        detail_url: p.postUrl ?? `https://www.linkedin.com/company/${c.linkedin}/posts/`,
+        platforms:  ["LinkedIn"],
+        started:    p.postedAt ?? "",
+        source:     "linkedin",
+      }));
+      res.status(200).json({ ok: true, source: "linkedin", competitor: c.domain, country, actor: "linkedin-apify-scraper", count: ads.length, ads });
+      return;
+    }
+    // Last resort: jina reader (thin results but always available)
     const jinaOrganic = await scrapeLinkedInOrganicViaJina(c.linkedin, cap);
     res.status(200).json({
       ok: true, source: "linkedin", competitor: c.domain, country,
       actor: "linkedin-jina-fallback",
       count: jinaOrganic.length,
       ads: jinaOrganic,
-      note: li.error || "LI_ACCESS_TOKEN not set — showing public page extract via jina",
+      note: li.error || "LI API + Apify unavailable — showing public page extract via jina",
     });
     return;
   } else if (source === "linkedin_ads") {
@@ -860,19 +878,19 @@ function normalize(item: any, source: string) {
     };
   }
   if (source === "facebook_organic") {
-    // apify/facebook-pages-scraper post shape
+    // apify/facebook-posts-scraper post shape (no cookie required)
     const likes  = item.likes  || item.likesCount  || 0;
     const shares = item.shares || item.sharesCount || 0;
-    const text   = item.text   || item.message     || "";
+    const text   = item.message || item.text || "";
     return {
       page_name:  item.pageName || item.name || "",
       hook:       text.split("\n")[0]?.slice(0, 80) || "",
       body:       text,
       caption:    `${Number(likes).toLocaleString()} likes, ${Number(shares).toLocaleString()} shares`,
-      image_url:  item.media?.[0]?.url || item.topImage || null,
+      image_url:  item.full_picture || item.media?.[0]?.url || item.topImage || null,
       detail_url: item.url || null,
       platforms:  ["Facebook"],
-      started:    item.time || item.date || "",
+      started:    item.created_time || item.time || item.date || "",
     };
   }
   if (source === "tiktok_ads") {
@@ -959,10 +977,11 @@ function normalize(item: any, source: string) {
     if (views)    parts.push(`${Number(views).toLocaleString()} views`);
     if (likes)    parts.push(`${Number(likes).toLocaleString()} likes`);
     if (comments) parts.push(`${Number(comments).toLocaleString()} comments`);
+    const caption = item.caption || item.alt || "";
     return {
       page_name:  item.ownerUsername || item.owner_username || "",
-      hook:       (item.caption || "").split("\n")[0]?.slice(0, 80) || "",
-      body:       item.caption || "",
+      hook:       caption.split("\n")[0]?.slice(0, 80) || "",
+      body:       caption,
       caption:    parts.length ? parts.join(" · ") : "",
       image_url:  item.displayUrl || item.thumbnailUrl || null,
       detail_url: item.url || null,

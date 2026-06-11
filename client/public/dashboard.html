@@ -306,7 +306,24 @@
     .agents { grid-template-columns: 1fr 1fr; }
     .stats  { grid-template-columns: 1fr 1fr; }
     .content-layout { grid-template-columns: 1fr; }
+    .workflow-grid { grid-template-columns: 1fr; }
+    .social-counts { grid-template-columns: repeat(2, 1fr); }
   }
+  /* Social Pulse stat cards */
+  .social-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .sc-item { padding: 10px 8px; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+  .sc-num  { display: block; font-size: 24px; font-weight: 700; color: var(--bright); }
+  .sc-lbl  { display: block; font-size: 9px; color: var(--sub); margin: 3px 0 2px; text-transform: uppercase; letter-spacing: .05em; }
+  .sc-sub  { display: block; font-size: 9px; color: rgba(255,255,255,.2); }
+  /* Agent Workflow Map */
+  .workflow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .wf-agent { padding: 12px; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 9px; }
+  .wf-name  { font-size: 11px; font-weight: 700; margin-bottom: 5px; }
+  .wf-trigger { font-size: 9px; color: var(--sub); margin-bottom: 5px; line-height: 1.5; }
+  .wf-does  { font-size: 10px; color: rgba(255,255,255,.7); line-height: 1.6; margin-bottom: 5px; }
+  .wf-output { font-size: 9px; color: #34D399; }
+  /* Social Listening panel */
+  .listening-badge { padding: 2px 8px; border-radius: 20px; background: rgba(0,0,0,.3); font-size: 9px; display: inline-block; margin: 2px; }
 </style>
 </head>
 <body>
@@ -357,41 +374,90 @@
     </div>
   </div>
 
-  <!-- Agent cards -->
-  <div class="section-label">Agent Team — 6 Specialists · click a card for details</div>
-  <div class="agents" id="agentGrid"></div>
+  <!-- Agent Workflow Map (replaces scattered agent grid) -->
+  <div class="section-label">Agent Workflow — من يفعل ماذا</div>
+  <div class="workflow-grid" id="workflowGrid">
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#60A5FA">Social Media Specialist</div>
+      <div class="wf-trigger">⚡ Triggered by: HubSpot new post, manual Run, Sunday monitor</div>
+      <div class="wf-does">Builds content calendars &amp; organic captions<br>Analyzes weekly competitor activity<br>Repurposes top-performing posts cross-platform</div>
+      <div class="wf-output">Output → Content Library + Drive Doc</div>
+    </div>
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#34D399">Content Creator</div>
+      <div class="wf-trigger">⚡ Triggered by: manual Run (Blog, RSA), Zapier brief</div>
+      <div class="wf-does">Writes Google RSA ads (15 headlines + 4 descriptions)<br>Drafts 1200-word SEO blog articles<br>Reviews and polishes copy (Saudi dialect)</div>
+      <div class="wf-output">Output → Drive Doc (Blog) / Dashboard (RSA)</div>
+    </div>
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#F472B6">Email Lifecycle</div>
+      <div class="wf-trigger">⚡ Triggered by: manual Run, HubSpot lead webhook</div>
+      <div class="wf-does">Builds welcome / nurture / winback sequences (4-email)<br>Publishes directly to HubSpot<br>Arabic-first, Saudi dialect tone</div>
+      <div class="wf-output">Output → HubSpot Draft + Drive Doc</div>
+    </div>
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#FBBF24">Paid Media Analyst</div>
+      <div class="wf-trigger">⚡ Triggered by: Sunday weekly review, manual Run, URL paste</div>
+      <div class="wf-does">Scrapes competitor ad libraries (FB, IG, Google, TikTok)<br>Identifies winning angles running &gt;30 days<br>Produces counter-creative briefs for Qoyod</div>
+      <div class="wf-output">Output → Google Slides deck + Drive Doc</div>
+    </div>
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#A78BFA">Editor / QA</div>
+      <div class="wf-trigger">⚡ Triggered by: manual Run before publishing</div>
+      <div class="wf-does">Runs 11-rule pre-publish checklist<br>Flags dialect, brand, ZATCA, and CTA issues<br>Returns pass/fail per rule with fix suggestions</div>
+      <div class="wf-output">Output → Dashboard review panel</div>
+    </div>
+    <div class="wf-agent">
+      <div class="wf-name" style="color:#FB923C">Orchestrator</div>
+      <div class="wf-trigger">⚡ Triggered by: Daily Digest (08:00 UTC), complex briefs</div>
+      <div class="wf-does">Daily digest: summarises all agent tasks from last 24h<br>Routes complex multi-step requests to correct agent<br>Coordinates multi-agent campaigns end-to-end</div>
+      <div class="wf-output">Output → Drive Doc + Slack summary</div>
+    </div>
+  </div>
 
   <!-- 2-col layout: content left, sidebar right -->
   <div class="content-layout">
 
-    <!-- LEFT: Published Posts + Email -->
+    <!-- LEFT: Social Pulse (counts) + Email counts -->
     <div style="display:flex;flex-direction:column;gap:18px;">
 
-      <!-- Social Posts -->
+      <!-- Social Pulse — counts only -->
       <div>
-        <div class="section-label">Published Posts — Organic Channels</div>
-        <div class="card">
-          <div class="card-head">
-            <h3>Social Posts</h3>
-            <div class="ch-pills" id="chPills">
-              <div class="ch-pill on" onclick="setChannelFilter('all',this)">All</div>
-              <div class="ch-pill" onclick="setChannelFilter('instagram',this)">Instagram</div>
-              <div class="ch-pill" onclick="setChannelFilter('facebook',this)">Facebook</div>
-              <div class="ch-pill" onclick="setChannelFilter('tiktok',this)">TikTok</div>
-              <div class="ch-pill" onclick="setChannelFilter('linkedin',this)">LinkedIn</div>
-              <div class="ch-pill" onclick="setChannelFilter('twitter',this)">Twitter/X</div>
-              <div class="ch-pill" onclick="setChannelFilter('youtube',this)">YouTube</div>
-            </div>
+        <div class="section-label">Social Pulse — Published Posts</div>
+        <div class="card" style="padding:16px">
+          <div class="social-counts" id="socialCounts">
+            <div class="sc-item"><span class="sc-num" id="sc-ig-n">—</span><span class="sc-lbl">Instagram</span><span class="sc-sub" id="sc-ig-d">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="sc-fb-n">—</span><span class="sc-lbl">Facebook</span><span class="sc-sub" id="sc-fb-d">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="sc-tt-n">—</span><span class="sc-lbl">TikTok</span><span class="sc-sub" id="sc-tt-d">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="sc-li-n">—</span><span class="sc-lbl">LinkedIn</span><span class="sc-sub" id="sc-li-d">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="sc-yt-n">—</span><span class="sc-lbl">YouTube</span><span class="sc-sub" id="sc-yt-d">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="sc-tw-n">—</span><span class="sc-lbl">Twitter/X</span><span class="sc-sub" id="sc-tw-d">—</span></div>
           </div>
-          <div class="feed" id="postsFeed" style="max-height:400px;"></div>
         </div>
       </div>
 
-      <!-- Email Campaigns -->
+      <!-- Email Campaigns — count summary -->
       <div>
-        <div class="section-label">Email Marketing — HubSpot Campaigns</div>
-        <div id="emailSection">
-          <div class="email-empty">Loading campaigns…</div>
+        <div class="section-label">Email — HubSpot Campaigns</div>
+        <div class="card" style="padding:16px">
+          <div class="social-counts" style="grid-template-columns:repeat(2,1fr)">
+            <div class="sc-item"><span class="sc-num" id="ec-active">—</span><span class="sc-lbl">Active</span><span class="sc-sub" id="ec-active-types">—</span></div>
+            <div class="sc-item"><span class="sc-num" id="ec-scheduled">—</span><span class="sc-lbl">Scheduled</span><span class="sc-sub" id="ec-scheduled-sub">campaigns</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social Listening Panel -->
+      <div>
+        <div class="section-label">Social Listening — Brand + ZATCA + Market</div>
+        <div class="card" style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--text)">Latest Monitor</span>
+            <span id="listeningCount" style="font-size:10px;color:var(--sub)">—</span>
+          </div>
+          <div id="listeningSummary" style="font-size:11px;color:rgba(255,255,255,.75);line-height:1.7;min-height:36px">جاري التحميل...</div>
+          <div style="margin-top:8px" id="listeningBadges"></div>
+          <div style="margin-top:6px;font-size:9px;color:var(--sub)" id="listeningTime"></div>
         </div>
       </div>
 
@@ -500,27 +566,30 @@ const AGENT_SVG = {
 
 // ── On-demand actions ─────────────────────────────────
 const ON_DEMAND = [
-  { name:'Content Calendar',       agent:'social_media',      endpoint:'/api/agent/run',                     prompt:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.',                                                                             saveToDrive:false },
-  { name:'Google RSA Ads',         agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.',                                                                                   saveToDrive:false },
-  { name:'Blog Article',           agent:'content_creator',   endpoint:'/api/agent/run',                     prompt:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.',       saveToDrive:true  },
-  { name:'Welcome Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.',                                                                                   saveToDrive:true  },
-  { name:'Nurture Email',          agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.',                                                        saveToDrive:true  },
-  { name:'Winback Sequence',       agent:'email_lifecycle',   endpoint:'/api/agent/run',                     prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.',                                                            saveToDrive:true  },
-  { name:'Counter-Creative Brief', agent:'paid_media_analyst',endpoint:'/api/agent/run',                     prompt:'Analyze competitor ad library, identify winning angles running >30 days, produce counter-creative briefs for Qoyod.',                                        saveToDrive:true  },
-  { name:'Competitor Monitor',     agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now',prompt:null,                                                                                                                                                         saveToDrive:false },
-  { name:'Editor QA',              agent:'editor_qa',         endpoint:'/api/agent/run',                     prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.',                  saveToDrive:false },
-  { name:'Daily Digest',           agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',    prompt:null,                                                                                                                                                         saveToDrive:false },
-  { name:'Daily Pulse',            agent:'orchestrator',      endpoint:'/api/reports/daily-pulse',           prompt:null,                                                                                                                                                         saveToDrive:false },
-  { name:'Monthly Review',         agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',     prompt:null,                                                                                                                                                         saveToDrive:false },
+  { name:'Content Calendar',         agent:'social_media',      endpoint:'/api/agent/run',                      prompt:'Build a content calendar for this week across Instagram, TikTok, and LinkedIn.',                                                                       saveToDrive:false },
+  { name:'Google RSA Ads',           agent:'content_creator',   endpoint:'/api/agent/run',                      prompt:'Write Google RSA ads for Qoyod — 15 Arabic headlines + 4 descriptions.',                                                                               saveToDrive:false },
+  { name:'Blog Article',             agent:'content_creator',   endpoint:'/api/agent/run',                      prompt:'Write a 1200-word blog article about ZATCA Phase 2 compliance for Saudi SMEs. Saudi dialect intro, SEO-friendly headers, clear CTA for Qoyod trial.', saveToDrive:true  },
+  { name:'Welcome Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 4-email welcome sequence for Qoyod trial signups. Arabic-first.',                                                                               saveToDrive:true  },
+  { name:'Nurture Email',            agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 4-email nurture sequence for trial users who did not convert. Weekly cadence. Arabic-first.',                                                    saveToDrive:true  },
+  { name:'Winback Sequence',         agent:'email_lifecycle',   endpoint:'/api/agent/run',                      prompt:'Build a 3-email winback for churned subscribers — Day 14, 30, 60. Saudi dialect. Offer-driven.',                                                        saveToDrive:true  },
+  { name:'Counter-Creative Brief',   agent:'paid_media_analyst',endpoint:'/api/agent/run',                      prompt:'Analyze competitor ad library, identify winning angles running >30 days, produce counter-creative briefs for Qoyod.',                                    saveToDrive:true  },
+  { name:'Daily Competitor Capture', agent:'paid_media_analyst',endpoint:'/api/agent/daily-capture/run-now',    prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Social Listening',         agent:'social_media',      endpoint:'/api/agent/listening/run-now',        prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Competitor Monitor',       agent:'social_media',      endpoint:'/api/competitor-ads/run-monitor-now', prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Editor QA',                agent:'editor_qa',         endpoint:'/api/agent/run',                      prompt:'Review the latest content from the content library and run the 11-rule pre-publish QA checklist. Flag any dialect, brand, or CTA issues.',              saveToDrive:false },
+  { name:'Daily Digest',             agent:'orchestrator',      endpoint:'/api/agent/daily-digest/run-now',     prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Daily Pulse',              agent:'orchestrator',      endpoint:'/api/reports/daily-pulse',            prompt:null,                                                                                                                                                     saveToDrive:false },
+  { name:'Monthly Review',           agent:'orchestrator',      endpoint:'/api/reports/monthly-strategic',      prompt:null,                                                                                                                                                     saveToDrive:false },
 ];
 
 // ── Scheduled tasks ───────────────────────────────────
 const SCHEDULED = [
-  { name:'Daily Team Digest',     agent:'orchestrator',      detail:'Reviews all tasks → memory + dashboard',    cron:'Daily 08:00 UTC',  progress: computeDayProgress() },
-  { name:'Competitor Monitor',    agent:'social_media',      detail:'Scrapes all channels → Slides + Doc + KB',       cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
-  { name:'Paid Media Review',     agent:'paid_media_analyst',detail:'Reviews week\'s posts: top/bottom performers + recs', cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
-  { name:'HubSpot Social Poller', agent:'social_media',      detail:'Syncs post performance into library',            cron:'Daily (periodic)', progress: 0.5 },
-  { name:'Knowledge Compound',    agent:'orchestrator',      detail:'Extracts insights after each monitor run',       cron:'After monitor',    progress: computeWeekProgress() },
+  { name:'Daily Competitor Capture', agent:'paid_media_analyst',detail:'Scrapes last 24h → counter-content briefs → Drive', cron:'Daily 07:00 UTC',  progress: computeDayProgress() },
+  { name:'Daily Team Digest',        agent:'orchestrator',      detail:'Reviews all tasks → memory + dashboard',             cron:'Daily 08:00 UTC',  progress: computeDayProgress() },
+  { name:'Social Listening',         agent:'social_media',      detail:'X + web — قيود / ZATCA / الفاتورة keywords',         cron:'Every 6h',         progress: computeListeningProgress() },
+  { name:'Competitor Monitor',       agent:'social_media',      detail:'Scrapes all channels → Slides + Doc + KB',           cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
+  { name:'Paid Media Review',        agent:'paid_media_analyst',detail:'Top/bottom performers + counter-creative recs',      cron:'Sunday 09:00 UTC', progress: computeWeekProgress() },
+  { name:'HubSpot Social Poller',    agent:'social_media',      detail:'Syncs post performance into library',                cron:'Daily (periodic)', progress: 0.5 },
 ];
 
 function computeWeekProgress() {
@@ -533,6 +602,10 @@ function computeDayProgress() {
   const now = new Date();
   const minutesIntoDay = now.getUTCHours() * 60 + now.getUTCMinutes();
   return Math.min(minutesIntoDay / (24 * 60), 0.99);
+}
+function computeListeningProgress() {
+  const h = new Date().getUTCHours();
+  return Math.min((h % 6) / 6, 0.99);
 }
 
 // ── Health checks ─────────────────────────────────────
@@ -558,7 +631,9 @@ const AGENT_KEYWORDS = {
 };
 
 function renderAgents() {
-  document.getElementById('agentGrid').innerHTML = AGENTS.map((a, i) => {
+  const agentGridEl = document.getElementById('agentGrid');
+  if (!agentGridEl) return;
+  agentGridEl.innerHTML = AGENTS.map((a, i) => {
     const iconHtml = AGENT_SVG[a.id]
       ? `<span class="agent-px" style="color:${a.color}">${AGENT_SVG[a.id]}</span>`
       : `<span class="agent-em">${a.em}</span>`;
@@ -621,13 +696,7 @@ async function fetchLiveTasks() {
   } catch { /* keep showing last data */ }
 }
 
-let channelFilter = 'all';
-function setChannelFilter(ch, el) {
-  channelFilter = ch;
-  document.querySelectorAll('.ch-pill').forEach(p => p.classList.remove('on'));
-  el.classList.add('on');
-  renderContentFeed();
-}
+
 
 function renderAgentFeed() {
   const agMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
@@ -805,8 +874,6 @@ function showToast(msg, err) {
 }
 
 // ── Social Posts Feed (live from HubSpot broadcasts) ──
-let socialPosts  = [];
-let socialLoaded = false;
 
 const CHANNEL_SVG = {
   facebook:   `<svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.27h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>`,
@@ -825,158 +892,84 @@ function chanEm(ch) {
 }
 function chanBg(ch) { return CHANNEL_BG[(ch||'').toLowerCase()] || 'rgba(47,117,242,.2)'; }
 
-async function fetchSocialPosts() {
+async function fetchSocialCounts() {
   try {
-    const r = await fetch(BASE + '/api/agent/social-posts?limit=40', { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(BASE + '/api/agent/social-posts?limit=200', { signal: AbortSignal.timeout(10000) });
     if (!r.ok) return;
     const d = await r.json();
-    socialPosts  = d.posts || [];
-    socialLoaded = true;
-    renderContentFeed();
+    const posts = d.posts || [];
+    const ch = { instagram:[], facebook:[], tiktok:[], linkedin:[], youtube:[], twitter:[] };
+    for (const p of posts) {
+      const k = (p.channelKey || p.channel || '').toLowerCase();
+      if      (k.includes('instagram'))              ch.instagram.push(p);
+      else if (k.includes('facebook'))               ch.facebook.push(p);
+      else if (k.includes('tiktok'))                 ch.tiktok.push(p);
+      else if (k.includes('linkedin'))               ch.linkedin.push(p);
+      else if (k.includes('youtube'))                ch.youtube.push(p);
+      else if (k.includes('twitter') || k.includes('x_')) ch.twitter.push(p);
+    }
+    const fmt = arr => {
+      if (!arr.length) return { n:'0', d:'' };
+      const last = arr[0]?.published_at || '';
+      const dStr = last ? new Date(last).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '';
+      return { n: String(arr.length), d: dStr };
+    };
+    const m = { ig:fmt(ch.instagram), fb:fmt(ch.facebook), tt:fmt(ch.tiktok), li:fmt(ch.linkedin), yt:fmt(ch.youtube), tw:fmt(ch.twitter) };
+    for (const [k,v] of Object.entries(m)) {
+      const ne = document.getElementById(`sc-${k}-n`), de = document.getElementById(`sc-${k}-d`);
+      if (ne) ne.textContent = v.n;
+      if (de) de.textContent = v.d || 'no posts';
+    }
   } catch (_) {}
 }
 
-function renderContentFeed() {
-  const el = document.getElementById('postsFeed');
-  if (!el) return;
-  if (!socialLoaded) {
-    el.innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">Loading published posts…</div>';
-    return;
-  }
-  let posts = socialPosts;
-  if (channelFilter !== 'all') {
-    posts = posts.filter(p => {
-      const ch = (p.channel || '').toLowerCase();
-      if (channelFilter === 'twitter') return ch.includes('twitter') || ch.includes('/x');
-      return ch.includes(channelFilter);
-    });
-  }
-  if (posts.length === 0) {
-    el.innerHTML = '<div class="feed-item" style="justify-content:center;color:var(--sub);font-size:11px;padding:24px">No published posts found' + (channelFilter !== 'all' ? ' for this channel' : ' in HubSpot') + '</div>';
-    return;
-  }
-  el.innerHTML = posts.map(p => {
-    const em      = chanEm(p.channel);
-    const time    = p.published_at ? new Date(p.published_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
-    const preview = (p.content || '').slice(0, 110) + ((p.content || '').length > 110 ? '…' : '');
-    const s       = p.stats || {};
-    const statsHtml = [
-      s.impressions != null ? `${s.impressions.toLocaleString()} views` : '',
-      s.reactions   != null ? `${s.reactions} reactions`               : '',
-      s.clicks      != null ? `${s.clicks} clicks`                     : '',
-      s.shares      != null ? `${s.shares} shares`                     : '',
-    ].filter(Boolean).join('  ·  ');
-    const clickable = p.url ? `onclick="window.open('${p.url}','_blank')" style="cursor:pointer"` : '';
-    const iconBg = chanBg(p.channel);
-    return `<div class="feed-item" ${clickable}>
-      <div class="fi-icon" style="background:${iconBg}22">${em}</div>
-      <div class="fi-body">
-        <div class="fi-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview || '—'}</div>
-        <div class="fi-meta">
-          ${statsHtml ? `<span style="color:var(--sub);font-size:9px;white-space:nowrap">${statsHtml}</span>` : ''}
-          <span class="fi-time">${time}</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── Email Campaigns ────────────────────────────────────
-let emailCampaigns = null;  // null = not fetched yet
-
-async function fetchEmailCampaigns() {
+// ── Email Campaigns — count summary ───────────────────
+async function fetchEmailCounts() {
   try {
     const r = await fetch(BASE + '/api/agent/email-campaigns', { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return;
     const d = await r.json();
-    if (!r.ok) {
-      renderEmailSection(null, d.error || 'HubSpot error');
-      return;
+    const campaigns = d.results || [];
+    const ACTIVE = ['PUBLISHED','AUTOMATED','AUTOMATED_AB','SENDING'];
+    const active = campaigns.filter(c => ACTIVE.includes((c.state||'').toUpperCase())).length;
+    const scheduled = campaigns.filter(c => (c.state||'').toUpperCase() === 'SCHEDULED').length;
+    const ae = document.getElementById('ec-active'), se = document.getElementById('ec-scheduled');
+    const at = document.getElementById('ec-active-types'), st = document.getElementById('ec-scheduled-sub');
+    if (ae) ae.textContent = String(active);
+    if (se) se.textContent = String(scheduled);
+    if (at) at.textContent = active === 1 ? 'campaign' : 'campaigns';
+    if (st) st.textContent = scheduled === 1 ? 'campaign' : 'campaigns';
+  } catch (_) {}
+}
+
+// ── Social Listening ──────────────────────────────────
+async function fetchListening() {
+  try {
+    const r = await fetch(BASE + '/api/agent/listening/latest', { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) { document.getElementById('listeningSummary').textContent = 'لا توجد بيانات بعد.'; return; }
+    const d = await r.json();
+    if (!d.ok) { document.getElementById('listeningSummary').textContent = 'لا توجد بيانات بعد — شغّل رصد يدوي أولاً.'; return; }
+    const sum = document.getElementById('listeningSummary');
+    const cnt = document.getElementById('listeningCount');
+    const bdg = document.getElementById('listeningBadges');
+    const tim = document.getElementById('listeningTime');
+    if (sum) sum.textContent = d.summary || '—';
+    if (cnt) cnt.textContent = `${d.mentions?.length ?? 0} إشارة`;
+    if (tim) tim.textContent = d.runAt ? `آخر فحص: ${new Date(d.runAt).toLocaleString('ar-SA')}` : '';
+    if (bdg) {
+      const groups = { brand:0, zatca:0, market:0 };
+      for (const m of d.mentions ?? []) if (m.group in groups) groups[m.group]++;
+      const colors = { brand:'var(--bright)', zatca:'var(--yellow)', market:'#34D399' };
+      const labels = { brand:'قيود', zatca:'ZATCA/فاتورة', market:'السوق' };
+      bdg.innerHTML = Object.entries(groups)
+        .filter(([,n]) => n > 0)
+        .map(([g,n]) => `<span class="listening-badge" style="border:1px solid ${colors[g]};color:${colors[g]}">${labels[g]}: ${n}</span>`)
+        .join('');
     }
-    emailCampaigns = d.results || [];
-    renderEmailSection(emailCampaigns, null);
-  } catch (err) {
-    renderEmailSection(null, String(err));
+  } catch (_) {
+    const el = document.getElementById('listeningSummary');
+    if (el) el.textContent = 'لا يمكن الاتصال بالسيرفر.';
   }
-}
-
-function fmtDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-}
-function fmtPct(num, denom) {
-  return denom > 0 ? ((num / denom) * 100).toFixed(1) + '%' : '—';
-}
-
-function renderEmailSection(campaigns, error) {
-  const el = document.getElementById('emailSection');
-  if (!el) return;
-  if (error) { el.innerHTML = `<div class="email-error">⚠ ${error}</div>`; return; }
-  if (!campaigns || campaigns.length === 0) {
-    el.innerHTML = '<div class="email-empty">No published emails found in HubSpot</div>';
-    return;
-  }
-
-  // Group by state — map HubSpot real states to display buckets
-  const groups = { PUBLISHED:[], SCHEDULED:[], AUTOMATED:[], SENDING:[] };
-  for (const e of campaigns) {
-    const s = (e.state || '').toUpperCase();
-    if (s === 'AUTOMATED' || s === 'AUTOMATED_AB') groups.AUTOMATED.push(e);
-    else if (groups[s]) groups[s].push(e);
-    else groups.PUBLISHED.push(e);
-  }
-
-  const GROUP_META = {
-    PUBLISHED: { label:'Published / Sent', em:'✅', cls:'es-sent',      open: true  },
-    SCHEDULED: { label:'Scheduled',        em:'⏰', cls:'es-scheduled', open: true  },
-    AUTOMATED: { label:'Automated',        em:'🔁', cls:'es-sending',   open: false },
-    SENDING:   { label:'Sending Now',      em:'📤', cls:'es-sending',   open: true  },
-  };
-
-  let html = '';
-  for (const [state, items] of Object.entries(groups)) {
-    if (!items.length) continue;
-    const m = GROUP_META[state];
-    const bodyId = 'eg_' + state;
-    html += `<div class="email-group">
-      <div class="email-group-head" onclick="toggleEmailGroup('${bodyId}')">
-        <span class="email-state ${m.cls}">${m.em} ${m.label}</span>
-        <span class="email-group-title"></span>
-        <span class="email-group-count">${items.length} email${items.length>1?'s':''}</span>
-        <span class="email-group-caret ${m.open?'open':''}">▼</span>
-      </div>
-      <div class="email-group-body ${m.open?'open':''}" id="${bodyId}">`;
-
-    for (const e of items) {
-      const s   = e.stats || {};
-      const del = s.delivered || s.sent || 0;
-      const row = [
-        del   ? `📬 ${del.toLocaleString()}` : '',
-        s.opens   ? `👁 ${fmtPct(s.opens,   del)}` : '',
-        s.clicks  ? `🔗 ${fmtPct(s.clicks,  del)}` : '',
-        s.bounces ? `↩ ${s.bounces}` : '',
-      ].filter(Boolean).join('  ');
-      const date = fmtDate(e.publishDate || e.scheduledAt);
-      const href = e.viewUrl ? `onclick="window.open('${e.viewUrl}','_blank')" style="cursor:pointer"` : '';
-      html += `<div class="email-row" ${href}>
-        <div class="email-row-name">
-          <div class="email-row-title">${e.name || '(unnamed)'}${e.viewUrl ? ' <span style="color:var(--sub);font-size:9px">↗</span>' : ''}</div>
-          ${e.subject ? `<div class="email-row-sub">${e.subject}</div>` : ''}
-        </div>
-        ${row ? `<div class="email-row-stats"><span>${row}</span></div>` : ''}
-        ${date ? `<div class="email-row-date">${date}</div>` : ''}
-      </div>`;
-    }
-    html += `</div></div>`;
-  }
-  el.innerHTML = html;
-}
-
-function toggleEmailGroup(id) {
-  const body  = document.getElementById(id);
-  const caret = body?.previousElementSibling?.querySelector('.email-group-caret');
-  if (!body) return;
-  body.classList.toggle('open');
-  if (caret) caret.classList.toggle('open');
 }
 
 // ── Daily Digest ──────────────────────────────────────
@@ -1017,7 +1010,6 @@ function renderDigest(d) {
 function init() {
   renderAgents();
   renderAgentFeed();
-  renderContentFeed();
   renderOnDemand();
   renderScheduled();
   renderHealth();
@@ -1026,11 +1018,15 @@ function init() {
   fetchHealth();
   setInterval(fetchHealth, 60000);
   fetchLiveTasks();
-  setInterval(fetchLiveTasks, 30000); // refresh task feed every 30s
+  setInterval(fetchLiveTasks, 30000);
   fetchDigest();
-  setInterval(fetchDigest, 5 * 60 * 1000); // refresh digest every 5 min
-  fetchSocialPosts();      // pre-load so Posts tab is instant
-  fetchEmailCampaigns();   // pre-load email section on page open
+  setInterval(fetchDigest, 5 * 60 * 1000);
+  fetchSocialCounts();
+  setInterval(fetchSocialCounts, 5 * 60 * 1000);
+  fetchEmailCounts();
+  setInterval(fetchEmailCounts, 5 * 60 * 1000);
+  fetchListening();
+  setInterval(fetchListening, 10 * 60 * 1000);
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>

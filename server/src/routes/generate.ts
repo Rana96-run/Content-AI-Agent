@@ -271,6 +271,19 @@ async function generateWithFallback(
   };
 }
 
+// ─── Output humaniser ───────────────────────────────────────────────────────
+// Strips decorative markdown (headers, bold, italic, horizontal rules) from AI
+// output so it reads as natural Arabic prose rather than a structured document.
+function humaniseOutput(text: string): string {
+  return text
+    .replace(/^#{1,4}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/^[-*_]{3,}\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // ─── Dedup cache ────────────────────────────────────────────────────────────
 
 const DEDUP_TTL_MS = 30_000;
@@ -375,6 +388,11 @@ router.post("/generate", async (req, res) => {
 
   // Stamp the provider so the client can show a "fallback active" hint if it wants
   if (result.provider !== "anthropic") result.data.provider = result.provider;
+
+  // Strip decorative markdown from AI output — convert to natural prose
+  if (!json_mode && result.data.content?.[0]?.text) {
+    result.data.content[0].text = humaniseOutput(result.data.content[0].text);
+  }
 
   dedupCache.set(key, { ts: Date.now(), resp: result.data });
   res.set("X-Cache", "MISS");
