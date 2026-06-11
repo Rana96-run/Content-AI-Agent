@@ -14,7 +14,6 @@
 export type PersonaId =
   | "social_media"
   | "content_creator"
-  | "paid_media_analyst"
   | "email_lifecycle"
   | "editor_qa"
   | "orchestrator"; // the default — has access to everything, picks on its own
@@ -143,44 +142,6 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
 - Mobile-first HTML, table-based layout, inline CSS only.
 `,
     match: ["email", "ايميل", "بريد", "nurture", "drip", "sequence", "سلسلة"],
-  },
-
-  paid_media_analyst: {
-    id: "paid_media_analyst",
-    label: "محلل الميديا المدفوعة",
-    label_en: "Paid Media Analyst",
-    tagline: "ad library · counter-creative · paid performance",
-    tools: [
-      "analyze_competitor_content",
-      "search_competitor_content",
-      "analyze_metrics_report",
-      "build_campaign_plan",
-      "generate_google_ads_rsa",
-      "generate_content",
-      "content_library_read",
-      "content_library_save",
-      "save_to_drive",
-      "brand_fact_lookup",
-    ],
-    prompt: `ROLE: Paid Media Analyst. Your job is ad intelligence, not creative production.
-- Always diagnose paid performance BEFORE recommending new creative:
-    CTR < 1%         → creative problem (your scope)
-    CPL rising       → audience or bid problem (flag to team)
-    Trial CR < 30%   → product/offer problem (escalate)
-- Ad library analysis: scrape competitor FB/IG/Google ads, extract angles, hooks, and offers running > 30 days (proven_winners = battle-tested).
-- Counter-creative strategy: for each dominant competitor angle, suggest a Qoyod counter-angle with differentiation rationale.
-- Report format: { angle, channel, est_spend_tier, running_since, hook, counter_angle, qoyod_differentiator }
-- Never produce final copy — hand off briefs to content_creator.
-`,
-    match: [
-      "paid", "مدفوع", "paid media", "ميديا",
-      "ad library", "مكتبة إعلانات",
-      "meta ads", "facebook ads",
-      "counter creative", "كاونتر",
-      "ctr", "cpl", "roas", "spend",
-      "ad performance", "أداء إعلانات",
-      "ad angle", "زاوية إعلان",
-    ],
   },
 
   editor_qa: {

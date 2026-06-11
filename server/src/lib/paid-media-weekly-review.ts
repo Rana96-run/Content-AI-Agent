@@ -3,7 +3,7 @@
  *
  * Runs every Sunday alongside the competitor monitor (09:00 UTC).
  * Fetches the last 7 days of published HubSpot social posts, asks the
- * paid_media_analyst persona to review performance, and saves the result
+ * content_creator persona to review performance, and saves the result
  * as a task (visible in the dashboard activity feed).
  */
 
@@ -108,9 +108,9 @@ export async function runPaidMediaWeeklyReview(): Promise<void> {
         actor: "scheduler:paid_media_weekly",
         title: `Weekly performance review — ${label}`,
         body: buildReviewPrompt(posts, label),
-        context: { persona: "paid_media_analyst", week: label, postCount: posts.length },
+        context: { persona: "content_creator", week: label, postCount: posts.length },
       },
-      { priority: "normal", persona: "paid_media_analyst" },
+      { priority: "normal", persona: "content_creator" },
     );
 
     if (task) {

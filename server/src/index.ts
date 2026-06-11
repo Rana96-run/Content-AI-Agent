@@ -9,6 +9,7 @@ import { startDailyDigest } from "./lib/daily-digest.js";
 import { callClaude } from "./lib/ai-call.js";
 import { runSocialListener } from "./lib/social-listener.js";
 import { runDailyCompetitorCapture } from "./lib/daily-competitor-capture.js";
+import { startMonthlyCalendar } from "./lib/monthly-calendar.js";
 
 const port = Number(process.env.PORT) || 8080;
 
@@ -51,6 +52,7 @@ app.listen(port, () => {
   startDailyDigest();          // Team Manager reviews all tasks daily 08:00 UTC → data/daily-summary.json
   startSocialListenerScheduler();  // Social listening — every 6h
   startDailyCapture();             // Daily competitor capture — 07:00 UTC
+  startMonthlyCalendar();          // Monthly content calendar — 1st of month 08:00 UTC
   // Knowledge feeds (D2 + D3) — make the agent smarter every day
   startVoiceRefresher(callClaude);
   startZatcaWatcher(callClaude);

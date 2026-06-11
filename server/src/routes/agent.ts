@@ -650,38 +650,6 @@ const TOOLS = [
     },
   },
   {
-    name: "generate_google_ads_rsa",
-    description:
-      "Draft a Google Ads Responsive Search Ad (RSA): 15 headlines + 4 descriptions, Saudi Arabic + English, with character counts validated.",
-    input_schema: {
-      type: "object",
-      properties: {
-        product: { type: "string" },
-        landing_url: { type: "string" },
-        keywords: { type: "array", items: { type: "string" } },
-        funnel: { type: "string", enum: ["TOF", "MOF", "BOF"] },
-        language: { type: "string", enum: ["ar", "en", "bilingual"] },
-      },
-      required: ["product", "keywords"],
-    },
-  },
-  {
-    name: "build_blog_article",
-    description:
-      "Write a long-form SEO blog article (Arabic or English) with H1/H2s, intro, body, FAQ schema block, and internal-link suggestions.",
-    input_schema: {
-      type: "object",
-      properties: {
-        topic: { type: "string" },
-        primary_keyword: { type: "string" },
-        secondary_keywords: { type: "array", items: { type: "string" } },
-        language: { type: "string", enum: ["ar", "en"] },
-        word_count: { type: "number" },
-      },
-      required: ["topic", "primary_keyword"],
-    },
-  },
-  {
     name: "analyze_metrics_report",
     description:
       "Given a JSON blob of campaign or landing-page metrics, return an insights report with 3 actions for next 14 days.",
@@ -1179,25 +1147,6 @@ ${pageText ? `\nPublic page text:\n${pageText}` : ""}
 JSON: {"themes":["..."],"tone":"...","hooks_used":["..."],"posting_cadence":"...","gaps_for_qoyod":["..."],"steal_ideas":["..."]}`;
       const t = await claudeText(sys, usr, 2000);
       return safeJSON(t) ?? { raw: t };
-    }
-    case "generate_google_ads_rsa": {
-      const { product, keywords = [], funnel = "MOF", landing_url = "", language = "bilingual" } = input;
-      const sys = `You are a Google Ads specialist for Qoyod. Output JSON only. Hard limits: headlines ≤30 chars, descriptions ≤90 chars. Saudi-dialect Arabic, never Egyptian.`;
-      const usr = `Product: ${product}. Funnel: ${funnel}. Target keywords: ${keywords.join(", ")}. Landing: ${landing_url}. Language: ${language}.
-JSON: {"headlines":[{"text":"...","chars":N}],"descriptions":[{"text":"...","chars":N}],"paths":["path1","path2"],"final_url":"..."} — 15 headlines + 4 descriptions.`;
-      const t = await claudeText(sys, usr, 2500);
-      return safeJSON(t) ?? { raw: t };
-    }
-    case "build_blog_article": {
-      const { topic, primary_keyword, secondary_keywords = [], language = "ar", word_count = 1500 } = input;
-      const sys = `You write SEO blog articles for Qoyod. ${language === "ar" ? "Saudi dialect for tone, MSA for facts." : "Clear business English."} Output Markdown only.`;
-      const usr = `Topic: ${topic}
-Primary keyword: ${primary_keyword}
-Secondary: ${secondary_keywords.join(", ")}
-Target length: ~${word_count} words.
-Structure: H1, 200-word intro (keyword in first 100 chars), 4-7 H2 sections, FAQ block (5 Q&As), internal-link suggestions as a trailing list.`;
-      const md = await claudeText(sys, usr, 4500);
-      return { markdown: md, word_count: md.split(/\s+/).length };
     }
     case "analyze_metrics_report": {
       const { metrics, context = "" } = input;
@@ -2169,6 +2118,16 @@ router.post("/daily-digest/run-now", async (_req, res) => {
         logger.warn({ err: String(err) }, "daily-digest: drive save failed (non-fatal)")
       );
     }
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+router.post("/monthly-calendar/run-now", async (_req, res) => {
+  try {
+    const { runMonthlyCalendar } = await import("../lib/monthly-calendar.js");
+    const out = await runMonthlyCalendar();
     res.json(out);
   } catch (e) {
     res.status(500).json({ error: String(e) });

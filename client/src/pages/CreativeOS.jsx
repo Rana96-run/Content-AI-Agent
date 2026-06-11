@@ -2190,7 +2190,6 @@ export default function CreativeOS(){
                         {id:"orchestrator",label:"المنسق",label_en:"Orchestrator"},
                         {id:"social_media",label:"السوشيال",label_en:"Social"},
                         {id:"content_creator",label:"المحتوى",label_en:"Content"},
-                        {id:"paid_media_analyst",label:"الإعلانات",label_en:"Paid Media"},
                         {id:"email_lifecycle",label:"البريد",label_en:"Email"},
                         {id:"editor_qa",label:"المدقق",label_en:"Editor QA"},
                       ]).map(p=>(

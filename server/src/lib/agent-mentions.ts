@@ -25,12 +25,12 @@ const HANDLE_MAP: Record<string, PersonaId> = {
   content: "content_creator",
   "محتوى": "content_creator",
   "كاتب": "content_creator",
-  // paid media analyst
-  paid: "paid_media_analyst",
-  pma: "paid_media_analyst",
-  "media": "paid_media_analyst",
-  "ads": "paid_media_analyst",
-  "adlibrary": "paid_media_analyst",
+  // ad library / competitor intel → content_creator handles counter-creative
+  paid: "content_creator",
+  pma: "content_creator",
+  "media": "content_creator",
+  "ads": "content_creator",
+  "adlibrary": "content_creator",
   // email
   email: "email_lifecycle",
   lifecycle: "email_lifecycle",
