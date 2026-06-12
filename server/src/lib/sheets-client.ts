@@ -855,14 +855,14 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       ...w.map((px, i) => colWidth(id, i, px)),
       // Clear the stale data validation that was on col 2 (Content) before the column fix
       { setDataValidation: { range: { sheetId: id, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: 2, endColumnIndex: 3 } } },
-      dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Google Ads","Web"]),
+      dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat"]),
       condFmt(id, 1, "Instagram",  "#E1306C", "#FFFFFF"),
       condFmt(id, 1, "Facebook",   "#1877F2", "#FFFFFF"),
       condFmt(id, 1, "YouTube",    "#FF0000", "#FFFFFF"),
       condFmt(id, 1, "TikTok",     "#010101", "#FFFFFF"),
-      condFmt(id, 1, "Google Ads", "#4285F4", "#FFFFFF"),
       condFmt(id, 1, "LinkedIn",   "#0A66C2", "#FFFFFF"),
       condFmt(id, 1, "Twitter/X",  "#1DA1F2", "#FFFFFF"),
+      condFmt(id, 1, "Snapchat",   "#FFFC00", "#000000"),
     );
     formatted.push("Competitor Posts");
   }
