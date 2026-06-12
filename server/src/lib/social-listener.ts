@@ -14,7 +14,22 @@ const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 // Web search is used only for zatca/market (regulatory news, not brand chatter).
 const KEYWORDS: Record<"brand" | "zatca" | "market", { terms: string[]; webSearch: boolean }> = {
   brand:  { terms: ["qoyod", "برنامج قيود", "تطبيق قيود", "#قيود", "@qoyod", "qoyod.com"], webSearch: false },
-  zatca:  { terms: ["هيئة الزكاة والضريبة", "ZATCA", "الفاتورة الالكترونية", "المرحلة الثانية للفاتورة", "فاتورة ضريبية", "#فاتورة_الكترونية", "فوترة إلكترونية"], webSearch: true },
+  zatca:  { terms: [
+    "هيئة الزكاة والضريبة",
+    "هيئة الزكاة والضريبة والجمارك",
+    "ZATCA",
+    "الفاتورة الالكترونية",
+    "الفاتورة الالكترونية المرحلة الثانية",
+    "المرحلة الثانية للفاتورة",
+    "ربط الفاتورة الالكترونية",
+    "رفع القوائم المالية",
+    "منصة فاتورة",
+    "fatoorah portal",
+    "e-invoice phase 2",
+    "فاتورة ضريبية",
+    "#فاتورة_الكترونية",
+    "فوترة إلكترونية",
+  ], webSearch: true },
   market: { terms: ["وزارة التجارة السعودية", "برنامج محاسبة", "نظام محاسبي", "فاتورة معتمدة", "#محاسبة_سعودية"], webSearch: true },
 };
 
