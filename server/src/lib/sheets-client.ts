@@ -758,7 +758,17 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     delete idMap["Content Brief"];
   }
 
-  // 2. Update Content Briefs header row to 12-col schema (adds Source as first col)
+  // 2. Fix Competitor Posts header to 6-col schema (was written with old 9-col names)
+  if (idMap["Competitor Posts"] != null) {
+    await s.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Competitor Posts'!A1:F1",
+      valueInputOption: "RAW",
+      requestBody: { values: [["Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement"]] },
+    });
+  }
+
+  // 3. Update Content Briefs header row to 12-col schema (adds Source as first col)
   if (idMap["Content Briefs"] != null) {
     await s.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -885,7 +895,7 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       headerFormat(id, 8),
       altRows(id, 8),
       ...w.map((px, i) => colWidth(id, i, px)),
-      dropdown(id, 1, 2, ["content_insight","creative_insight","competitor_insight","market_trend","zatca_update"]),
+      dropdown(id, 1, 2, ["icp_signal","ad_pattern","hook_angle","content_insight","sector_insight","anti_pattern","competitor_move","competitor_insight"]),
       dropdown(id, 6, 7, ["high","medium","low"]),
     );
     formatted.push("Knowledge Base");
