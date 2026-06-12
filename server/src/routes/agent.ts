@@ -2470,6 +2470,20 @@ router.post("/listening/run-now", (_req, res) => {
   );
 });
 
+router.post("/listening/slides", async (_req, res) => {
+  try {
+    const { getLatestListeningResult } = await import("../lib/social-listener.js");
+    const result = getLatestListeningResult();
+    if (!result) return res.status(404).json({ ok: false, error: "No listening data yet — run listen first" });
+    const { createListeningSlidePresentation } = await import("../lib/competitor-slides-renderer.js");
+    const weekLabel = new Date().toISOString().slice(0, 10);
+    const slides = await createListeningSlidePresentation(result, weekLabel);
+    return res.json(slides);
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 // ─── Daily Competitor Capture endpoint ──────────────────────────────────────
 
 router.post("/daily-capture/run-now", (_req, res) => {

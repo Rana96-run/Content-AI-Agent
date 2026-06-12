@@ -333,6 +333,36 @@
   .wf-output { font-size: 9px; color: #34D399; }
   /* Social Listening panel */
   .listening-badge { padding: 2px 8px; border-radius: 20px; background: rgba(0,0,0,.3); font-size: 9px; display: inline-block; margin: 2px; }
+  /* Campaign Brief */
+  .brief-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .brief-tile { padding: 12px 14px; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 9px; }
+  .brief-tile-lbl { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--sub); margin-bottom: 5px; }
+  .brief-tile-val { font-size: 11px; color: var(--text); line-height: 1.5; }
+  .brief-tile-val.empty { color: var(--sub); font-style: italic; }
+  .brief-hook { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; margin: 2px 2px 0 0; }
+  .brief-hook.win  { background: rgba(34,197,94,.15); color: #34D399; border: 1px solid rgba(34,197,94,.25); }
+  .brief-hook.lose { background: rgba(239,68,68,.1); color: #F87171; border: 1px solid rgba(239,68,68,.2); }
+  /* Brief edit modal */
+  .brief-modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center; }
+  .brief-modal-box { background:var(--card);border:1px solid var(--border);border-radius:14px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:24px; }
+  .brief-modal-title { font-size:15px;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center; }
+  .brief-modal-section { font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin:16px 0 8px; }
+  .brief-input { width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;font-family:inherit; }
+  .brief-input:focus { outline:none;border-color:var(--bright); }
+  .brief-textarea { resize:vertical;min-height:56px; }
+  .brief-channels { display:flex;flex-wrap:wrap;gap:6px;margin-top:4px; }
+  .brief-ch-btn { padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--sub);font-size:10px;cursor:pointer;transition:all .15s; }
+  .brief-ch-btn.active { background:rgba(47,117,242,.2);border-color:var(--bright);color:var(--bright); }
+  .brief-save-btn { margin-top:18px;width:100%;padding:10px;border-radius:8px;background:var(--bright);border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer; }
+  .brief-save-btn:hover { background:var(--accent); }
+  @media (max-width: 700px) { .brief-grid { grid-template-columns: 1fr 1fr; } }
+  /* Foldable sections */
+  .fold-hdr { cursor:pointer; user-select:none; display:flex !important; justify-content:space-between; align-items:center; }
+  .fold-hdr:hover { color:var(--text); }
+  .fold-chev { font-size:9px; color:var(--sub); transition:transform .18s; display:inline-block; margin-left:6px; flex-shrink:0; }
+  .fold-chev.closed { transform:rotate(-90deg); }
+  .fold-body { overflow:hidden; transition:opacity .15s; }
+  .fold-body.closed { display:none; }
 </style>
 </head>
 <body>
@@ -346,6 +376,14 @@
     </div>
   </div>
   <div class="hdr-right">
+    <a id="btnDrive" href="#" target="_blank" style="display:none;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:#34D399;text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 2L2 10l4.2 7.3h11.6L22 10 17.4 2H6.6zm5.4 13.5c-1.9 0-3.5-1.6-3.5-3.5S10.1 9 12 9s3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>
+      Drive
+    </a>
+    <a id="btnSheets" href="#" target="_blank" style="display:none;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#4ade80;text-decoration:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      Sheets
+    </a>
     <a href="/" style="display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(47,117,242,.1);border:1px solid rgba(47,117,242,.25);color:var(--accent);text-decoration:none;">← Main App</a>
     <div class="pill pill-green"><div class="dot dot-green"></div><span id="sysStatusLabel">Checking...</span></div>
     <div class="pill pill-blue"><div class="dot dot-blue"></div><span id="commitLabel">–</span></div>
@@ -384,8 +422,28 @@
   </div>
 
   <!-- Agent Workflow Map — populated by renderAgents() -->
-  <div class="section-label">Agent Workflow — من يفعل ماذا · اضغط على أي دور للاطلاع على الدليل الكامل</div>
-  <div class="workflow-grid" id="workflowGrid"></div>
+  <div class="section-label fold-hdr" onclick="toggleFold('agents')">Agent Workflow — من يفعل ماذا · اضغط للاطلاع على الدليل الكامل<span class="fold-chev" id="fc-agents">▼</span></div>
+  <div class="fold-body" id="fb-agents">
+    <div class="workflow-grid" id="workflowGrid"></div>
+  </div>
+
+  <!-- Campaign Brief -->
+  <div class="section-label fold-hdr" style="margin-top:20px" onclick="toggleFold('brief')">
+    Campaign Brief — ما يُعرض الآن
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="event.stopPropagation();openBriefModal()" style="padding:4px 10px;border-radius:6px;background:rgba(47,117,242,.15);border:1px solid rgba(47,117,242,.35);color:var(--bright);font-size:10px;font-weight:600;cursor:pointer;">تحديث</button>
+      <span class="fold-chev" id="fc-brief">▼</span>
+    </div>
+  </div>
+  <div class="fold-body" id="fb-brief">
+    <div class="brief-grid" id="briefGrid">
+      <div class="brief-tile"><div class="brief-tile-lbl">الحملة الحالية</div><div class="brief-tile-val empty" id="bfCampaign">لم يُحدَّث بعد</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">القطاع + المنتج</div><div class="brief-tile-val empty" id="bfSector">—</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">القنوات النشطة</div><div class="brief-tile-val empty" id="bfChannels">—</div></div>
+      <div class="brief-tile" style="grid-column:span 2"><div class="brief-tile-lbl">ما نجح هذا الأسبوع</div><div class="brief-tile-val" id="bfWins">—</div></div>
+      <div class="brief-tile"><div class="brief-tile-lbl">ما لم ينجح</div><div class="brief-tile-val" id="bfLosses">—</div></div>
+    </div>
+  </div>
 
   <!-- 2-col layout: content left, sidebar right -->
   <div class="content-layout">
@@ -395,41 +453,47 @@
 
       <!-- Social Pulse — counts only -->
       <div>
-        <div class="section-label">Social Pulse — Published Posts</div>
-        <div class="card" style="padding:16px">
-          <div class="social-counts" id="socialCounts">
-            <div class="sc-item"><span class="sc-num" id="sc-ig-n">—</span><span class="sc-lbl">Instagram</span><span class="sc-sub" id="sc-ig-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-fb-n">—</span><span class="sc-lbl">Facebook</span><span class="sc-sub" id="sc-fb-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-tt-n">—</span><span class="sc-lbl">TikTok</span><span class="sc-sub" id="sc-tt-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-li-n">—</span><span class="sc-lbl">LinkedIn</span><span class="sc-sub" id="sc-li-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-yt-n">—</span><span class="sc-lbl">YouTube</span><span class="sc-sub" id="sc-yt-d">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="sc-tw-n">—</span><span class="sc-lbl">Twitter/X</span><span class="sc-sub" id="sc-tw-d">—</span></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('social')">Social Pulse — Published Posts<span class="fold-chev" id="fc-social">▼</span></div>
+        <div class="fold-body" id="fb-social">
+          <div class="card" style="padding:16px">
+            <div class="social-counts" id="socialCounts">
+              <div class="sc-item"><span class="sc-num" id="sc-ig-n">—</span><span class="sc-lbl">Instagram</span><span class="sc-sub" id="sc-ig-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-fb-n">—</span><span class="sc-lbl">Facebook</span><span class="sc-sub" id="sc-fb-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-tt-n">—</span><span class="sc-lbl">TikTok</span><span class="sc-sub" id="sc-tt-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-li-n">—</span><span class="sc-lbl">LinkedIn</span><span class="sc-sub" id="sc-li-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-yt-n">—</span><span class="sc-lbl">YouTube</span><span class="sc-sub" id="sc-yt-d">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="sc-tw-n">—</span><span class="sc-lbl">Twitter/X</span><span class="sc-sub" id="sc-tw-d">—</span></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Email Campaigns — count summary -->
       <div>
-        <div class="section-label">Email — HubSpot Campaigns</div>
-        <div class="card" style="padding:16px">
-          <div class="social-counts" style="grid-template-columns:repeat(2,1fr)">
-            <div class="sc-item"><span class="sc-num" id="ec-active">—</span><span class="sc-lbl">Active</span><span class="sc-sub" id="ec-active-types">—</span></div>
-            <div class="sc-item"><span class="sc-num" id="ec-scheduled">—</span><span class="sc-lbl">Scheduled</span><span class="sc-sub" id="ec-scheduled-sub">campaigns</span></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('email')">Email — HubSpot Campaigns<span class="fold-chev" id="fc-email">▼</span></div>
+        <div class="fold-body" id="fb-email">
+          <div class="card" style="padding:16px">
+            <div class="social-counts" style="grid-template-columns:repeat(2,1fr)">
+              <div class="sc-item"><span class="sc-num" id="ec-active">—</span><span class="sc-lbl">Active</span><span class="sc-sub" id="ec-active-types">—</span></div>
+              <div class="sc-item"><span class="sc-num" id="ec-scheduled">—</span><span class="sc-lbl">Scheduled</span><span class="sc-sub" id="ec-scheduled-sub">campaigns</span></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Social Listening Panel -->
       <div>
-        <div class="section-label">Social Listening — Brand + ZATCA + Market</div>
-        <div class="card" style="padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:11px;font-weight:600;color:var(--text)">Latest Monitor</span>
-            <span id="listeningCount" style="font-size:10px;color:var(--sub)">—</span>
+        <div class="section-label fold-hdr" onclick="toggleFold('listening')">Social Listening — Brand + ZATCA + Market<span class="fold-chev" id="fc-listening">▼</span></div>
+        <div class="fold-body" id="fb-listening">
+          <div class="card" style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:11px;font-weight:600;color:var(--text)">Latest Monitor</span>
+              <span id="listeningCount" style="font-size:10px;color:var(--sub)">—</span>
+            </div>
+            <div id="listeningSummary" style="font-size:11px;color:rgba(255,255,255,.75);line-height:1.7;min-height:36px">جاري التحميل...</div>
+            <div style="margin-top:8px" id="listeningBadges"></div>
+            <div style="margin-top:6px;font-size:9px;color:var(--sub)" id="listeningTime"></div>
           </div>
-          <div id="listeningSummary" style="font-size:11px;color:rgba(255,255,255,.75);line-height:1.7;min-height:36px">جاري التحميل...</div>
-          <div style="margin-top:8px" id="listeningBadges"></div>
-          <div style="margin-top:6px;font-size:9px;color:var(--sub)" id="listeningTime"></div>
         </div>
       </div>
 
@@ -440,41 +504,52 @@
 
       <!-- Agent Activity (pure log, no tabs) -->
       <div>
-        <div class="section-label">Agent Activity</div>
-        <div class="card">
-          <div class="feed" id="agentFeed" style="max-height:340px;"></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('activity')">Agent Activity<span class="fold-chev" id="fc-activity">▼</span></div>
+        <div class="fold-body" id="fb-activity">
+          <div class="card">
+            <div class="feed" id="agentFeed" style="max-height:340px;"></div>
+          </div>
         </div>
       </div>
 
       <!-- Actions & Schedule (combined) -->
       <div>
-        <div class="section-label">Actions &amp; Schedule</div>
-        <div class="card">
-          <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
-            <div class="od-list" id="onDemandList"></div>
-            <div class="card-divider" style="margin:12px 0;"></div>
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
-            <div class="sched-list" id="schedList"></div>
+        <div class="section-label fold-hdr" onclick="toggleFold('actions')">Actions &amp; Schedule<span class="fold-chev" id="fc-actions">▼</span></div>
+        <div class="fold-body" id="fb-actions">
+          <div class="card">
+            <div class="card-body" style="padding-top:10px;padding-bottom:10px;">
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">On-Demand</div>
+              <div class="od-list" id="onDemandList"></div>
+              <div id="lastCaptureRow" style="display:none;margin-top:8px;padding:6px 8px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;">
+                <span style="font-size:9px;font-weight:600;color:#34D399;text-transform:uppercase;letter-spacing:.05em">آخر تحليل منافسين</span>
+                <a id="lastCaptureLink" href="#" target="_blank" style="display:block;font-size:10px;color:var(--text);margin-top:2px;text-decoration:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"></a>
+                <span id="lastCaptureDate" style="font-size:9px;color:var(--sub)"></span>
+              </div>
+              <div class="card-divider" style="margin:12px 0;"></div>
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Scheduled</div>
+              <div class="sched-list" id="schedList"></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- System: Review + Health + Countdown -->
       <div>
-        <div class="section-label">System</div>
-        <div class="card">
-          <div class="card-body">
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Last Team Review</div>
-            <div id="reviewPanel">
-              <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
-            </div>
-            <div class="card-divider" style="margin:10px 0;"></div>
-            <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">System Health</div>
-            <div id="healthList"></div>
-            <div class="cdown-box">
-              <div class="cdown-lbl">Next competitor monitor — Sun 09:00 UTC</div>
-              <div class="cdown-val" id="cdownVal">–</div>
+        <div class="section-label fold-hdr" onclick="toggleFold('system')">System<span class="fold-chev" id="fc-system">▼</span></div>
+        <div class="fold-body" id="fb-system">
+          <div class="card">
+            <div class="card-body">
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Last Team Review</div>
+              <div id="reviewPanel">
+                <div class="review-empty">No review yet — runs daily 08:00 UTC</div>
+              </div>
+              <div class="card-divider" style="margin:10px 0;"></div>
+              <div style="font-size:10px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">System Health</div>
+              <div id="healthList"></div>
+              <div class="cdown-box">
+                <div class="cdown-lbl">Next competitor monitor — Sun 09:00 UTC</div>
+                <div class="cdown-val" id="cdownVal">–</div>
+              </div>
             </div>
           </div>
         </div>
@@ -487,6 +562,74 @@
 </main>
 
 <div id="toast"></div>
+
+<!-- Campaign Brief edit modal -->
+<div class="brief-modal-overlay" id="briefModal" style="display:none" onclick="if(event.target===this)closeBriefModal()">
+  <div class="brief-modal-box">
+    <div class="brief-modal-title">
+      <span>تحديث Campaign Brief</span>
+      <button onclick="closeBriefModal()" style="background:none;border:none;color:var(--sub);font-size:18px;cursor:pointer;line-height:1">×</button>
+    </div>
+
+    <div class="brief-modal-section">شهري — الحملة والقطاع</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">اسم الحملة</div>
+        <input id="bf_campaign" class="brief-input" placeholder="مثال: حملة Q3 — مخزون ذكي">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">القطاع المستهدف</div>
+        <input id="bf_sector" class="brief-input" placeholder="مثال: تجزئة وتجارة إلكترونية">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">التركيز على المنتج</div>
+        <input id="bf_product" class="brief-input" placeholder="مثال: إدارة المخزون + التقارير">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">موجة ZATCA الحالية</div>
+        <input id="bf_zatca" class="brief-input" placeholder="مثال: موجة 15 — +5M ريال">
+      </div>
+    </div>
+
+    <div class="brief-modal-section">القنوات النشطة (محتوى عضوي)</div>
+    <div class="brief-channels" id="bf_activeChannels">
+      <button class="brief-ch-btn" data-ch="Instagram" onclick="toggleChannel('active',this)">Instagram</button>
+      <button class="brief-ch-btn" data-ch="LinkedIn" onclick="toggleChannel('active',this)">LinkedIn</button>
+      <button class="brief-ch-btn" data-ch="TikTok" onclick="toggleChannel('active',this)">TikTok</button>
+      <button class="brief-ch-btn" data-ch="Snapchat" onclick="toggleChannel('active',this)">Snapchat</button>
+      <button class="brief-ch-btn" data-ch="Twitter/X" onclick="toggleChannel('active',this)">Twitter/X</button>
+      <button class="brief-ch-btn" data-ch="Facebook" onclick="toggleChannel('active',this)">Facebook</button>
+    </div>
+
+    <div class="brief-modal-section">القنوات المدفوعة (لتجنب تكرار الزاوية)</div>
+    <div class="brief-channels" id="bf_budgetChannels">
+      <button class="brief-ch-btn" data-ch="Instagram" onclick="toggleChannel('budget',this)">Instagram</button>
+      <button class="brief-ch-btn" data-ch="LinkedIn" onclick="toggleChannel('budget',this)">LinkedIn</button>
+      <button class="brief-ch-btn" data-ch="TikTok" onclick="toggleChannel('budget',this)">TikTok</button>
+      <button class="brief-ch-btn" data-ch="Snapchat" onclick="toggleChannel('budget',this)">Snapchat</button>
+      <button class="brief-ch-btn" data-ch="Twitter/X" onclick="toggleChannel('budget',this)">Twitter/X</button>
+      <button class="brief-ch-btn" data-ch="Facebook" onclick="toggleChannel('budget',this)">Facebook</button>
+    </div>
+
+    <div class="brief-modal-section">أسبوعي — الأداء</div>
+    <div style="display:grid;gap:8px">
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">ما نجح هذا الأسبوع (سطر لكل hook)</div>
+        <textarea id="bf_topHooks" class="brief-input brief-textarea" placeholder="مثال: خوف من الغرامة&#10;عرض المخزون اللحظي"></textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">ما لم ينجح (سطر لكل hook)</div>
+        <textarea id="bf_bottomHooks" class="brief-input brief-textarea" placeholder="مثال: رسالة التسجيل المجاني"></textarea>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--sub);margin-bottom:4px">ملاحظة الأسبوع</div>
+        <input id="bf_insight" class="brief-input" placeholder="مثال: جمهور الريتيل يستجيب لـ Fear أكثر من Control">
+      </div>
+    </div>
+
+    <button class="brief-save-btn" onclick="saveBrief()">حفظ البريف</button>
+  </div>
+</div>
 
 <!-- Agent detail modal -->
 <div class="modal-overlay" id="agentModal" style="display:none" onclick="if(event.target===this)closeAgentModal()">
@@ -934,6 +1077,9 @@ async function triggerTask(idx) {
       btn.textContent = 'Done'; btn.classList.remove('running'); btn.classList.add('done');
       showToast(t.name + ' started');
       setTimeout(fetchLiveTasks, 2000);
+      if (t.endpoint === '/api/agent/daily-capture/run-now') {
+        startCapturePolling(new Date().toISOString());
+      }
     } else {
       const d = await res.json().catch(() => ({}));
       btn.textContent = 'Error'; btn.classList.remove('running');
@@ -1020,6 +1166,8 @@ async function fetchHealth() {
     document.getElementById('statComp').textContent  = d.competitorCount ?? '–';
     document.getElementById('statLib').textContent   = d.libraryCount ?? '–';
     document.getElementById('statWins').textContent  = d.winsCount ?? '–';
+    if (d.driveUrl)  { const b = document.getElementById('btnDrive');  b.href = d.driveUrl;  b.style.display = 'flex'; }
+    if (d.sheetsUrl) { const b = document.getElementById('btnSheets'); b.href = d.sheetsUrl; b.style.display = 'flex'; }
   } catch {
     setH('hSheets', true); setH('hDrive', true);
     setH('hApify', true); setH('hSlack', true); setH('hHubspot', true);
@@ -1178,8 +1326,36 @@ function renderDigest(d) {
   el.innerHTML = html;
 }
 
+// ── Foldable Sections ─────────────────────────────────
+function toggleFold(id) {
+  const body = document.getElementById('fb-' + id);
+  const chev = document.getElementById('fc-' + id);
+  if (!body) return;
+  const closing = !body.classList.contains('closed');
+  body.classList.toggle('closed', closing);
+  if (chev) chev.classList.toggle('closed', closing);
+  try {
+    const s = JSON.parse(localStorage.getItem('dashFolds') || '{}');
+    s[id] = closing;
+    localStorage.setItem('dashFolds', JSON.stringify(s));
+  } catch {}
+}
+function initFolds() {
+  try {
+    const s = JSON.parse(localStorage.getItem('dashFolds') || '{}');
+    for (const [id, closed] of Object.entries(s)) {
+      if (!closed) continue;
+      const body = document.getElementById('fb-' + id);
+      const chev = document.getElementById('fc-' + id);
+      if (body) body.classList.add('closed');
+      if (chev) chev.classList.add('closed');
+    }
+  } catch {}
+}
+
 // ── Init ──────────────────────────────────────────────
 function init() {
+  initFolds();
   renderAgents();
   renderAgentFeed();
   renderOnDemand();
@@ -1199,8 +1375,183 @@ function init() {
   setInterval(fetchEmailCounts, 5 * 60 * 1000);
   fetchListening();
   setInterval(fetchListening, 10 * 60 * 1000);
+  fetchBrief();
+  fetchLastCapture();
 }
 document.addEventListener('DOMContentLoaded', init);
+
+// ── Last Capture Link ────────────────────────────────────────────────────────
+
+function renderLastCapture(latest) {
+  if (!latest || !latest.link) return;
+  const row = document.getElementById('lastCaptureRow');
+  const link = document.getElementById('lastCaptureLink');
+  const date = document.getElementById('lastCaptureDate');
+  link.href = latest.link;
+  link.textContent = latest.title || 'Daily Competitor Capture';
+  date.textContent = latest.date || '';
+  row.style.display = 'block';
+}
+
+async function fetchLastCapture() {
+  try {
+    const r = await fetch('/api/agent/last-capture');
+    const d = await r.json();
+    if (d.latest) renderLastCapture(d.latest);
+  } catch(e) { /* non-fatal */ }
+}
+
+let _capturePoller = null;
+
+function startCapturePolling(triggeredAt) {
+  let attempts = 0;
+  _capturePoller = setInterval(async () => {
+    attempts++;
+    if (attempts > 36) { clearInterval(_capturePoller); return; } // stop after 6 min
+    try {
+      const r = await fetch('/api/agent/last-capture');
+      const d = await r.json();
+      if (d.latest && d.latest.date >= triggeredAt.slice(0, 10)) {
+        renderLastCapture(d.latest);
+        showToast('تحليل المنافسين جاهز — اضغط للفتح');
+        clearInterval(_capturePoller);
+      }
+    } catch(e) { /* keep polling */ }
+  }, 10000); // every 10 sec
+}
+
+// ── Campaign Brief ───────────────────────────────────────────────────────────
+
+let _briefData = null;
+
+async function fetchBrief() {
+  try {
+    const r = await fetch('/api/agent/content-brief');
+    const d = await r.json();
+    _briefData = d.brief;
+    renderBrief(d.brief);
+  } catch(e) {
+    // non-fatal — brief section stays showing defaults
+  }
+}
+
+function renderBrief(brief) {
+  if (!brief) return;
+  const m = brief.monthly || {};
+  const w = brief.weekly || {};
+
+  const campEl = document.getElementById('bfCampaign');
+  if (m.campaign) {
+    campEl.textContent = m.campaign;
+    campEl.classList.remove('empty');
+  }
+
+  const secEl = document.getElementById('bfSector');
+  const parts = [m.sector_focus, m.product_focus].filter(Boolean);
+  if (parts.length) {
+    secEl.textContent = parts.join(' · ');
+    secEl.classList.remove('empty');
+  }
+
+  const chEl = document.getElementById('bfChannels');
+  const chs = [...(m.active_channels||[])];
+  const paid = m.budget_channels || [];
+  if (chs.length) {
+    chEl.innerHTML = chs.map(c => {
+      const isPaid = paid.includes(c);
+      return `<span class="brief-hook ${isPaid ? 'lose' : 'win'}">${c}${isPaid ? ' 💸' : ''}</span>`;
+    }).join('');
+    chEl.classList.remove('empty');
+  }
+
+  const winsEl = document.getElementById('bfWins');
+  if ((w.top_hooks||[]).length) {
+    winsEl.innerHTML = w.top_hooks.map(h => `<span class="brief-hook win">${h}</span>`).join('');
+  }
+
+  const lossEl = document.getElementById('bfLosses');
+  if ((w.bottom_hooks||[]).length) {
+    lossEl.innerHTML = w.bottom_hooks.map(h => `<span class="brief-hook lose">${h}</span>`).join('');
+  }
+}
+
+function openBriefModal() {
+  const brief = _briefData || {};
+  const m = brief.monthly || {};
+  const w = brief.weekly || {};
+
+  document.getElementById('bf_campaign').value = m.campaign || '';
+  document.getElementById('bf_sector').value = m.sector_focus || '';
+  document.getElementById('bf_product').value = m.product_focus || '';
+  document.getElementById('bf_zatca').value = m.zatca_wave || '';
+  document.getElementById('bf_topHooks').value = (w.top_hooks||[]).join('\n');
+  document.getElementById('bf_bottomHooks').value = (w.bottom_hooks||[]).join('\n');
+  document.getElementById('bf_insight').value = w.key_insight || '';
+
+  // Reset channel buttons
+  const active = m.active_channels || [];
+  document.querySelectorAll('#bf_activeChannels .brief-ch-btn').forEach(btn => {
+    btn.classList.toggle('active', active.includes(btn.dataset.ch));
+  });
+  const budget = m.budget_channels || [];
+  document.querySelectorAll('#bf_budgetChannels .brief-ch-btn').forEach(btn => {
+    btn.classList.toggle('active', budget.includes(btn.dataset.ch));
+  });
+
+  document.getElementById('briefModal').style.display = 'flex';
+}
+
+function closeBriefModal() {
+  document.getElementById('briefModal').style.display = 'none';
+}
+
+function toggleChannel(type, btn) {
+  btn.classList.toggle('active');
+}
+
+async function saveBrief() {
+  const today = new Date().toISOString().slice(0, 10);
+  const activeChannels = [...document.querySelectorAll('#bf_activeChannels .brief-ch-btn.active')].map(b => b.dataset.ch);
+  const budgetChannels = [...document.querySelectorAll('#bf_budgetChannels .brief-ch-btn.active')].map(b => b.dataset.ch);
+
+  const topHooks = document.getElementById('bf_topHooks').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  const bottomHooks = document.getElementById('bf_bottomHooks').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  const payload = {
+    updated_monthly: today,
+    updated_weekly: today,
+    monthly: {
+      campaign:       document.getElementById('bf_campaign').value.trim(),
+      sector_focus:   document.getElementById('bf_sector').value.trim(),
+      product_focus:  document.getElementById('bf_product').value.trim(),
+      zatca_wave:     document.getElementById('bf_zatca').value.trim(),
+      active_channels: activeChannels,
+      budget_channels: budgetChannels,
+    },
+    weekly: {
+      top_hooks: topHooks,
+      bottom_hooks: bottomHooks,
+      key_insight: document.getElementById('bf_insight').value.trim(),
+    },
+  };
+
+  try {
+    const r = await fetch('/api/agent/content-brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    _briefData = payload;
+    renderBrief(payload);
+    closeBriefModal();
+    showToast('تم حفظ البريف');
+  } catch(e) {
+    showToast('خطأ في الحفظ: ' + e.message, true);
+  }
+}
 </script>
 </body>
 </html>
