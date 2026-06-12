@@ -66,22 +66,16 @@ export interface ListeningResult {
   summary: string;
 }
 
+// ── Twitter/X — free actor (quacker~twitter-scraper) ─────────────────────────
 async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
     const run = await fetch(
-      "https://api.apify.com/v2/acts/apidojo~tweet-flash/run-sync-get-dataset-items?token=" +
-        encodeURIComponent(apifyToken) +
-        "&timeout=90",
+      "https://api.apify.com/v2/acts/quacker~twitter-scraper/run-sync-get-dataset-items?token=" +
+        encodeURIComponent(apifyToken) + "&timeout=90",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          searchTerms: [keyword],
-          maxTweets: 30,
-          sort: "Latest",
-          // no lang filter — Arabic terms return Arabic tweets naturally;
-          // English terms like "qoyod" would be filtered out by lang:"ar"
-        }),
+        body: JSON.stringify({ searchTerms: [keyword], maxItems: 30, sort: "Latest" }),
         signal: AbortSignal.timeout(100_000),
       }
     );
@@ -91,44 +85,17 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<Listen
       keyword,
       platform: "Twitter/X",
       text: t.full_text ?? t.text ?? "",
-      url: `https://x.com/i/web/status/${t.id_str ?? t.id ?? ""}`,
-      author: t.user?.screen_name ?? "",
-      postedAt: t.created_at ?? "",
-    }));
+      url: t.url ?? `https://x.com/i/web/status/${t.id_str ?? t.id ?? ""}`,
+      author: t.user?.screen_name ?? t.author?.userName ?? "",
+      postedAt: t.created_at ?? t.createdAt ?? "",
+    })).filter(m => m.text.length > 10);
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: X scrape failed");
     return [];
   }
 }
 
-async function scrapeLinkedIn(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
-  try {
-    const run = await fetch(
-      "https://api.apify.com/v2/acts/curious_coder~linkedin-post-search-scraper/run-sync-get-dataset-items?token=" +
-        encodeURIComponent(apifyToken) + "&timeout=90",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchTerms: [keyword], maxPosts: 15 }),
-        signal: AbortSignal.timeout(100_000),
-      }
-    );
-    if (!run.ok) return [];
-    const items = (await run.json()) as any[];
-    return (Array.isArray(items) ? items : []).slice(0, 15).map((p: any) => ({
-      keyword,
-      platform: "LinkedIn",
-      text: p.postContent ?? p.text ?? p.content ?? "",
-      url: p.postUrl ?? p.url ?? "",
-      author: p.authorName ?? p.author ?? "",
-      postedAt: p.postedDate ?? p.createdAt ?? "",
-    })).filter(m => m.text.length > 10);
-  } catch (e) {
-    logger.warn({ keyword, err: String(e) }, "social-listener: LinkedIn scrape failed");
-    return [];
-  }
-}
-
+// ── TikTok — free actor (clockworks~tiktok-scraper) ──────────────────────────
 async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
     const run = await fetch(
@@ -157,37 +124,62 @@ async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<L
   }
 }
 
-async function scrapeThreads(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
+// ── LinkedIn — jina web search filtered to linkedin.com ──────────────────────
+async function scrapeLinkedIn(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
-    const run = await fetch(
-      "https://api.apify.com/v2/acts/apify~threads-scraper/run-sync-get-dataset-items?token=" +
-        encodeURIComponent(apifyToken) + "&timeout=90",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchQuery: keyword, maxPosts: 15 }),
-        signal: AbortSignal.timeout(100_000),
-      }
+    const encoded = encodeURIComponent(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
+    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=8`, {
+      headers: { Accept: "text/plain", "X-Timeout": "12" },
+      signal: AbortSignal.timeout(18_000),
+    });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+    const kw5 = keyword.slice(0, 5);
+    const snippets = text.split("\n").filter(l =>
+      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
     );
-    if (!run.ok) return [];
-    const items = (await run.json()) as any[];
-    return (Array.isArray(items) ? items : []).slice(0, 15).map((p: any) => ({
+    return snippets.slice(0, 5).map(s => ({
       keyword,
-      platform: "Threads",
-      text: p.text ?? p.content ?? "",
-      url: p.url ?? p.permalink ?? "",
-      author: p.username ?? p.author ?? "",
-      postedAt: p.timestamp ?? p.createdAt ?? "",
-    })).filter(m => m.text.length > 10);
-  } catch (e) {
-    logger.warn({ keyword, err: String(e) }, "social-listener: Threads scrape failed");
+      platform: "LinkedIn",
+      text: s.slice(0, 300),
+      url: "",
+      postedAt: new Date().toISOString(),
+    }));
+  } catch {
     return [];
   }
 }
 
+// ── Threads — jina web search filtered to threads.net ────────────────────────
+async function scrapeThreads(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
+  try {
+    const encoded = encodeURIComponent(`${keyword} site:threads.net`);
+    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=8`, {
+      headers: { Accept: "text/plain", "X-Timeout": "12" },
+      signal: AbortSignal.timeout(18_000),
+    });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+    const kw5 = keyword.slice(0, 5);
+    const snippets = text.split("\n").filter(l =>
+      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
+    );
+    return snippets.slice(0, 5).map(s => ({
+      keyword,
+      platform: "Threads",
+      text: s.slice(0, 300),
+      url: "",
+      postedAt: new Date().toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ── General web fallback (news sites, regulatory portals) ─────────────────────
 async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
-    const encoded = encodeURIComponent(`${keyword} site:twitter.com OR site:x.com OR site:arabianbusiness.com OR site:argaam.com`);
+    const encoded = encodeURIComponent(`${keyword} site:arabianbusiness.com OR site:argaam.com OR site:mubasher.info OR site:zatca.gov.sa`);
     const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=10`, {
       headers: { Accept: "text/plain", "X-Timeout": "12" },
       signal: AbortSignal.timeout(18_000),
@@ -195,7 +187,9 @@ async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group
     if (!resp.ok) return [];
     const text = await resp.text();
     const kw5 = keyword.slice(0, 5);
-    const snippets = text.split("\n").filter(l => l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5))));
+    const snippets = text.split("\n").filter(l =>
+      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
+    );
     return snippets.slice(0, 5).map(s => ({
       keyword,
       platform: "Web",
@@ -261,10 +255,10 @@ export async function runSocialListener(): Promise<ListeningResult> {
     for (const kw of cfg.terms) {
       // All applicable platform scrapers run in parallel per keyword
       const [xResults, liResults, ttResults, thResults] = await Promise.all([
-        token ? scrapeX(kw, token)        : Promise.resolve([]),
-        (token && cfg.linkedIn)  ? scrapeLinkedIn(kw, token) : Promise.resolve([]),
-        (token && cfg.tiktok)    ? scrapeTikTok(kw, token)   : Promise.resolve([]),
-        (token && cfg.threads)   ? scrapeThreads(kw, token)  : Promise.resolve([]),
+        token          ? scrapeX(kw, token)      : Promise.resolve([]),
+        cfg.linkedIn   ? scrapeLinkedIn(kw)      : Promise.resolve([]),
+        (token && cfg.tiktok)  ? scrapeTikTok(kw, token) : Promise.resolve([]),
+        cfg.threads    ? scrapeThreads(kw)       : Promise.resolve([]),
       ]);
 
       allMentions.push(
