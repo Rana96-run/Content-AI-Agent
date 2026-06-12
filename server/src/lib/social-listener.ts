@@ -81,32 +81,44 @@ async function ddgSearch(query: string): Promise<Array<{ url: string; text: stri
   try {
     const q = encodeURIComponent(query);
     const resp = await fetch(`https://r.jina.ai/https://html.duckduckgo.com/html/?q=${q}`, {
-      headers: { Accept: "text/plain", "X-Timeout": "15" },
+      headers: { Accept: "text/plain" },
       signal: AbortSignal.timeout(20_000),
     });
     if (!resp.ok) return [];
     const raw = await resp.text();
     const results: Array<{ url: string; text: string }> = [];
 
-    // Each result starts with a "## [Title](ddg-redirect)" line
-    for (const section of raw.split(/\n## \[/).slice(1)) {
+    // Jina renders DDG results as ## sections — two formats:
+    // Format A: ## [Title](ddg-redirect)
+    // Format B: ## Plain Title\n[](ddg-redirect)
+    // Split on either form
+    for (const section of raw.split(/\n## /).slice(1)) {
+      // URL: first uddg= parameter anywhere in the section
       const uddg = section.match(/uddg=([^&\s")\]]+)/);
       const url = uddg ? decodeURIComponent(uddg[1]) : "";
-      // DDG snippets are long markdown links: [description text...](duckduckgo.com/l/...)
-      // Extract just the description text from those links
-      const snippetRe = /\[([^\]]{60,})\]\(https:\/\/duckduckgo\.com[^)]+\)/g;
+      if (!url) continue;
+
+      // Snippets: long markdown link text or long plain lines
       const snippets: string[] = [];
+      // Try markdown link text first: [text ≥60 chars](duckduckgo.com/...)
+      const snippetRe = /\[([^\]]{60,})\]\(https:\/\/duckduckgo\.com[^)]+\)/g;
       let m: RegExpExecArray | null;
       while ((m = snippetRe.exec(section)) !== null) {
         const s = m[1].replace(/\*\*/g, "").trim();
-        // Skip breadcrumb/path lines — real descriptions have multiple words
         if (s.split(" ").length >= 4) snippets.push(s);
       }
+      // Fallback: first plain heading line (format B title IS the snippet)
+      if (snippets.length === 0) {
+        const titleLine = section.split("\n")[0].replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\*\*/g, "").trim();
+        if (titleLine.split(" ").length >= 4) snippets.push(titleLine);
+      }
+
       const text = snippets.join(" ").slice(0, 300);
-      if (text.length > 40 && url) results.push({ url, text });
+      if (text.length > 30) results.push({ url, text });
     }
     return results.slice(0, 6);
-  } catch {
+  } catch (e) {
+    logger.warn({ err: String(e) }, "social-listener: ddgSearch failed");
     return [];
   }
 }
