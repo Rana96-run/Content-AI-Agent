@@ -1231,6 +1231,7 @@ export default function CreativeOS(){
           const SRC_COLORS={
             social_listener:"#1565C0",competitor_monitor:"#E65100",competitor_poller:"#BF360C",
             hypothesis:"#00695C",knowledge_base:"#6A1B9A",content_gen:"#2E7D32",content_brief:"#283593",
+            sheets_format:"#37474F",
           };
           const SRC_LABELS={
             social_listener:T("مراقبة العلامة","Social Listener"),
@@ -1240,11 +1241,18 @@ export default function CreativeOS(){
             knowledge_base:T("قاعدة المعرفة","Knowledge Base"),
             content_gen:T("توليد محتوى","Content Gen"),
             content_brief:T("موجز محتوى","Content Brief"),
+            sheets_format:T("تنسيق الجداول","Sheet Format"),
+          };
+          const runWorkflow=async(endpoint,label)=>{
+            try{
+              await fetch(endpoint,{method:"POST"});
+              setTimeout(()=>{setActivityItems(null);fetchActivity();},3000);
+            }catch{}
           };
           const items=activityItems||[];
           return(
             <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div>
                   <h2 style={{fontSize:14,fontWeight:700,marginBottom:2}}>{T("لوحة النشاط","Activity Dashboard")}</h2>
                   <p style={{fontSize:10.5,color:"#2e5468"}}>{T("آخر عمليات تلقائية من الوكلاء","Latest automated workflow runs")}</p>
@@ -1253,6 +1261,18 @@ export default function CreativeOS(){
                   style={{padding:"4px 12px",fontSize:10.5,background:"rgba(23,163,164,.1)",border:"1px solid rgba(23,163,164,.3)",borderRadius:5,color:"#17a3a3",cursor:activityLoading?"wait":"pointer",fontFamily:"inherit"}}>
                   {activityLoading?T("جاري...","Loading..."):T("تحديث","Refresh")}
                 </button>
+              </div>
+              <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+                {[
+                  ["/api/agent/sheets/format",     T("تهيئة الجداول","Init Sheets")],
+                  ["/api/agent/listening/run-now", T("تشغيل المستمع","Run Listener")],
+                  ["/api/agent/competitor/poll-now",T("استطلاع المنافسين","Poll Competitors")],
+                ].map(([ep,lbl])=>(
+                  <button key={ep} onClick={()=>runWorkflow(ep,lbl)}
+                    style={{padding:"4px 10px",fontSize:10,background:"rgba(1,30,65,.6)",border:"1px solid rgba(1,53,90,.5)",borderRadius:4,color:"#6a96aa",cursor:"pointer",fontFamily:"inherit"}}>
+                    {lbl}
+                  </button>
+                ))}
               </div>
               {activityLoading&&!items.length&&<p style={{fontSize:11,color:"#2e5468",textAlign:"center",padding:"40px 0"}}>{T("جاري التحميل...","Loading activity...")}</p>}
               {!activityLoading&&items.length===0&&<p style={{fontSize:11,color:"#2e5468",textAlign:"center",padding:"40px 0"}}>{T("لا توجد سجلات بعد — ستظهر هنا عند تشغيل الوكلاء","No activity yet — entries appear here after workflows run")}</p>}

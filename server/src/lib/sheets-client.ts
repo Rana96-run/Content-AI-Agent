@@ -1088,6 +1088,10 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
 
   const skipped = Object.keys(idMap).filter(t => !formatted.includes(t));
   logger.info({ formatted, skipped }, "sheets-client: formatting applied");
+
+  // Seed the Activity tab (creates it if it doesn't exist yet)
+  await sheetsLogActivity("sheets_format", `Sheet formatting applied — ${formatted.length} tabs formatted`, formatted.length).catch(() => {});
+
   return { formatted, skipped };
 }
 
