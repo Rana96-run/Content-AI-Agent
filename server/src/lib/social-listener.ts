@@ -22,7 +22,7 @@ interface GroupConfig {
 
 const KEYWORDS: Record<"brand" | "zatca" | "market", GroupConfig> = {
   brand:  {
-    terms: ["qoyod", "برنامج قيود", "تطبيق قيود", "#قيود", "@qoyod", "qoyod.com"],
+    terms: ["qoyod", "برنامج قيود", "@qoyod", "qoyod.com"],
     webSearch: false, linkedIn: true, tiktok: true, threads: true,
   },
   zatca:  {

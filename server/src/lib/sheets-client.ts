@@ -914,17 +914,26 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
   /* ── Social Mentions (8 cols: run_at,group,platform,keyword,author,posted_at,text,url) */
   if (idMap["Social Mentions"] != null) {
     const id = idMap["Social Mentions"];
-    const w = [145, 90, 110, 160, 120, 145, 380, 250];
+    const w = [145, 90, 115, 160, 120, 145, 400, 260];
     requests.push(
-      freezePane(id, 1, 0),
+      freezePane(id, 1, 1),
       headerFormat(id, 8),
       altRows(id, 8),
       ...w.map((px, i) => colWidth(id, i, px)),
       dropdown(id, 1, 2, ["brand","zatca","market"]),
       dropdown(id, 2, 3, ["Twitter/X","LinkedIn","TikTok","Threads","Instagram","YouTube","Web"]),
-      condFmt(id, 1, "brand",  "#1565C0", "#FFFFFF"),
-      condFmt(id, 1, "zatca",  "#E65100", "#FFFFFF"),
-      condFmt(id, 1, "market", "#2E7D32", "#FFFFFF"),
+      // Group colors
+      condFmt(id, 1, "brand",    "#1565C0", "#FFFFFF"),
+      condFmt(id, 1, "zatca",    "#E65100", "#FFFFFF"),
+      condFmt(id, 1, "market",   "#2E7D32", "#FFFFFF"),
+      // Platform colors — same palette as Content Library
+      condFmt(id, 2, "LinkedIn",  "#0A66C2", "#FFFFFF"),
+      condFmt(id, 2, "TikTok",    "#010101", "#FFFFFF"),
+      condFmt(id, 2, "Instagram", "#E1306C", "#FFFFFF"),
+      condFmt(id, 2, "YouTube",   "#FF0000", "#FFFFFF"),
+      condFmt(id, 2, "Twitter/X", "#1DA1F2", "#FFFFFF"),
+      condFmt(id, 2, "Threads",   "#000000", "#FFFFFF"),
+      condFmt(id, 2, "Web",       "#546E7A", "#FFFFFF"),
     );
     formatted.push("Social Mentions");
   }
