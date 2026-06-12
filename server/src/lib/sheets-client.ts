@@ -544,6 +544,20 @@ export async function sheetsReadDocumentsLog(limit = 20, filterType?: string): P
 }
 
 /** Clear the Social Mentions tab and rewrite just the header row. */
+export async function sheetsResetContentBriefs(): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  const s = getSheetsClient();
+  const header = ["Source","Brief ID","Created At","Submitted By","Campaign Name","Target Channel","Tone","Topic","Keywords","Notes","Status","Generated Content"];
+  await s.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: "'Content Briefs'" }).catch(() => {});
+  await ensureTab("Content Briefs", header);
+  await s.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "'Content Briefs'!A1",
+    valueInputOption: "RAW",
+    requestBody: { values: [header] },
+  });
+}
+
 export async function sheetsResetSocialMentions(): Promise<void> {
   if (!SPREADSHEET_ID) return;
   const s = getSheetsClient();

@@ -2305,6 +2305,17 @@ router.post("/sheets/reset-mentions", async (_req, res) => {
   }
 });
 
+router.post("/sheets/reset-briefs", async (_req, res) => {
+  try {
+    const { sheetsResetContentBriefs, sheetsApplyLibraryFormatting } = await import("../lib/sheets-client.js");
+    await sheetsResetContentBriefs();
+    const fmt = await sheetsApplyLibraryFormatting();
+    res.json({ ok: true, reset: "Content Briefs", formatted: fmt.formatted });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 /* Backfill all local content library entries to Google Sheets */
 router.post("/content-library/sync", async (_req, res) => {
   try {
