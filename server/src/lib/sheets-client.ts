@@ -54,7 +54,7 @@ function getAuth() {
   return new google.auth.GoogleAuth({ credentials: creds, scopes: SCOPES });
 }
 
-function getSheetsClient() {
+export function getSheetsClient() {
   return google.sheets({ version: "v4", auth: getAuth() });
 }
 
