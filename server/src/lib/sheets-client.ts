@@ -846,6 +846,36 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     formatted.push("Documents Log");
   }
 
+  /* ── Social Mentions (8 cols: run_at,group,platform,keyword,author,posted_at,text,url) */
+  if (idMap["Social Mentions"] != null) {
+    const id = idMap["Social Mentions"];
+    const w = [145, 90, 110, 160, 120, 145, 380, 250];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 8),
+      altRows(id, 8),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      dropdown(id, 1, 2, ["brand","zatca","market"]),
+      dropdown(id, 2, 3, ["Twitter/X","Web","Instagram","LinkedIn","YouTube"]),
+      condFmt(id, 1, "brand",  "#1565C0", "#FFFFFF"),
+      condFmt(id, 1, "zatca",  "#E65100", "#FFFFFF"),
+      condFmt(id, 1, "market", "#2E7D32", "#FFFFFF"),
+    );
+    formatted.push("Social Mentions");
+  }
+
+  /* ── Content Brief (2 cols: key, value — blob storage) ─────────── */
+  if (idMap["Content Brief"] != null) {
+    const id = idMap["Content Brief"];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 2),
+      colWidth(id, 0, 130),
+      colWidth(id, 1, 600),
+    );
+    formatted.push("Content Brief");
+  }
+
   if (requests.length === 0) return { formatted: [], skipped: Object.keys(idMap) };
 
   await s.spreadsheets.batchUpdate({
