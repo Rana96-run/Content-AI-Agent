@@ -875,7 +875,7 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       altRows(id, 8),
       ...w.map((px, i) => colWidth(id, i, px)),
       dropdown(id, 1, 2, ["brand","zatca","market"]),
-      dropdown(id, 2, 3, ["Twitter/X","Web","Instagram","LinkedIn","YouTube"]),
+      dropdown(id, 2, 3, ["Twitter/X","LinkedIn","TikTok","Threads","Instagram","YouTube","Web"]),
       condFmt(id, 1, "brand",  "#1565C0", "#FFFFFF"),
       condFmt(id, 1, "zatca",  "#E65100", "#FFFFFF"),
       condFmt(id, 1, "market", "#2E7D32", "#FFFFFF"),
