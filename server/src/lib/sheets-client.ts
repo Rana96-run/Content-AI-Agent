@@ -727,15 +727,20 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
   if (!SPREADSHEET_ID) return { formatted: [], skipped: ["no SPREADSHEET_ID"] };
   const s = getSheetsClient();
 
-  // Get all sheet IDs by name
+  // Get all sheet IDs + existing conditional format rules so we can clear before re-applying
   const meta = await s.spreadsheets.get({
     spreadsheetId: SPREADSHEET_ID,
-    fields: "sheets.properties",
+    fields: "sheets.properties,sheets.conditionalFormats",
   });
   const idMap: Record<string, number> = {};
+  // sheetId → count of existing condFmt rules (need to delete all before re-adding)
+  const condFmtCounts: Record<number, number> = {};
   for (const sh of meta.data.sheets ?? []) {
     if (sh.properties?.title && sh.properties.sheetId != null) {
       idMap[sh.properties.title] = sh.properties.sheetId;
+      const sid = sh.properties.sheetId;
+      const count = (sh as any).conditionalFormats?.length ?? 0;
+      if (count > 0) condFmtCounts[sid] = count;
     }
   }
 
@@ -760,6 +765,22 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       range: "'Content Briefs'!A1:L1",
       valueInputOption: "RAW",
       requestBody: { values: [["Source","Brief ID","Created At","Submitted By","Campaign Name","Target Channel","Tone","Topic","Keywords","Notes","Status","Generated Content"]] },
+    });
+  }
+
+  // Delete all existing conditional format rules (accumulated from prior calls) before re-adding.
+  // Must delete from the highest index down, otherwise indices shift after each deletion.
+  const deleteRequests: object[] = [];
+  for (const [sidStr, count] of Object.entries(condFmtCounts)) {
+    const sid = Number(sidStr);
+    for (let i = count - 1; i >= 0; i--) {
+      deleteRequests.push({ deleteConditionalFormatRule: { sheetId: sid, index: i } });
+    }
+  }
+  if (deleteRequests.length > 0) {
+    await s.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: { requests: deleteRequests },
     });
   }
 
@@ -793,21 +814,23 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     formatted.push("Content Library");
   }
 
-  /* ── Competitor Posts (9 cols: date,competitor,platform,arabic_text,media_type,url,scraped_at,engagement,notes) */
+  /* ── Competitor Posts (6 cols: competitor,channel,content,post_url,fetched_at,engagement) */
   if (idMap["Competitor Posts"] != null) {
     const id = idMap["Competitor Posts"];
-    const w = [100, 110, 110, 340, 110, 240, 145, 110, 200];
+    const w = [140, 120, 400, 240, 145, 160];
     requests.push(
       freezePane(id, 1, 0),
-      headerFormat(id, 9),
-      altRows(id, 9),
+      headerFormat(id, 6),
+      altRows(id, 6),
       ...w.map((px, i) => colWidth(id, i, px)),
-      dropdown(id, 2, 3, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Google Ads","Web"]),
-      condFmt(id, 2, "Instagram",  "#E1306C", "#FFFFFF"),
-      condFmt(id, 2, "Facebook",   "#1877F2", "#FFFFFF"),
-      condFmt(id, 2, "YouTube",    "#FF0000", "#FFFFFF"),
-      condFmt(id, 2, "TikTok",     "#010101", "#FFFFFF"),
-      condFmt(id, 2, "Google Ads", "#4285F4", "#FFFFFF"),
+      dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Google Ads","Web"]),
+      condFmt(id, 1, "Instagram",  "#E1306C", "#FFFFFF"),
+      condFmt(id, 1, "Facebook",   "#1877F2", "#FFFFFF"),
+      condFmt(id, 1, "YouTube",    "#FF0000", "#FFFFFF"),
+      condFmt(id, 1, "TikTok",     "#010101", "#FFFFFF"),
+      condFmt(id, 1, "Google Ads", "#4285F4", "#FFFFFF"),
+      condFmt(id, 1, "LinkedIn",   "#0A66C2", "#FFFFFF"),
+      condFmt(id, 1, "Twitter/X",  "#1DA1F2", "#FFFFFF"),
     );
     formatted.push("Competitor Posts");
   }
