@@ -183,6 +183,20 @@ router.post("/upload", async (req, res) => {
   }
 });
 
+/* ── POST /api/drive/delete ────────────────────────
+   Permanently deletes a single file by ID. */
+router.post("/delete", async (req, res) => {
+  const { fileId } = req.body as { fileId?: string };
+  if (!fileId) return res.status(400).json({ error: "fileId required" });
+  try {
+    const drive = getDriveClient();
+    await drive.files.delete({ fileId, supportsAllDrives: true });
+    res.json({ ok: true, deleted: fileId });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 /* ── POST /api/drive/list ──────────────────────────
    Lists the target folder's contents (for the agent to see what exists). */
 router.post("/list", async (_req, res) => {
