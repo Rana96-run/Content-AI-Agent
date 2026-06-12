@@ -2478,7 +2478,11 @@ router.post("/listening/run-now", (_req, res) => {
 router.post("/listening/slides", async (_req, res) => {
   try {
     const { getLatestListeningResult } = await import("../lib/social-listener.js");
-    const result = getLatestListeningResult();
+    let result = getLatestListeningResult();
+    if (!result) {
+      const { sheetsReadLatestListening } = await import("../lib/sheets-client.js");
+      result = await sheetsReadLatestListening();
+    }
     if (!result) return res.status(404).json({ ok: false, error: "No listening data yet — run listen first" });
     const { createListeningSlidePresentation } = await import("../lib/competitor-slides-renderer.js");
     const weekLabel = new Date().toISOString().slice(0, 10);
