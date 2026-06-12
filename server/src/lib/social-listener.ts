@@ -66,6 +66,36 @@ export interface ListeningResult {
   summary: string;
 }
 
+// Qoyod's own accounts — exclude from all scrapers so we capture what others say, not our own posts
+const QOYOD_ACCOUNTS = new Set([
+  "qoyod", "qoyodapp", "qoyod_sa", "qoyodsa", "qoyodofficial",
+  "qoyod.com", "تطبيق قيود", "برنامج قيود",
+]);
+function isOwnAccount(author: string): boolean {
+  const a = author.toLowerCase().replace(/^@/, "").trim();
+  return QOYOD_ACCOUNTS.has(a) || a.startsWith("qoyod");
+}
+
+// ── jina Search API (s.jina.ai) — avoids Google CAPTCHA ─────────────────────
+async function jinaSearch(query: string): Promise<Array<{ title: string; url: string; description: string }>> {
+  try {
+    const resp = await fetch(`https://s.jina.ai/${encodeURIComponent(query)}`, {
+      headers: { Accept: "application/json", "X-Timeout": "15" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as any;
+    const items: any[] = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+    return items.slice(0, 8).map(r => ({
+      title: String(r.title ?? ""),
+      url: String(r.url ?? ""),
+      description: String(r.description ?? r.content ?? r.snippet ?? "").slice(0, 400),
+    })).filter(r => r.description.length > 30);
+  } catch {
+    return [];
+  }
+}
+
 // ── Twitter/X — free actor (quacker~twitter-scraper) ─────────────────────────
 async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
   try {
@@ -88,7 +118,7 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<Listen
       url: t.url ?? `https://x.com/i/web/status/${t.id_str ?? t.id ?? ""}`,
       author: t.user?.screen_name ?? t.author?.userName ?? "",
       postedAt: t.created_at ?? t.createdAt ?? "",
-    })).filter(m => m.text.length > 10);
+    })).filter(m => m.text.length > 10 && !isOwnAccount(m.author ?? ""));
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: X scrape failed");
     return [];
@@ -115,91 +145,51 @@ async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<L
       platform: "TikTok",
       text: v.text ?? v.desc ?? v.description ?? "",
       url: v.webVideoUrl ?? v.videoUrl ?? v.url ?? "",
-      author: v.authorMeta?.name ?? v.author?.uniqueId ?? "",
+      author: v.authorMeta?.uniqueId ?? v.authorMeta?.name ?? v.author?.uniqueId ?? "",
       postedAt: v.createTimeISO ?? (v.createTime ? new Date(v.createTime * 1000).toISOString() : ""),
-    })).filter(m => m.text.length > 10);
+    })).filter(m => m.text.length > 10 && !isOwnAccount(m.author ?? ""));
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: TikTok scrape failed");
     return [];
   }
 }
 
-// ── LinkedIn — jina web search filtered to linkedin.com ──────────────────────
+// ── LinkedIn — jina search filtered to linkedin.com posts ────────────────────
 async function scrapeLinkedIn(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  try {
-    const encoded = encodeURIComponent(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
-    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=8`, {
-      headers: { Accept: "text/plain", "X-Timeout": "12" },
-      signal: AbortSignal.timeout(18_000),
-    });
-    if (!resp.ok) return [];
-    const text = await resp.text();
-    const kw5 = keyword.slice(0, 5);
-    const snippets = text.split("\n").filter(l =>
-      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
-    );
-    return snippets.slice(0, 5).map(s => ({
-      keyword,
-      platform: "LinkedIn",
-      text: s.slice(0, 300),
-      url: "",
-      postedAt: new Date().toISOString(),
-    }));
-  } catch {
-    return [];
-  }
+  const results = await jinaSearch(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
+  return results.map(r => ({
+    keyword,
+    platform: "LinkedIn",
+    text: r.description,
+    url: r.url,
+    postedAt: new Date().toISOString(),
+  }));
 }
 
-// ── Threads — jina web search filtered to threads.net ────────────────────────
+// ── Threads — jina search filtered to threads.net ────────────────────────────
 async function scrapeThreads(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  try {
-    const encoded = encodeURIComponent(`${keyword} site:threads.net`);
-    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=8`, {
-      headers: { Accept: "text/plain", "X-Timeout": "12" },
-      signal: AbortSignal.timeout(18_000),
-    });
-    if (!resp.ok) return [];
-    const text = await resp.text();
-    const kw5 = keyword.slice(0, 5);
-    const snippets = text.split("\n").filter(l =>
-      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
-    );
-    return snippets.slice(0, 5).map(s => ({
-      keyword,
-      platform: "Threads",
-      text: s.slice(0, 300),
-      url: "",
-      postedAt: new Date().toISOString(),
-    }));
-  } catch {
-    return [];
-  }
+  const results = await jinaSearch(`${keyword} site:threads.net`);
+  return results.map(r => ({
+    keyword,
+    platform: "Threads",
+    text: r.description,
+    url: r.url,
+    postedAt: new Date().toISOString(),
+  }));
 }
 
-// ── General web fallback (news sites, regulatory portals) ─────────────────────
+// ── Web (news/regulatory portals) ────────────────────────────────────────────
 async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  try {
-    const encoded = encodeURIComponent(`${keyword} site:arabianbusiness.com OR site:argaam.com OR site:mubasher.info OR site:zatca.gov.sa`);
-    const resp = await fetch(`https://r.jina.ai/https://www.google.com/search?q=${encoded}&hl=ar&gl=sa&num=10`, {
-      headers: { Accept: "text/plain", "X-Timeout": "12" },
-      signal: AbortSignal.timeout(18_000),
-    });
-    if (!resp.ok) return [];
-    const text = await resp.text();
-    const kw5 = keyword.slice(0, 5);
-    const snippets = text.split("\n").filter(l =>
-      l.length > 60 && (l.includes(kw5) || l.toLowerCase().includes(keyword.toLowerCase().slice(0, 5)))
-    );
-    return snippets.slice(0, 5).map(s => ({
-      keyword,
-      platform: "Web",
-      text: s.slice(0, 300),
-      url: "",
-      postedAt: new Date().toISOString(),
-    }));
-  } catch {
-    return [];
-  }
+  const results = await jinaSearch(
+    `${keyword} site:arabianbusiness.com OR site:argaam.com OR site:mubasher.info OR site:zatca.gov.sa`
+  );
+  return results.map(r => ({
+    keyword,
+    platform: "Web",
+    text: r.description,
+    url: r.url,
+    postedAt: new Date().toISOString(),
+  }));
 }
 
 async function summarise(mentions: ListeningMention[]): Promise<string> {
