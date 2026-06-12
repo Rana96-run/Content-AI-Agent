@@ -2316,6 +2316,22 @@ router.post("/sheets/reset-briefs", async (_req, res) => {
   }
 });
 
+/* Return sheetId→tabName map for diagnostics */
+router.get("/sheets/tab-ids", async (_req, res) => {
+  try {
+    const { google } = await import("googleapis");
+    const sheetId = process.env.GOOGLE_SHEETS_ID;
+    if (!sheetId) return res.status(503).json({ error: "GOOGLE_SHEETS_ID not set" });
+    const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64;
+    const creds = b64 ? JSON.parse(Buffer.from(b64, "base64").toString("utf8")) : undefined;
+    const auth = new google.auth.GoogleAuth({ credentials: creds, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const sheets = google.sheets({ version: "v4", auth });
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    const tabs = (meta.data.sheets ?? []).map(s => ({ id: s.properties?.sheetId, title: s.properties?.title }));
+    res.json({ tabs });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
 /* Backfill all local content library entries to Google Sheets */
 router.post("/content-library/sync", async (_req, res) => {
   try {
