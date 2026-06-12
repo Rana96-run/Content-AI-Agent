@@ -39,7 +39,8 @@ Write-Host "=======================================" -ForegroundColor Cyan
 Show-Help
 
 while ($true) {
-    $cmd = (Read-Host "agent").Trim().ToLower()
+    Write-Host "> " -NoNewline -ForegroundColor Green
+    $cmd = (Read-Host "").Trim().ToLower()
 
     if ($cmd -eq "listen")        { Invoke-Post "/api/agent/listening/run-now" }
     elseif ($cmd -eq "listen-status") { Invoke-Get  "/api/agent/listening/latest" }
