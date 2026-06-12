@@ -2480,10 +2480,11 @@ router.get("/stats", async (_req, res) => {
 
 // ─── Social Listening endpoints ─────────────────────────────────────────────
 
-router.get("/listening/latest", async (_req, res) => {
+router.get("/listening/latest", async (req, res) => {
   try {
     const { getLatestListeningResult } = await import("../lib/social-listener.js");
-    let result = getLatestListeningResult();
+    const forceSheets = req.query.source === "sheets";
+    let result = forceSheets ? null : getLatestListeningResult();
     // File cache is ephemeral on Railway — fall back to Sheets
     if (!result) {
       const { sheetsReadLatestListening } = await import("../lib/sheets-client.js");

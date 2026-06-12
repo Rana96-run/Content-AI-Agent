@@ -598,6 +598,7 @@ export async function sheetsAppendMentions(runAt: string, mentions: Array<{
     m.text.slice(0, 500),
     m.url ?? null,
   ]));
+  logger.info({ count: mentions.length }, "sheets-client: social mentions written to sheet");
 }
 
 // ── Campaign State — persists active campaign brief JSON across Railway redeploys ─
@@ -833,6 +834,8 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       headerFormat(id, 6),
       altRows(id, 6),
       ...w.map((px, i) => colWidth(id, i, px)),
+      // Clear the stale data validation that was on col 2 (Content) before the column fix
+      { setDataValidation: { range: { sheetId: id, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: 2, endColumnIndex: 3 } } },
       dropdown(id, 1, 2, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Google Ads","Web"]),
       condFmt(id, 1, "Instagram",  "#E1306C", "#FFFFFF"),
       condFmt(id, 1, "Facebook",   "#1877F2", "#FFFFFF"),
