@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sheetsAppendHypothesis, sheetsReadWinners } from "../lib/sheets-client.js";
+import { sheetsAppendHypothesis, sheetsReadWinners, sheetsLogActivity } from "../lib/sheets-client.js";
 import { bustPatternLibraryCache } from "../lib/pattern-library.js";
 import { logger } from "../lib/logger.js";
 
@@ -57,6 +57,7 @@ router.post("/hypothesis/log", async (req, res) => {
     // If this is a WIN, invalidate the Pattern Library cache so next /api/generate
     // call picks it up immediately (D1 — closing the learning loop)
     if (verdict === "WIN") bustPatternLibraryCache();
+    sheetsLogActivity("hypothesis", `Hypothesis logged [${verdict ?? "PENDING"}]: ${String(hypothesis).slice(0, 80)}`, 1).catch(() => {});
     logger.info({ id, hypothesis: String(hypothesis).slice(0, 80), verdict }, "hypothesis: logged");
     res.status(200).json({ ok: true, id });
   } catch (err) {

@@ -2478,6 +2478,19 @@ router.get("/stats", async (_req, res) => {
   }
 });
 
+// ─── Activity feed endpoint ──────────────────────────────────────────────────
+
+router.get("/activity", async (req, res) => {
+  try {
+    const { sheetsReadActivity } = await import("../lib/sheets-client.js");
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
+    const items = await sheetsReadActivity(limit);
+    res.json({ items, count: items.length });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // ─── Social Listening endpoints ─────────────────────────────────────────────
 
 router.get("/listening/latest", async (req, res) => {

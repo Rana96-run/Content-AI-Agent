@@ -624,10 +624,21 @@ async function callAI(sys,usr,max_tokens=1400,raw_text=false,_retrying=false){
 /* ─── APP ─── */
 export default function CreativeOS(){
   const[lang,setLang]=useState("ar");
-  const VALID_TABS=["content","campaign","calendar","email","market","library","icp","agent"];
+  const VALID_TABS=["dashboard","content","campaign","calendar","email","market","library","icp","agent"];
   const hashTab=()=>{const h=window.location.hash.replace("#","");return VALID_TABS.includes(h)?h:null;};
-  const[tab,setTab]=useState(()=>hashTab()||"content");
+  const[tab,setTab]=useState(()=>hashTab()||"dashboard");
   const[aiHealth,setAiHealth]=useState(null); // {ok, provider, latency_ms, degraded?}
+
+  // Activity dashboard feed
+  const[activityItems,setActivityItems]=useState(null);
+  const[activityLoading,setActivityLoading]=useState(false);
+  const fetchActivity=()=>{
+    setActivityLoading(true);
+    fetch("/api/agent/activity?limit=60")
+      .then(r=>r.json()).then(d=>setActivityItems(d.items||[])).catch(()=>setActivityItems([]))
+      .finally(()=>setActivityLoading(false));
+  };
+  useEffect(()=>{if(tab==="dashboard"&&activityItems===null)fetchActivity();},[tab]);
 
   // Dynamic content library (published posts saved by agents)
   const[libEntries,setLibEntries]=useState(null);
@@ -1164,6 +1175,7 @@ export default function CreativeOS(){
 
 
   const TABS=[
+    ["dashboard",T("النشاط","Activity")],
     ["content", T("إنشاء محتوى","Content")],
     ["campaign",T("حملة","Campaign")],
     ["calendar",T("خطة المحتوى","Calendar")],
@@ -1214,6 +1226,59 @@ export default function CreativeOS(){
       )}
 
       <div style={{maxWidth:840,margin:"0 auto",padding:"20px 16px 60px"}}>
+
+        {tab==="dashboard"&&(()=>{
+          const SRC_COLORS={
+            social_listener:"#1565C0",competitor_monitor:"#E65100",competitor_poller:"#BF360C",
+            hypothesis:"#00695C",knowledge_base:"#6A1B9A",content_gen:"#2E7D32",content_brief:"#283593",
+          };
+          const SRC_LABELS={
+            social_listener:T("مراقبة العلامة","Social Listener"),
+            competitor_monitor:T("مراقبة المنافسين","Competitor Monitor"),
+            competitor_poller:T("استطلاع المنافسين","Competitor Poller"),
+            hypothesis:T("فرضية","Hypothesis"),
+            knowledge_base:T("قاعدة المعرفة","Knowledge Base"),
+            content_gen:T("توليد محتوى","Content Gen"),
+            content_brief:T("موجز محتوى","Content Brief"),
+          };
+          const items=activityItems||[];
+          return(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div>
+                  <h2 style={{fontSize:14,fontWeight:700,marginBottom:2}}>{T("لوحة النشاط","Activity Dashboard")}</h2>
+                  <p style={{fontSize:10.5,color:"#2e5468"}}>{T("آخر عمليات تلقائية من الوكلاء","Latest automated workflow runs")}</p>
+                </div>
+                <button onClick={()=>{setActivityItems(null);fetchActivity();}} disabled={activityLoading}
+                  style={{padding:"4px 12px",fontSize:10.5,background:"rgba(23,163,164,.1)",border:"1px solid rgba(23,163,164,.3)",borderRadius:5,color:"#17a3a3",cursor:activityLoading?"wait":"pointer",fontFamily:"inherit"}}>
+                  {activityLoading?T("جاري...","Loading..."):T("تحديث","Refresh")}
+                </button>
+              </div>
+              {activityLoading&&!items.length&&<p style={{fontSize:11,color:"#2e5468",textAlign:"center",padding:"40px 0"}}>{T("جاري التحميل...","Loading activity...")}</p>}
+              {!activityLoading&&items.length===0&&<p style={{fontSize:11,color:"#2e5468",textAlign:"center",padding:"40px 0"}}>{T("لا توجد سجلات بعد — ستظهر هنا عند تشغيل الوكلاء","No activity yet — entries appear here after workflows run")}</p>}
+              {items.map((item,i)=>{
+                const color=SRC_COLORS[item.source]||"#455A64";
+                const label=SRC_LABELS[item.source]||item.source;
+                const ts=item.timestamp?new Date(item.timestamp).toLocaleString("ar-SA",{dateStyle:"short",timeStyle:"short"}):"";
+                return(
+                  <div key={i} style={{display:"flex",gap:10,padding:"9px 12px",marginBottom:5,borderRadius:6,background:"rgba(1,30,65,.5)",border:"1px solid rgba(1,53,90,.35)"}}>
+                    <div style={{flex:"0 0 auto",marginTop:2}}>
+                      <span style={{display:"inline-block",padding:"1px 7px",fontSize:9,fontWeight:700,borderRadius:3,background:color+"22",color,border:`1px solid ${color}44`}}>{label}</span>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,color:"#ddeef4",lineHeight:1.4}}>{item.summary}</div>
+                      <div style={{fontSize:9.5,color:"#2e5468",marginTop:2}}>
+                        {ts}
+                        {item.items>0&&<span style={{marginInlineStart:8,color:"#17a3a3"}}>{item.items} {T("عنصر","items")}</span>}
+                        {item.status==="warn"&&<span style={{marginInlineStart:8,color:"#F57C00"}}>{T("تحذير","warn")}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {tab==="content"&&(
           <div className="qa">

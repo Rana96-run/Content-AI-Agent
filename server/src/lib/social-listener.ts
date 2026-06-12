@@ -6,7 +6,7 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
-import { sheetsAppendMentions } from "./sheets-client.js";
+import { sheetsAppendMentions, sheetsLogActivity } from "./sheets-client.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
@@ -300,6 +300,7 @@ export async function runSocialListener(): Promise<ListeningResult> {
   sheetsAppendMentions(runAt, unique).catch(err =>
     logger.warn({ err: String(err) }, "social-listener: sheets append failed (non-fatal)")
   );
+  sheetsLogActivity("social_listener", `Brand monitoring run — ${unique.length} mentions collected`, unique.length).catch(() => {});
 
   logger.info({ count: unique.length }, "social-listener: done");
   return result;

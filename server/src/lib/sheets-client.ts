@@ -639,6 +639,59 @@ export async function sheetsSetBriefJson(json: string): Promise<void> {
   }
 }
 
+/* ── Activity feed ────────────────────────────────────────────── */
+const ACTIVITY_HEADER = ["Timestamp", "Source", "Summary", "Items", "Status"];
+
+/** Prepend one activity entry to the "Activity" tab so newest rows appear first. Non-blocking. */
+export async function sheetsLogActivity(
+  source: string,
+  summary: string,
+  items = 0,
+  status: "ok" | "warn" = "ok"
+): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  try {
+    await ensureTab("Activity", ACTIVITY_HEADER);
+    const s = getSheetsClient();
+    const meta = await s.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID, fields: "sheets.properties" });
+    const sheetId = (meta.data.sheets ?? []).find(sh => sh.properties?.title === "Activity")?.properties?.sheetId;
+    if (sheetId == null) return;
+    await s.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: { requests: [{ insertDimension: { range: { sheetId, dimension: "ROWS", startIndex: 1, endIndex: 2 }, inheritFromBefore: false } }] },
+    });
+    await s.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Activity'!A2:E2",
+      valueInputOption: "RAW",
+      requestBody: { values: [[new Date().toISOString(), source, summary, items, status]] },
+    });
+  } catch (e) {
+    logger.warn({ source, err: String(e) }, "sheets-client: activity log failed (non-fatal)");
+  }
+}
+
+/** Read the most recent N activity entries from the Activity tab. */
+export async function sheetsReadActivity(limit = 50): Promise<Array<{
+  timestamp: string; source: string; summary: string; items: number; status: string;
+}>> {
+  if (!SPREADSHEET_ID) return [];
+  try {
+    const s = getSheetsClient();
+    const r = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `'Activity'!A2:E${limit + 1}`,
+    });
+    return (r.data.values ?? []).map(row => ({
+      timestamp: String(row[0] ?? ""),
+      source: String(row[1] ?? ""),
+      summary: String(row[2] ?? ""),
+      items: Number(row[3] ?? 0),
+      status: String(row[4] ?? "ok"),
+    }));
+  } catch { return []; }
+}
+
 /* ── Formatting helpers ───────────────────────────────────────── */
 
 type RgbColor = { red: number; green: number; blue: number };
@@ -991,6 +1044,28 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       condFmt(id, 2, "Web",       "#546E7A", "#FFFFFF"),
     );
     formatted.push("Social Mentions");
+  }
+
+  /* ── Activity (5 cols: timestamp, source, summary, items, status) */
+  if (idMap["Activity"] != null) {
+    const id = idMap["Activity"];
+    const w = [175, 170, 500, 70, 70];
+    requests.push(
+      freezePane(id, 1, 0),
+      headerFormat(id, 5),
+      altRows(id, 5),
+      ...w.map((px, i) => colWidth(id, i, px)),
+      condFmt(id, 1, "social_listener",    "#1565C0", "#FFFFFF"),
+      condFmt(id, 1, "competitor_monitor", "#E65100", "#FFFFFF"),
+      condFmt(id, 1, "competitor_poller",  "#BF360C", "#FFFFFF"),
+      condFmt(id, 1, "hypothesis",         "#00695C", "#FFFFFF"),
+      condFmt(id, 1, "knowledge_base",     "#6A1B9A", "#FFFFFF"),
+      condFmt(id, 1, "content_gen",        "#2E7D32", "#FFFFFF"),
+      condFmt(id, 1, "content_brief",      "#283593", "#FFFFFF"),
+      condFmt(id, 4, "ok",                 "#2E7D32", "#FFFFFF"),
+      condFmt(id, 4, "warn",               "#F57C00", "#FFFFFF"),
+    );
+    formatted.push("Activity");
   }
 
   if (requests.length === 0) return { formatted: [], skipped: Object.keys(idMap) };

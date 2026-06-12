@@ -21,7 +21,7 @@ import {
   type CompetitorSnapshot,
   type AdSnapshot,
 } from "./competitor-weekly-report.js";
-import { sheetsAppendCompetitorPosts, sheetsHealthCheck } from "./sheets-client.js";
+import { sheetsAppendCompetitorPosts, sheetsHealthCheck, sheetsLogActivity } from "./sheets-client.js";
 import type { CompetitorPost } from "./content-library.js";
 import { buildContextPrompt, renderContextMarkdown, saveContext } from "./competitor-context.js";
 import { extractKnowledgeFromMonitor } from "./knowledge-base.js";
@@ -235,6 +235,7 @@ export async function runMonitorOnce(opts: { competitors?: string[]; postToSlack
       );
     }
   }
+  sheetsLogActivity("competitor_monitor", `Competitor monitor ran — ${allSheetRows.length} posts scraped`, allSheetRows.length).catch(() => {});
 
   // 2. Load last week's snapshots (for diff). Missing = treated as fresh.
   const lastWeek: CompetitorSnapshot[] = competitors
