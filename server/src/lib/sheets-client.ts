@@ -799,6 +799,17 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
   }
 
   // ── One-time migrations (idempotent) ─────────────────────────────────────
+  // 0. Delete deprecated tabs: Documents Log, Campaign State, Content Library
+  const DEPRECATED_TABS = ["Documents Log", "Campaign State", "Content Library"];
+  const deleteTabRequests = DEPRECATED_TABS
+    .filter(t => idMap[t] != null)
+    .map(t => ({ deleteSheet: { sheetId: idMap[t] } }));
+  if (deleteTabRequests.length > 0) {
+    await s.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: deleteTabRequests } });
+    DEPRECATED_TABS.forEach(t => delete idMap[t]);
+    logger.info({ deleted: DEPRECATED_TABS.filter(t => deleteTabRequests.length) }, "sheets-client: deprecated tabs removed");
+  }
+
   // 1. Rename "Content Brief" → "Campaign State"
   if (idMap["Content Brief"] != null && idMap["Campaign State"] == null) {
     await s.spreadsheets.batchUpdate({
