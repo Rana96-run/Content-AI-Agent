@@ -70,12 +70,12 @@ const COMPETITORS: Competitor[] = [
 /* ── Gemini search helper ────────────────────────────────────── */
 async function searchCompetitorPosts(
   competitor: Competitor,
-  channel: "Instagram" | "Twitter" | "TikTok",
+  channel: "Instagram" | "Twitter/X" | "TikTok",
   geminiKey: string
 ): Promise<CompetitorPost[]> {
   const handle = channel === "Instagram"
     ? competitor.instagram
-    : channel === "Twitter"
+    : channel === "Twitter/X"
     ? competitor.twitter
     : competitor.tiktok;
 
@@ -83,7 +83,7 @@ async function searchCompetitorPosts(
 
   const siteMap: Record<string, string> = {
     Instagram: "instagram.com",
-    Twitter: "twitter.com OR x.com",
+    "Twitter/X": "twitter.com OR x.com",
     TikTok: "tiktok.com",
   };
 
@@ -158,7 +158,7 @@ async function poll() {
 
   logger.info("competitor-poller: starting scrape cycle");
 
-  const channels: Array<"Instagram" | "Twitter" | "TikTok"> = ["Instagram", "Twitter", "TikTok"];
+  const channels: Array<"Instagram" | "Twitter/X" | "TikTok"> = ["Instagram", "Twitter/X", "TikTok"];
   const allPosts: CompetitorPost[] = [];
 
   for (const competitor of COMPETITORS) {

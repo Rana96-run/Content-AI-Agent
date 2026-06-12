@@ -229,7 +229,7 @@ const COMPETITOR_POSTS_HEADER = [
 function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
   return [
     p.competitor,
-    p.channel,
+    p.channel === "Twitter" ? "Twitter/X" : p.channel,
     p.content_text,
     p.post_url ?? null,
     p.fetched_at,
@@ -766,6 +766,25 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       range: "'Competitor Posts'!A1:F1",
       valueInputOption: "RAW",
       requestBody: { values: [["Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement"]] },
+    });
+    // Normalize legacy "Twitter" values to "Twitter/X" in the Channel column
+    await s.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [{
+          findReplace: {
+            find: "Twitter",
+            replacement: "Twitter/X",
+            matchEntireCell: true,
+            range: {
+              sheetId: idMap["Competitor Posts"],
+              startRowIndex: 1,
+              startColumnIndex: 1,
+              endColumnIndex: 2,
+            },
+          },
+        }],
+      },
     });
   }
 
