@@ -539,6 +539,25 @@ export async function sheetsReadDocumentsLog(limit = 20, filterType?: string): P
   }
 }
 
+/** Clear the Social Mentions tab and rewrite just the header row. */
+export async function sheetsResetSocialMentions(): Promise<void> {
+  if (!SPREADSHEET_ID) return;
+  const s = getSheetsClient();
+  const header = ["Run At", "Group", "Platform", "Keyword", "Author", "Posted At", "Text", "URL"];
+  // Clear everything then write the header
+  await s.spreadsheets.values.clear({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "'Social Mentions'",
+  }).catch(() => {}); // tab may not exist yet
+  await ensureTab("Social Mentions", header);
+  await s.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "'Social Mentions'!A1",
+    valueInputOption: "RAW",
+    requestBody: { values: [header] },
+  });
+}
+
 /** Append Twitter/X and web mentions to the "Social Mentions" tab. */
 export async function sheetsAppendMentions(runAt: string, mentions: Array<{
   keyword: string;

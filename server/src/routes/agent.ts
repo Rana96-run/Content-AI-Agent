@@ -2292,6 +2292,18 @@ router.post("/sheets/format", async (_req, res) => {
   }
 });
 
+/* Clear Social Mentions tab and rebuild with correct header + formatting */
+router.post("/sheets/reset-mentions", async (_req, res) => {
+  try {
+    const { sheetsResetSocialMentions, sheetsApplyLibraryFormatting } = await import("../lib/sheets-client.js");
+    await sheetsResetSocialMentions();
+    const fmt = await sheetsApplyLibraryFormatting();
+    res.json({ ok: true, reset: "Social Mentions", formatted: fmt.formatted });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 /* Backfill all local content library entries to Google Sheets */
 router.post("/content-library/sync", async (_req, res) => {
   try {
