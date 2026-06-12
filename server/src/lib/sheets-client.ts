@@ -725,6 +725,30 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     }
   }
 
+  // ── One-time migrations (idempotent) ─────────────────────────────────────
+  // 1. Rename "Content Brief" → "Campaign State"
+  if (idMap["Content Brief"] != null && idMap["Campaign State"] == null) {
+    await s.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: { requests: [{ updateSheetProperties: {
+        properties: { sheetId: idMap["Content Brief"], title: "Campaign State" },
+        fields: "title",
+      }}]},
+    });
+    idMap["Campaign State"] = idMap["Content Brief"];
+    delete idMap["Content Brief"];
+  }
+
+  // 2. Update Content Briefs header row to 12-col schema (adds Source as first col)
+  if (idMap["Content Briefs"] != null) {
+    await s.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Content Briefs'!A1:L1",
+      valueInputOption: "RAW",
+      requestBody: { values: [["Source","Brief ID","Created At","Submitted By","Campaign Name","Target Channel","Tone","Topic","Keywords","Notes","Status","Generated Content"]] },
+    });
+  }
+
   const requests: object[] = [];
   const formatted: string[] = [];
 
