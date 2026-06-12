@@ -907,6 +907,47 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
   return { formatted, skipped };
 }
 
+/**
+ * Read the most recent listening run from the "Social Mentions" tab.
+ * Returns a ListeningResult reconstructed from the latest runAt batch.
+ * Used as fallback when the local JSON cache doesn't exist (e.g. after Railway redeploy).
+ */
+export async function sheetsReadLatestListening(): Promise<{
+  runAt: string;
+  mentions: Array<{ keyword: string; group: "brand" | "zatca" | "market"; platform: string; text: string; url: string; author?: string; postedAt?: string }>;
+  summary: string;
+} | null> {
+  if (!SPREADSHEET_ID) return null;
+  try {
+    const s = getSheetsClient();
+    const r = await s.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "'Social Mentions'!A2:H",
+    });
+    const rows = (r.data.values ?? []) as string[][];
+    if (rows.length === 0) return null;
+
+    // Find the most recent runAt (col A)
+    const latestRunAt = rows.reduce((best, row) => (row[0] > best ? row[0] : best), rows[0][0]);
+
+    const mentions = rows
+      .filter(row => row[0] === latestRunAt)
+      .map(row => ({
+        keyword:  row[3] ?? "",
+        group:    (["brand","zatca","market"].includes(row[1]) ? row[1] : "brand") as "brand" | "zatca" | "market",
+        platform: row[2] ?? "Web",
+        text:     row[6] ?? "",
+        url:      row[7] ?? "",
+        author:   row[4] || undefined,
+        postedAt: row[5] || undefined,
+      }));
+
+    return { runAt: latestRunAt, mentions, summary: "" };
+  } catch {
+    return null;
+  }
+}
+
 /** Health check — returns true if the sheet is reachable. */
 export async function sheetsHealthCheck(): Promise<{ ok: boolean; url?: string; error?: string }> {
   if (!SPREADSHEET_ID) return { ok: false, error: "GOOGLE_SHEETS_ID not configured" };

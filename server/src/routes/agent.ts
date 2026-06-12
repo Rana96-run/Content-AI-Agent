@@ -2455,7 +2455,12 @@ router.get("/stats", async (_req, res) => {
 router.get("/listening/latest", async (_req, res) => {
   try {
     const { getLatestListeningResult } = await import("../lib/social-listener.js");
-    const result = getLatestListeningResult();
+    let result = getLatestListeningResult();
+    // File cache is ephemeral on Railway — fall back to Sheets
+    if (!result) {
+      const { sheetsReadLatestListening } = await import("../lib/sheets-client.js");
+      result = await sheetsReadLatestListening();
+    }
     if (!result) return res.json({ ok: false, message: "No listening data yet — trigger a run first" });
     res.json({ ok: true, ...result });
   } catch (e) {
