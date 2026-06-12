@@ -1,58 +1,43 @@
 $BASE = "https://somaa-ai-agent-production.up.railway.app"
 
-function Invoke-Post($path) {
-    try {
-        $r = Invoke-WebRequest -Uri "$BASE$path" -Method POST -UseBasicParsing -TimeoutSec 120
-        $r.Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
-    } catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-    }
+function listen {
+    Write-Host "Running social listener..." -ForegroundColor Cyan
+    (Invoke-WebRequest -Uri "$BASE/api/agent/listening/run-now" -Method POST -UseBasicParsing -TimeoutSec 120).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
 }
 
-function Invoke-Get($path) {
-    try {
-        $r = Invoke-WebRequest -Uri "$BASE$path" -Method GET -UseBasicParsing -TimeoutSec 30
-        $r.Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
-    } catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-    }
+function listen-status {
+    (Invoke-WebRequest -Uri "$BASE/api/agent/listening/latest" -Method GET -UseBasicParsing -TimeoutSec 30).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
 }
 
-function Show-Help {
-    Write-Host ""
-    Write-Host "  listen          - run social listening now (X, LinkedIn, TikTok, Threads)" -ForegroundColor Yellow
-    Write-Host "  listen-status   - show latest results and mention counts" -ForegroundColor Yellow
-    Write-Host "  listen-reset    - clear Social Mentions tab" -ForegroundColor Yellow
-    Write-Host "  monitor         - run weekly competitor monitor (slides + Slack)" -ForegroundColor Yellow
-    Write-Host "  capture         - run daily competitor capture" -ForegroundColor Yellow
-    Write-Host "  sheets-format   - apply formatting to all sheet tabs" -ForegroundColor Yellow
-    Write-Host "  sheets-sync     - sync content library to Sheets" -ForegroundColor Yellow
-    Write-Host "  health          - check if server is up" -ForegroundColor Yellow
-    Write-Host "  exit            - quit" -ForegroundColor Yellow
-    Write-Host ""
+function listen-reset {
+    (Invoke-WebRequest -Uri "$BASE/api/agent/sheets/reset-mentions" -Method POST -UseBasicParsing -TimeoutSec 30).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
+}
+
+function monitor {
+    Write-Host "Running competitor monitor..." -ForegroundColor Cyan
+    (Invoke-WebRequest -Uri "$BASE/api/competitor-ads/run-monitor-now" -Method POST -UseBasicParsing -TimeoutSec 120).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
+}
+
+function capture {
+    (Invoke-WebRequest -Uri "$BASE/api/agent/daily-capture/run-now" -Method POST -UseBasicParsing -TimeoutSec 120).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
+}
+
+function sheets-format {
+    (Invoke-WebRequest -Uri "$BASE/api/agent/sheets/format" -Method POST -UseBasicParsing -TimeoutSec 60).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
+}
+
+function sheets-sync {
+    (Invoke-WebRequest -Uri "$BASE/api/agent/content-library/sync" -Method POST -UseBasicParsing -TimeoutSec 60).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
+}
+
+function health {
+    (Invoke-WebRequest -Uri "$BASE/api/ai-health" -Method GET -UseBasicParsing -TimeoutSec 30).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
 }
 
 Clear-Host
-Write-Host "=======================================" -ForegroundColor Cyan
-Write-Host "  Qoyod Creative OS - Agent Terminal" -ForegroundColor Cyan
-Write-Host "=======================================" -ForegroundColor Cyan
-Show-Help
-
-while ($true) {
-    Write-Host "> " -NoNewline -ForegroundColor Green
-    $cmd = ([Console]::ReadLine()).Trim().ToLower()
-    if ($cmd -match "^agent:\s*(.*)$") { $cmd = $matches[1].Trim() }
-
-    if ($cmd -eq "listen")        { Invoke-Post "/api/agent/listening/run-now" }
-    elseif ($cmd -eq "listen-status") { Invoke-Get  "/api/agent/listening/latest" }
-    elseif ($cmd -eq "listen-reset")  { Invoke-Post "/api/agent/sheets/reset-mentions" }
-    elseif ($cmd -eq "monitor")   { Invoke-Post "/api/competitor-ads/run-monitor-now" }
-    elseif ($cmd -eq "capture")   { Invoke-Post "/api/agent/daily-capture/run-now" }
-    elseif ($cmd -eq "sheets-format") { Invoke-Post "/api/agent/sheets/format" }
-    elseif ($cmd -eq "sheets-sync")   { Invoke-Post "/api/agent/content-library/sync" }
-    elseif ($cmd -eq "health")    { Invoke-Get  "/api/ai-health" }
-    elseif ($cmd -eq "help")      { Show-Help }
-    elseif ($cmd -eq "exit" -or $cmd -eq "quit" -or $cmd -eq "q") { exit }
-    elseif ($cmd -eq "")          { }
-    else { Write-Host "Unknown command '$cmd'. Type 'help' to see all commands." -ForegroundColor DarkGray }
-}
+Write-Host "Qoyod Creative OS - Agent Terminal" -ForegroundColor Cyan
+Write-Host "-----------------------------------" -ForegroundColor Cyan
+Write-Host "listen          listen-status    listen-reset" -ForegroundColor Yellow
+Write-Host "monitor         capture          health" -ForegroundColor Yellow
+Write-Host "sheets-format   sheets-sync" -ForegroundColor Yellow
+Write-Host ""
