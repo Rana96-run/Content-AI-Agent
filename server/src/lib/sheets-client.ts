@@ -986,7 +986,12 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       altRows(id, 8),
       ...w.map((px, i) => colWidth(id, i, px)),
       dropdown(id, 1, 2, ["icp_signal","ad_pattern","hook_angle","content_insight","sector_insight","anti_pattern","competitor_move","competitor_insight"]),
+      dropdown(id, 2, 3, ["All","Retail","F&B","Consulting","Construction","Tech","General"]),
+      dropdown(id, 3, 4, ["All","Instagram","TikTok","Twitter/X","LinkedIn","YouTube","Google","Snapchat"]),
       dropdown(id, 6, 7, ["high","medium","low"]),
+      condFmt(id, 6, "high",   "#2E7D32", "#FFFFFF"),
+      condFmt(id, 6, "medium", "#F57C00", "#FFFFFF"),
+      condFmt(id, 6, "low",    "#616161", "#FFFFFF"),
     );
     formatted.push("Knowledge Base");
   }
