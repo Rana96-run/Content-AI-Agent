@@ -40,7 +40,7 @@ Show-Help
 
 while ($true) {
     Write-Host "> " -NoNewline -ForegroundColor Green
-    $cmd = (Read-Host "").Trim().ToLower()
+    $cmd = ([Console]::ReadLine()).Trim().ToLower()
 
     if ($cmd -eq "listen")        { Invoke-Post "/api/agent/listening/run-now" }
     elseif ($cmd -eq "listen-status") { Invoke-Get  "/api/agent/listening/latest" }
