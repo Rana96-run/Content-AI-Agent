@@ -145,7 +145,7 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<Listen
       url: t.url ?? `https://x.com/i/web/status/${t.id_str ?? t.id ?? ""}`,
       author: t.user?.screen_name ?? t.author?.userName ?? "",
       postedAt: t.created_at ?? t.createdAt ?? "",
-    })).filter(m => m.text.length > 10 && !isOwnAccount(m.author ?? ""));
+    })).filter(m => m.text.length > 30 && !isOwnAccount(m.author ?? ""));
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: X scrape failed");
     return [];
@@ -174,7 +174,7 @@ async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<L
       url: v.webVideoUrl ?? v.videoUrl ?? v.url ?? "",
       author: v.authorMeta?.uniqueId ?? v.authorMeta?.name ?? v.author?.uniqueId ?? "",
       postedAt: v.createTimeISO ?? (v.createTime ? new Date(v.createTime * 1000).toISOString() : ""),
-    })).filter(m => m.text.length > 10 && !isOwnAccount(m.author ?? ""));
+    })).filter(m => m.text.length > 30 && !isOwnAccount(m.author ?? ""));
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: TikTok scrape failed");
     return [];
