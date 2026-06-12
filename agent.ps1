@@ -34,6 +34,8 @@ function health {
     (Invoke-WebRequest -Uri "$BASE/api/ai-health" -Method GET -UseBasicParsing -TimeoutSec 30).Content | ConvertFrom-Json | ConvertTo-Json -Depth 5
 }
 
+function prompt { "> " }
+
 Clear-Host
 Write-Host "Qoyod Creative OS - Agent Terminal" -ForegroundColor Cyan
 Write-Host "-----------------------------------" -ForegroundColor Cyan
