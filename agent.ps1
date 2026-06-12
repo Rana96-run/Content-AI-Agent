@@ -41,6 +41,7 @@ Show-Help
 while ($true) {
     Write-Host "> " -NoNewline -ForegroundColor Green
     $cmd = ([Console]::ReadLine()).Trim().ToLower()
+    if ($cmd -match "^agent:\s*(.*)$") { $cmd = $matches[1].Trim() }
 
     if ($cmd -eq "listen")        { Invoke-Post "/api/agent/listening/run-now" }
     elseif ($cmd -eq "listen-status") { Invoke-Get  "/api/agent/listening/latest" }
