@@ -12,25 +12,42 @@ const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
 // Twitter/X is the primary source — all groups are scraped on X first.
 // Web search is used only for zatca/market (regulatory news, not brand chatter).
-const KEYWORDS: Record<"brand" | "zatca" | "market", { terms: string[]; webSearch: boolean }> = {
-  brand:  { terms: ["qoyod", "برنامج قيود", "تطبيق قيود", "#قيود", "@qoyod", "qoyod.com"], webSearch: false },
-  zatca:  { terms: [
-    "هيئة الزكاة والضريبة",
-    "هيئة الزكاة والضريبة والجمارك",
-    "ZATCA",
-    "الفاتورة الالكترونية",
-    "الفاتورة الالكترونية المرحلة الثانية",
-    "المرحلة الثانية للفاتورة",
-    "ربط الفاتورة الالكترونية",
-    "رفع القوائم المالية",
-    "منصة فاتورة",
-    "fatoorah portal",
-    "e-invoice phase 2",
-    "فاتورة ضريبية",
-    "#فاتورة_الكترونية",
-    "فوترة إلكترونية",
-  ], webSearch: true },
-  market: { terms: ["وزارة التجارة السعودية", "برنامج محاسبة", "نظام محاسبي", "فاتورة معتمدة", "#محاسبة_سعودية"], webSearch: true },
+interface GroupConfig {
+  terms: string[];
+  webSearch: boolean;
+  linkedIn: boolean; // professional content — good for brand + regulatory
+  tiktok: boolean;   // brand awareness only
+  threads: boolean;  // brand awareness only
+}
+
+const KEYWORDS: Record<"brand" | "zatca" | "market", GroupConfig> = {
+  brand:  {
+    terms: ["qoyod", "برنامج قيود", "تطبيق قيود", "#قيود", "@qoyod", "qoyod.com"],
+    webSearch: false, linkedIn: true, tiktok: true, threads: true,
+  },
+  zatca:  {
+    terms: [
+      "هيئة الزكاة والضريبة",
+      "هيئة الزكاة والضريبة والجمارك",
+      "ZATCA",
+      "الفاتورة الالكترونية",
+      "الفاتورة الالكترونية المرحلة الثانية",
+      "المرحلة الثانية للفاتورة",
+      "ربط الفاتورة الالكترونية",
+      "رفع القوائم المالية",
+      "منصة فاتورة",
+      "fatoorah portal",
+      "e-invoice phase 2",
+      "فاتورة ضريبية",
+      "#فاتورة_الكترونية",
+      "فوترة إلكترونية",
+    ],
+    webSearch: true, linkedIn: true, tiktok: false, threads: false,
+  },
+  market: {
+    terms: ["وزارة التجارة السعودية", "برنامج محاسبة", "نظام محاسبي", "فاتورة معتمدة", "#محاسبة_سعودية"],
+    webSearch: true, linkedIn: true, tiktok: false, threads: false,
+  },
 };
 
 export interface ListeningMention {
@@ -80,6 +97,90 @@ async function scrapeX(keyword: string, apifyToken: string): Promise<Omit<Listen
     }));
   } catch (e) {
     logger.warn({ keyword, err: String(e) }, "social-listener: X scrape failed");
+    return [];
+  }
+}
+
+async function scrapeLinkedIn(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
+  try {
+    const run = await fetch(
+      "https://api.apify.com/v2/acts/curious_coder~linkedin-post-search-scraper/run-sync-get-dataset-items?token=" +
+        encodeURIComponent(apifyToken) + "&timeout=90",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchTerms: [keyword], maxPosts: 15 }),
+        signal: AbortSignal.timeout(100_000),
+      }
+    );
+    if (!run.ok) return [];
+    const items = (await run.json()) as any[];
+    return (Array.isArray(items) ? items : []).slice(0, 15).map((p: any) => ({
+      keyword,
+      platform: "LinkedIn",
+      text: p.postContent ?? p.text ?? p.content ?? "",
+      url: p.postUrl ?? p.url ?? "",
+      author: p.authorName ?? p.author ?? "",
+      postedAt: p.postedDate ?? p.createdAt ?? "",
+    })).filter(m => m.text.length > 10);
+  } catch (e) {
+    logger.warn({ keyword, err: String(e) }, "social-listener: LinkedIn scrape failed");
+    return [];
+  }
+}
+
+async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
+  try {
+    const run = await fetch(
+      "https://api.apify.com/v2/acts/clockworks~tiktok-scraper/run-sync-get-dataset-items?token=" +
+        encodeURIComponent(apifyToken) + "&timeout=90",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchQueries: [keyword], maxItems: 15, type: "search" }),
+        signal: AbortSignal.timeout(100_000),
+      }
+    );
+    if (!run.ok) return [];
+    const items = (await run.json()) as any[];
+    return (Array.isArray(items) ? items : []).slice(0, 15).map((v: any) => ({
+      keyword,
+      platform: "TikTok",
+      text: v.text ?? v.desc ?? v.description ?? "",
+      url: v.webVideoUrl ?? v.videoUrl ?? v.url ?? "",
+      author: v.authorMeta?.name ?? v.author?.uniqueId ?? "",
+      postedAt: v.createTimeISO ?? (v.createTime ? new Date(v.createTime * 1000).toISOString() : ""),
+    })).filter(m => m.text.length > 10);
+  } catch (e) {
+    logger.warn({ keyword, err: String(e) }, "social-listener: TikTok scrape failed");
+    return [];
+  }
+}
+
+async function scrapeThreads(keyword: string, apifyToken: string): Promise<Omit<ListeningMention, "group">[]> {
+  try {
+    const run = await fetch(
+      "https://api.apify.com/v2/acts/apify~threads-scraper/run-sync-get-dataset-items?token=" +
+        encodeURIComponent(apifyToken) + "&timeout=90",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchQuery: keyword, maxPosts: 15 }),
+        signal: AbortSignal.timeout(100_000),
+      }
+    );
+    if (!run.ok) return [];
+    const items = (await run.json()) as any[];
+    return (Array.isArray(items) ? items : []).slice(0, 15).map((p: any) => ({
+      keyword,
+      platform: "Threads",
+      text: p.text ?? p.content ?? "",
+      url: p.url ?? p.permalink ?? "",
+      author: p.username ?? p.author ?? "",
+      postedAt: p.timestamp ?? p.createdAt ?? "",
+    })).filter(m => m.text.length > 10);
+  } catch (e) {
+    logger.warn({ keyword, err: String(e) }, "social-listener: Threads scrape failed");
     return [];
   }
 }
@@ -156,13 +257,26 @@ export async function runSocialListener(): Promise<ListeningResult> {
   const runAt = new Date().toISOString();
   const allMentions: ListeningMention[] = [];
 
-  for (const [group, cfg] of Object.entries(KEYWORDS) as ["brand" | "zatca" | "market", { terms: string[]; webSearch: boolean }][]) {
+  for (const [group, cfg] of Object.entries(KEYWORDS) as ["brand" | "zatca" | "market", GroupConfig][]) {
     for (const kw of cfg.terms) {
-      // Twitter/X is always primary
-      const xResults = token ? await scrapeX(kw, token) : [];
-      allMentions.push(...xResults.map(m => ({ ...m, group })));
-      // Web search: always for zatca/market; for brand only when Twitter returned nothing
-      if (cfg.webSearch || xResults.length === 0) {
+      // All applicable platform scrapers run in parallel per keyword
+      const [xResults, liResults, ttResults, thResults] = await Promise.all([
+        token ? scrapeX(kw, token)        : Promise.resolve([]),
+        (token && cfg.linkedIn)  ? scrapeLinkedIn(kw, token) : Promise.resolve([]),
+        (token && cfg.tiktok)    ? scrapeTikTok(kw, token)   : Promise.resolve([]),
+        (token && cfg.threads)   ? scrapeThreads(kw, token)  : Promise.resolve([]),
+      ]);
+
+      allMentions.push(
+        ...xResults.map(m => ({ ...m, group })),
+        ...liResults.map(m => ({ ...m, group })),
+        ...ttResults.map(m => ({ ...m, group })),
+        ...thResults.map(m => ({ ...m, group })),
+      );
+
+      // Web search fallback: always for zatca/market; for brand if no social results
+      const hasSocial = xResults.length + liResults.length + ttResults.length + thResults.length > 0;
+      if (cfg.webSearch || !hasSocial) {
         const webResults = await searchWeb(kw);
         allMentions.push(...webResults.map(m => ({ ...m, group })));
       }
