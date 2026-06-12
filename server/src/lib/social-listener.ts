@@ -76,21 +76,36 @@ function isOwnAccount(author: string): boolean {
   return QOYOD_ACCOUNTS.has(a) || a.startsWith("qoyod");
 }
 
-// ── jina Search API (s.jina.ai) — avoids Google CAPTCHA ─────────────────────
-async function jinaSearch(query: string): Promise<Array<{ title: string; url: string; description: string }>> {
+// ── DuckDuckGo via jina reader — no CAPTCHA, no API key needed ───────────────
+async function ddgSearch(query: string): Promise<Array<{ url: string; text: string }>> {
   try {
-    const resp = await fetch(`https://s.jina.ai/${encodeURIComponent(query)}`, {
-      headers: { Accept: "application/json", "X-Timeout": "15" },
+    const q = encodeURIComponent(query);
+    const resp = await fetch(`https://r.jina.ai/https://html.duckduckgo.com/html/?q=${q}`, {
+      headers: { Accept: "text/plain", "X-Timeout": "15" },
       signal: AbortSignal.timeout(20_000),
     });
     if (!resp.ok) return [];
-    const data = await resp.json() as any;
-    const items: any[] = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-    return items.slice(0, 8).map(r => ({
-      title: String(r.title ?? ""),
-      url: String(r.url ?? ""),
-      description: String(r.description ?? r.content ?? r.snippet ?? "").slice(0, 400),
-    })).filter(r => r.description.length > 30);
+    const raw = await resp.text();
+    const results: Array<{ url: string; text: string }> = [];
+
+    // Each result starts with a "## [Title](ddg-redirect)" line
+    for (const section of raw.split(/\n## \[/).slice(1)) {
+      const uddg = section.match(/uddg=([^&\s")\]]+)/);
+      const url = uddg ? decodeURIComponent(uddg[1]) : "";
+      // DDG snippets are long markdown links: [description text...](duckduckgo.com/l/...)
+      // Extract just the description text from those links
+      const snippetRe = /\[([^\]]{60,})\]\(https:\/\/duckduckgo\.com[^)]+\)/g;
+      const snippets: string[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = snippetRe.exec(section)) !== null) {
+        const s = m[1].replace(/\*\*/g, "").trim();
+        // Skip breadcrumb/path lines — real descriptions have multiple words
+        if (s.split(" ").length >= 4) snippets.push(s);
+      }
+      const text = snippets.join(" ").slice(0, 300);
+      if (text.length > 40 && url) results.push({ url, text });
+    }
+    return results.slice(0, 6);
   } catch {
     return [];
   }
@@ -154,42 +169,26 @@ async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<L
   }
 }
 
-// ── LinkedIn — jina search filtered to linkedin.com posts ────────────────────
+// ── LinkedIn — DDG search filtered to linkedin.com posts ─────────────────────
 async function scrapeLinkedIn(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await jinaSearch(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
-  return results.map(r => ({
-    keyword,
-    platform: "LinkedIn",
-    text: r.description,
-    url: r.url,
-    postedAt: new Date().toISOString(),
-  }));
+  const results = await ddgSearch(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
+  return results
+    .filter(r => !r.url.includes("linkedin.com/company/qoyod"))
+    .map(r => ({ keyword, platform: "LinkedIn", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 
-// ── Threads — jina search filtered to threads.net ────────────────────────────
+// ── Threads — DDG search filtered to threads.net ─────────────────────────────
 async function scrapeThreads(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await jinaSearch(`${keyword} site:threads.net`);
-  return results.map(r => ({
-    keyword,
-    platform: "Threads",
-    text: r.description,
-    url: r.url,
-    postedAt: new Date().toISOString(),
-  }));
+  const results = await ddgSearch(`${keyword} site:threads.net`);
+  return results.map(r => ({ keyword, platform: "Threads", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 
 // ── Web (news/regulatory portals) ────────────────────────────────────────────
 async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await jinaSearch(
+  const results = await ddgSearch(
     `${keyword} site:arabianbusiness.com OR site:argaam.com OR site:mubasher.info OR site:zatca.gov.sa`
   );
-  return results.map(r => ({
-    keyword,
-    platform: "Web",
-    text: r.description,
-    url: r.url,
-    postedAt: new Date().toISOString(),
-  }));
+  return results.map(r => ({ keyword, platform: "Web", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 
 async function summarise(mentions: ListeningMention[]): Promise<string> {
