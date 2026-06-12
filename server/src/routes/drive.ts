@@ -204,6 +204,57 @@ router.post("/list", async (_req, res) => {
   }
 });
 
+/* ── POST /api/drive/competitor-cleanup ──────────────────────────
+   Lists (or deletes with ?confirm=true) all files inside the
+   "Competitor Intel" and "Competitor Slides" subfolders. */
+router.post("/competitor-cleanup", async (req, res) => {
+  if (!FOLDER_ID) return res.status(500).json({ error: "GOOGLE_DRIVE_FOLDER_ID not configured" });
+  const confirm = req.query.confirm === "true";
+  const TARGET_FOLDERS = ["Competitor Intel", "Competitor Slides", "Competitor Monitor"];
+  try {
+    const drive = getDriveClient();
+    // Find the target subfolder IDs
+    const { data: rootData } = await drive.files.list({
+      q: `'${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: "files(id,name)",
+      supportsAllDrives: true, includeItemsFromAllDrives: true,
+    });
+    const folders = (rootData.files ?? []).filter(f => TARGET_FOLDERS.includes(f.name ?? ""));
+
+    // List all files inside those folders
+    const allFiles: Array<{ id: string; name: string; folder: string; modifiedTime: string }> = [];
+    for (const folder of folders) {
+      let pageToken: string | undefined;
+      do {
+        const { data } = await drive.files.list({
+          q: `'${folder.id}' in parents and trashed=false`,
+          fields: "nextPageToken,files(id,name,modifiedTime)",
+          pageSize: 1000, pageToken,
+          supportsAllDrives: true, includeItemsFromAllDrives: true,
+        });
+        for (const f of data.files ?? []) {
+          allFiles.push({ id: f.id!, name: f.name ?? "", folder: folder.name ?? "", modifiedTime: f.modifiedTime ?? "" });
+        }
+        pageToken = data.nextPageToken ?? undefined;
+      } while (pageToken);
+    }
+
+    if (!confirm) {
+      return res.json({ ok: true, found: allFiles.length, files: allFiles, message: "Add ?confirm=true to delete" });
+    }
+
+    // Delete all
+    let deleted = 0;
+    for (const f of allFiles) {
+      await drive.files.delete({ fileId: f.id, supportsAllDrives: true }).catch(() => {});
+      deleted++;
+    }
+    res.json({ ok: true, deleted, message: `Deleted ${deleted} competitor report files` });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 export default router;
 
 /* ── Subfolder cache — looks up or creates a named subfolder under FOLDER_ID ─ */
