@@ -1,2 +1,2 @@
 @echo off
-powershell -NoExit -ExecutionPolicy Bypass -File "%~dp0agent.ps1"
+powershell -NoExit -ExecutionPolicy Bypass -Command "& { . '%~dp0agent.ps1' }"
