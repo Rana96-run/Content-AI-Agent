@@ -58,8 +58,8 @@ const TABS = [
   },
   {
     name: "Content Briefs",
-    columns: ["Brief ID", "Created At", "Submitted By", "Campaign Name", "Target Channel", "Tone", "Topic", "Keywords", "Notes", "Status", "Generated Content"],
-    widths: [160, 140, 160, 200, 140, 100, 200, 200, 200, 100, 400],
+    columns: ["Source", "Brief ID", "Created At", "Submitted By", "Campaign Name", "Target Channel", "Tone", "Topic", "Keywords", "Notes", "Status", "Generated Content"],
+    widths: [100, 130, 145, 140, 180, 130, 100, 200, 180, 200, 100, 300],
   },
 ] as const;
 

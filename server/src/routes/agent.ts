@@ -1791,6 +1791,7 @@ router.post("/webhook", async (req, res) => {
     // Log content briefs to Google Sheets for persistence
     if (zap === "sheets_brief" || zap === "typeform_brief") {
       sheetsAppendBrief({
+        source: zap === "sheets_brief" ? "sheets" : "typeform",
         brief_id: `brief_${Date.now()}`,
         created_at: new Date().toISOString(),
         submitted_by: p.email ?? p.submitted_by ?? undefined,

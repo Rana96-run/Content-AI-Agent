@@ -342,8 +342,11 @@ export async function sheetsAppendHypothesis(h: {
   ]]);
 }
 
-/** Append a content brief to the "Content Briefs" tab. */
+/** Append a content brief to the "Content Briefs" tab.
+ *  source: "sheets" | "typeform" | "ui" | "manual"
+ */
 export async function sheetsAppendBrief(brief: {
+  source: string;
   brief_id: string;
   created_at: string;
   submitted_by?: string;
@@ -357,6 +360,7 @@ export async function sheetsAppendBrief(brief: {
   generated_content?: string;
 }): Promise<void> {
   await appendRows("Content Briefs", [[
+    brief.source,
     brief.brief_id,
     brief.created_at,
     brief.submitted_by ?? null,
@@ -582,10 +586,10 @@ export async function sheetsAppendMentions(runAt: string, mentions: Array<{
   ]));
 }
 
-// ── Content Brief — persists the campaign/weekly brief across deploys ─────────
-const BRIEF_TAB = "Content Brief";
+// ── Campaign State — persists active campaign brief JSON across Railway redeploys ─
+const BRIEF_TAB = "Campaign State";
 
-/** Read the raw JSON blob from the Content Brief tab (A2:B2). Returns null if empty. */
+/** Read the raw JSON blob from the Campaign State tab. Returns null if empty. */
 export async function sheetsGetBriefJson(): Promise<string | null> {
   if (!SPREADSHEET_ID) return null;
   try {
@@ -602,7 +606,7 @@ export async function sheetsGetBriefJson(): Promise<string | null> {
   }
 }
 
-/** Write the raw JSON blob to A2:B2 of the Content Brief tab. */
+/** Write the raw JSON blob to the Campaign State tab. */
 export async function sheetsSetBriefJson(json: string): Promise<void> {
   if (!SPREADSHEET_ID) return;
   try {
@@ -614,7 +618,7 @@ export async function sheetsSetBriefJson(json: string): Promise<void> {
       valueInputOption: "RAW",
       requestBody: { values: [["brief", json]] },
     });
-    logger.info("sheets-client: content brief saved");
+    logger.info("sheets-client: campaign state saved");
   } catch (e) {
     logger.warn({ err: String(e) }, "sheets-client: setBriefJson failed (non-fatal)");
   }
@@ -789,20 +793,24 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     formatted.push("Qoyod Posts");
   }
 
-  /* ── Content Briefs (11 cols: submitted_at,product,message,hook,cta,trust,placement,sector,persona,status,notes) */
+  /* ── Content Briefs (12 cols: source,brief_id,created_at,submitted_by,campaign_name,target_channel,tone,topic,keywords,notes,status,generated_content) */
   if (idMap["Content Briefs"] != null) {
     const id = idMap["Content Briefs"];
-    const w = [145, 110, 280, 200, 180, 180, 110, 120, 120, 100, 250];
+    const w = [100, 130, 145, 140, 180, 130, 100, 200, 180, 200, 100, 300];
     requests.push(
       freezePane(id, 1, 0),
-      headerFormat(id, 11),
-      altRows(id, 11),
+      headerFormat(id, 12),
+      altRows(id, 12),
       ...w.map((px, i) => colWidth(id, i, px)),
-      dropdown(id, 6, 7, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Email","WhatsApp"]),
-      dropdown(id, 9, 10, ["pending","approved","published","archived"]),
-      condFmt(id, 9, "approved",  "#2E7D32", "#FFFFFF"),
-      condFmt(id, 9, "published", "#1565C0", "#FFFFFF"),
-      condFmt(id, 9, "archived",  "#616161", "#FFFFFF"),
+      dropdown(id, 0, 1, ["sheets","typeform","ui","manual"]),
+      dropdown(id, 5, 6, ["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Snapchat","Email","WhatsApp"]),
+      dropdown(id, 10, 11, ["pending","approved","published","archived"]),
+      condFmt(id, 0, "sheets",   "#1565C0", "#FFFFFF"),
+      condFmt(id, 0, "typeform", "#6A1B9A", "#FFFFFF"),
+      condFmt(id, 0, "ui",       "#2E7D32", "#FFFFFF"),
+      condFmt(id, 10, "approved",  "#2E7D32", "#FFFFFF"),
+      condFmt(id, 10, "published", "#1565C0", "#FFFFFF"),
+      condFmt(id, 10, "archived",  "#616161", "#FFFFFF"),
     );
     formatted.push("Content Briefs");
   }
@@ -881,18 +889,6 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       condFmt(id, 1, "market", "#2E7D32", "#FFFFFF"),
     );
     formatted.push("Social Mentions");
-  }
-
-  /* ── Content Brief (2 cols: key, value — blob storage) ─────────── */
-  if (idMap["Content Brief"] != null) {
-    const id = idMap["Content Brief"];
-    requests.push(
-      freezePane(id, 1, 0),
-      headerFormat(id, 2),
-      colWidth(id, 0, 130),
-      colWidth(id, 1, 600),
-    );
-    formatted.push("Content Brief");
   }
 
   if (requests.length === 0) return { formatted: [], skipped: Object.keys(idMap) };
