@@ -88,10 +88,14 @@ async function searchCompetitorPosts(
   };
 
   const prompt = [
-    `Find the 3 most recent public posts from ${competitor.name}'s official ${channel} account`,
-    `(handle: @${handle}, site: ${siteMap[channel]}).`,
-    `For each post return: exact post text (in Arabic if the account is Arabic), posting date, URL, and engagement (likes/comments/views if visible).`,
-    `Return ONLY valid JSON: {"posts":[{"text":"...","date":"...","url":"...","engagement":"..."}]}`,
+    `Find the 3 most recent public social media posts from ${competitor.name}'s official ${channel} account (handle: @${handle}, site: ${siteMap[channel]}).`,
+    `Rules for the "text" field:`,
+    `- Include ONLY the actual caption/post body the account wrote.`,
+    `- Do NOT include: website URLs, CTAs like "ابدأ الاستخدام مجانًا" or "تواصل معنا", contact links, social media profile links, or any boilerplate appended by the platform.`,
+    `- If the post is a video/reel, use the video description/caption only.`,
+    `- Maximum 300 characters per post text.`,
+    `For each post return: text, date (ISO), url (direct post link), engagement (likes+comments count if visible or empty string).`,
+    `Return ONLY valid JSON with no markdown: {"posts":[{"text":"...","date":"...","url":"...","engagement":"..."}]}`,
   ].join(" ");
 
   try {

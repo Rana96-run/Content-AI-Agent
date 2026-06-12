@@ -832,22 +832,26 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
       requestBody: { values: [["Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement"]] },
     });
     // Normalize legacy "Twitter" values to "Twitter/X" in the Channel column
+    // Also clear old schema columns G-Z (scraped_at, engagement_raw, etc.)
     await s.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
-        requests: [{
-          findReplace: {
-            find: "Twitter",
-            replacement: "Twitter/X",
-            matchEntireCell: true,
-            range: {
-              sheetId: idMap["Competitor Posts"],
-              startRowIndex: 1,
-              startColumnIndex: 1,
-              endColumnIndex: 2,
+        requests: [
+          {
+            findReplace: {
+              find: "Twitter",
+              replacement: "Twitter/X",
+              matchEntireCell: true,
+              range: { sheetId: idMap["Competitor Posts"], startRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },
             },
           },
-        }],
+          {
+            updateCells: {
+              range: { sheetId: idMap["Competitor Posts"], startRowIndex: 0, startColumnIndex: 6 },
+              fields: "userEnteredValue",
+            },
+          },
+        ],
       },
     });
   }
