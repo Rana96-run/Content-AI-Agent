@@ -2510,6 +2510,38 @@ router.get("/listening/latest", async (req, res) => {
   }
 });
 
+router.post("/listening/cleanup-own-posts", async (_req, res) => {
+  try {
+    const { getSheetsClient } = await import("../lib/sheets-client.js");
+    const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID ?? "";
+    if (!SPREADSHEET_ID) return res.status(500).json({ error: "GOOGLE_SHEETS_ID not set" });
+    const s = getSheetsClient();
+    const resp = await s.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A:H" });
+    const rows = resp.data.values ?? [];
+    const data = rows.slice(1);
+    // col H (index 7) = URL, col C (index 2) = Platform
+    const kept = data.filter(r => {
+      const url = (r[7] ?? "").toLowerCase();
+      const platform = (r[2] ?? "").toLowerCase();
+      if (platform !== "linkedin") return true;
+      return !url.includes("linkedin.com/posts/qoyod") &&
+             !url.includes("linkedin.com/company/qoyod") &&
+             !(url.includes("linkedin.com/pulse") && url.includes("qoyod"));
+    });
+    const removed = data.length - kept.length;
+    await s.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2:H" });
+    if (kept.length > 0) {
+      await s.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2",
+        valueInputOption: "RAW", requestBody: { values: kept },
+      });
+    }
+    res.json({ ok: true, removed, kept: kept.length });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 router.post("/listening/cleanup-old", async (req, res) => {
   try {
     const { getSheetsClient } = await import("../lib/sheets-client.js");
