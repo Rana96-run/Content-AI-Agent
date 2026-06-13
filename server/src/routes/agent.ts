@@ -2510,21 +2510,6 @@ router.get("/listening/latest", async (req, res) => {
   }
 });
 
-router.get("/listening/debug-linkedin", async (_req, res) => {
-  try {
-    const { getSheetsClient } = await import("../lib/sheets-client.js");
-    const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID ?? "";
-    const s = getSheetsClient();
-    const resp = await s.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A:H" });
-    const rows = resp.data.values ?? [];
-    const samples = rows.slice(1)
-      .filter(r => (r[2] ?? "").toLowerCase() === "linkedin")
-      .slice(0, 5)
-      .map(r => ({ platform: r[2], author: r[4], url: (r[7] ?? "").slice(0, 80) }));
-    res.json({ total: rows.length - 1, samples });
-  } catch (e) { res.status(500).json({ error: String(e) }); }
-});
-
 router.post("/listening/cleanup-own-posts", async (_req, res) => {
   try {
     const { getSheetsClient } = await import("../lib/sheets-client.js");
