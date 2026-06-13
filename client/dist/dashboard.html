@@ -446,7 +446,7 @@
   </div>
 
   <!-- 2-col layout: content left, sidebar right -->
-  <div class="content-layout">
+  <div class="content-layout" style="margin-top:20px">
 
     <!-- LEFT: Social Pulse (counts) + Email counts -->
     <div style="display:flex;flex-direction:column;gap:18px;">
@@ -1167,7 +1167,7 @@ async function fetchHealth() {
     document.getElementById('statLib').textContent   = d.libraryCount ?? '–';
     document.getElementById('statWins').textContent  = d.winsCount ?? '–';
     if (d.driveUrl)  { const b = document.getElementById('btnDrive');  b.href = d.driveUrl;  b.style.display = 'flex'; }
-    if (d.sheetsUrl) { const b = document.getElementById('btnSheets'); b.href = d.sheetsUrl; b.style.display = 'flex'; }
+    if (d.sheetsUrl) { const b = document.getElementById('btnSheets'); b.href = d.sheetsUrl; b.style.display = 'flex'; window._sheetsUrl = d.sheetsUrl; }
   } catch {
     setH('hSheets', true); setH('hDrive', true);
     setH('hApify', true); setH('hSlack', true); setH('hHubspot', true);
@@ -1281,9 +1281,10 @@ async function fetchListening() {
       for (const m of d.mentions ?? []) if (m.group in groups) groups[m.group]++;
       const colors = { brand:'var(--bright)', zatca:'var(--yellow)', market:'#34D399' };
       const labels = { brand:'قيود', zatca:'ZATCA/فاتورة', market:'السوق' };
+      const shUrl = window._sheetsUrl || '#';
       bdg.innerHTML = Object.entries(groups)
         .filter(([,n]) => n > 0)
-        .map(([g,n]) => `<span class="listening-badge" style="border:1px solid ${colors[g]};color:${colors[g]}">${labels[g]}: ${n}</span>`)
+        .map(([g,n]) => `<a href="${shUrl}" target="_blank" class="listening-badge" style="border:1px solid ${colors[g]};color:${colors[g]};text-decoration:none;cursor:pointer">${labels[g]}: ${n}</a>`)
         .join('');
     }
   } catch (_) {
