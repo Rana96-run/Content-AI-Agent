@@ -2516,31 +2516,36 @@ router.post("/listening/cleanup-own-posts", async (_req, res) => {
     const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID ?? "";
     if (!SPREADSHEET_ID) return res.status(500).json({ error: "GOOGLE_SHEETS_ID not set" });
     const s = getSheetsClient();
+    // Get sheet gid for Social Mentions
+    const meta = await s.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const sheet = meta.data.sheets?.find(sh => sh.properties?.title === "Social Mentions");
+    const sheetId = sheet?.properties?.sheetId ?? 0;
     const resp = await s.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A:H" });
     const rows = resp.data.values ?? [];
-    const data = rows.slice(1);
     // col C (index 2) = Platform, col E (index 4) = Author, col H (index 7) = URL
-    const kept = data.filter(r => {
+    // Collect row indices to delete (0-based, row 0 = header → data starts at index 1)
+    const toDelete: number[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
       const platform = (r[2] ?? "").toLowerCase();
       const author   = (r[4] ?? "").toLowerCase();
       const url      = (r[7] ?? "").toLowerCase();
-      if (platform !== "linkedin") return true;
-      // Remove Qoyod's own LinkedIn posts — matched by author handle or URL path
+      if (platform !== "linkedin") continue;
       const ownAuthor = author.startsWith("qoyod") || author === "qoyod@";
       const ownUrl    = url.includes("linkedin.com/posts/qoyod") ||
                         url.includes("linkedin.com/company/qoyod") ||
                         (url.includes("linkedin.com/pulse") && url.includes("qoyod"));
-      return !ownAuthor && !ownUrl;
-    });
-    const removed = data.length - kept.length;
-    await s.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2:H" });
-    if (kept.length > 0) {
-      await s.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2",
-        valueInputOption: "RAW", requestBody: { values: kept },
-      });
+      if (ownAuthor || ownUrl) toDelete.push(i);
     }
-    res.json({ ok: true, removed, kept: kept.length });
+    if (toDelete.length === 0) return res.json({ ok: true, removed: 0, kept: rows.length - 1 });
+    // Delete from bottom to top so row indices stay valid
+    const requests = toDelete.reverse().map(idx => ({
+      deleteDimension: {
+        range: { sheetId, dimension: "ROWS", startIndex: idx, endIndex: idx + 1 },
+      },
+    }));
+    await s.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+    res.json({ ok: true, removed: toDelete.length, kept: rows.length - 1 - toDelete.length });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
