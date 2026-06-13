@@ -74,7 +74,7 @@ function ttlCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<
 }
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 const MAX_AGENT_STEPS = 12;
 

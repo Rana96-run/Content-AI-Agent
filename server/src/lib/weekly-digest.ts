@@ -15,7 +15,7 @@ import { canvaUploadSvgAndCreateDesign } from "../routes/canva.js";
 import { logger } from "./logger.js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 const ONE_DAY = 24 * 60 * 60 * 1_000;
 const CHECK_INTERVAL_MS = 60 * 60 * 1_000;

@@ -100,7 +100,7 @@ ${postsText}
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
         max_tokens: 1500,
         system,
         messages: [{ role: "user", content: user }],
@@ -154,7 +154,7 @@ If a post targets multiple ICPs, emit one object per ICP. If unclear, use the cl
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
         max_tokens: 1000,
         system,
         messages: [{ role: "user", content: postsText }],
