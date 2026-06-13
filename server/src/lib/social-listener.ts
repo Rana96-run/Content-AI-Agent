@@ -185,8 +185,12 @@ async function scrapeTikTok(keyword: string, apifyToken: string): Promise<Omit<L
 async function scrapeLinkedIn(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
   const results = await ddgSearch(`${keyword} site:linkedin.com/posts OR site:linkedin.com/pulse`);
   return results
-    .filter(r => !r.url.includes("linkedin.com/company/qoyod") &&
-      !(r.url.includes("linkedin.com/pulse") && r.url.toLowerCase().includes("qoyod")))
+    .filter(r => {
+      const u = r.url.toLowerCase();
+      return !u.includes("linkedin.com/company/qoyod") &&
+        !u.includes("linkedin.com/posts/qoyod") &&
+        !(u.includes("linkedin.com/pulse") && u.includes("qoyod"));
+    })
     .map(r => ({ keyword, platform: "LinkedIn", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 

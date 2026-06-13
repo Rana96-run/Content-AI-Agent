@@ -2510,6 +2510,39 @@ router.get("/listening/latest", async (req, res) => {
   }
 });
 
+router.post("/listening/cleanup-old", async (req, res) => {
+  try {
+    const { getSheetsClient } = await import("../lib/sheets-client.js");
+    const cutoff = new Date(String(req.query.before ?? "2026-05-01"));
+    const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID ?? "";
+    if (!SPREADSHEET_ID) return res.status(500).json({ error: "GOOGLE_SHEETS_ID not set" });
+    const s = getSheetsClient();
+    const resp = await s.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A:H" });
+    const rows = resp.data.values ?? [];
+    const header = rows[0];
+    const data = rows.slice(1);
+    // col F (index 5) = Posted At
+    const kept = data.filter(r => {
+      const d = r[5] ? new Date(r[5]) : null;
+      return d && !isNaN(d.getTime()) && d >= cutoff;
+    });
+    const removed = data.length - kept.length;
+    // Clear and rewrite
+    await s.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2:H" });
+    if (kept.length > 0) {
+      await s.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: "Social Mentions!A2",
+        valueInputOption: "RAW",
+        requestBody: { values: kept },
+      });
+    }
+    res.json({ ok: true, removed, kept: kept.length });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 router.post("/listening/run-now", (_req, res) => {
   res.status(202).json({ ok: true, message: "Listening run started — check back in ~5 min" });
   import("../lib/social-listener.js").then(({ runSocialListener }) =>
