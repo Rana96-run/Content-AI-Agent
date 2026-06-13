@@ -310,4 +310,6 @@ export async function runSocialListener(): Promise<ListeningResult> {
 export function getLatestListeningResult(): ListeningResult | null {
   try {
     if (!fs.existsSync(CACHE_PATH)) return null;
-    return JSON.pa
+    return JSON.parse(fs.readFileSync(CACHE_PATH, "utf8")) as ListeningResult;
+  } catch { return null; }
+}
