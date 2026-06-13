@@ -1281,10 +1281,9 @@ async function fetchListening() {
       for (const m of d.mentions ?? []) if (m.group in groups) groups[m.group]++;
       const colors = { brand:'var(--bright)', zatca:'var(--yellow)', market:'#34D399' };
       const labels = { brand:'قيود', zatca:'ZATCA/فاتورة', market:'السوق' };
-      const shUrl = window._sheetsUrl || '#';
       bdg.innerHTML = Object.entries(groups)
         .filter(([,n]) => n > 0)
-        .map(([g,n]) => `<a href="${shUrl}" target="_blank" class="listening-badge" style="border:1px solid ${colors[g]};color:${colors[g]};text-decoration:none;cursor:pointer">${labels[g]}: ${n}</a>`)
+        .map(([g,n]) => `<a href="#" onclick="window.open(window._sheetsUrl||'#','_blank');return false;" class="listening-badge" style="border:1px solid ${colors[g]};color:${colors[g]};text-decoration:none;cursor:pointer">${labels[g]}: ${n}</a>`)
         .join('');
     }
   } catch (_) {
