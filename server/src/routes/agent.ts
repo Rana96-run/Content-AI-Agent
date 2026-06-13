@@ -2519,14 +2519,18 @@ router.post("/listening/cleanup-own-posts", async (_req, res) => {
     const resp = await s.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A:H" });
     const rows = resp.data.values ?? [];
     const data = rows.slice(1);
-    // col H (index 7) = URL, col C (index 2) = Platform
+    // col C (index 2) = Platform, col E (index 4) = Author, col H (index 7) = URL
     const kept = data.filter(r => {
-      const url = (r[7] ?? "").toLowerCase();
       const platform = (r[2] ?? "").toLowerCase();
+      const author   = (r[4] ?? "").toLowerCase();
+      const url      = (r[7] ?? "").toLowerCase();
       if (platform !== "linkedin") return true;
-      return !url.includes("linkedin.com/posts/qoyod") &&
-             !url.includes("linkedin.com/company/qoyod") &&
-             !(url.includes("linkedin.com/pulse") && url.includes("qoyod"));
+      // Remove Qoyod's own LinkedIn posts — matched by author handle or URL path
+      const ownAuthor = author.startsWith("qoyod") || author === "qoyod@";
+      const ownUrl    = url.includes("linkedin.com/posts/qoyod") ||
+                        url.includes("linkedin.com/company/qoyod") ||
+                        (url.includes("linkedin.com/pulse") && url.includes("qoyod"));
+      return !ownAuthor && !ownUrl;
     });
     const removed = data.length - kept.length;
     await s.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: "Social Mentions!A2:H" });
