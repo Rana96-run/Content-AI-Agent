@@ -152,6 +152,56 @@ async function searchCompetitorPosts(
   }
 }
 
+/* ── Qoyod content mapper ────────────────────────────────────── */
+/**
+ * Given a competitor post, generates a Qoyod-branded "lookalike" version
+ * that targets the same audience/pain point in Qoyod's identity.
+ * Uses Haiku (fast + cheap) for bulk generation.
+ */
+async function generateMappedContent(
+  competitor: string,
+  channel: string,
+  contentText: string
+): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || contentText.trim().length < 20) return "";
+
+  const maxWords = channel === "Twitter/X" ? 100 : 150;
+
+  const systemPrompt = `أنت كاتب محتوى لـ قيود — برنامج محاسبة سحابي سعودي يدعم الفاتورة الإلكترونية (ZATCA).
+قواعد صارمة لكل منشور:
+- رسالة واحدة فقط. CTA واحدة. عنصر ثقة واحد (ZATCA أو عدد المستخدمين أو الدعم السعودي).
+- اللهجة: سعودية خالصة. لا مصرية. لا فصحى مبالغ فيها.
+- بدون إيموجي. بدون مبالغة. بدون كلام عام.
+- max ${maxWords} كلمة.
+- اكتب نص المنشور مباشرة — لا عنوان، لا شرح، فقط النص.`;
+
+  const userPrompt = `منشور المنافس (${competitor} على ${channel}):\n${contentText.slice(0, 400)}\n\nاكتب نسخة قيود تستهدف نفس الجمهور ونفس الألم لكن بهوية قيود.`;
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 400,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!r.ok) return "";
+    const data: any = await r.json();
+    return (data?.content?.[0]?.text ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
 /* ── Main poll cycle ─────────────────────────────────────────── */
 async function poll() {
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -180,8 +230,14 @@ async function poll() {
   }
 
   if (allPosts.length > 0) {
+    // Generate Qoyod-branded lookalike version for each post before saving
+    logger.info({ total: allPosts.length }, "competitor-poller: generating Qoyod-mapped versions");
+    for (const post of allPosts) {
+      await new Promise((r) => setTimeout(r, 300)); // stagger to avoid rate limits
+      post.mapped_content = await generateMappedContent(post.competitor, post.channel, post.content_text);
+    }
     saveCompetitorPosts(allPosts);
-    logger.info({ total: allPosts.length }, "competitor-poller: saved posts to library");
+    logger.info({ total: allPosts.length }, "competitor-poller: saved posts with Qoyod versions to library");
   } else {
     logger.info("competitor-poller: no new posts found");
   }

@@ -223,7 +223,7 @@ export async function sheetsUpsertContentEntry(entry: ContentEntry): Promise<voi
 /* ── Competitor Posts ─────────────────────────────────────────── */
 
 const COMPETITOR_POSTS_HEADER = [
-  "Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement",
+  "Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement", "Qoyod Version",
 ];
 
 function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
@@ -234,6 +234,7 @@ function competitorPostToRow(p: CompetitorPost): (string | number | null)[] {
     p.post_url ?? null,
     p.fetched_at,
     p.engagement_hint ?? null,
+    p.mapped_content ?? null,
   ];
 }
 
@@ -823,13 +824,13 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     delete idMap["Content Brief"];
   }
 
-  // 2. Fix Competitor Posts header to 6-col schema (was written with old 9-col names)
+  // 2. Fix Competitor Posts header to 7-col schema (was written with old 9-col names)
   if (idMap["Competitor Posts"] != null) {
     await s.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: "'Competitor Posts'!A1:F1",
+      range: "'Competitor Posts'!A1:G1",
       valueInputOption: "RAW",
-      requestBody: { values: [["Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement"]] },
+      requestBody: { values: [["Competitor", "Channel", "Content", "Post URL", "Fetched At", "Engagement", "Qoyod Version"]] },
     });
     // Normalize legacy "Twitter" values to "Twitter/X" in the Channel column
     // Also clear old schema columns G-Z (scraped_at, engagement_raw, etc.)
@@ -847,7 +848,7 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
           },
           {
             updateCells: {
-              range: { sheetId: idMap["Competitor Posts"], startRowIndex: 0, startColumnIndex: 6 },
+              range: { sheetId: idMap["Competitor Posts"], startRowIndex: 0, startColumnIndex: 7 },
               fields: "userEnteredValue",
             },
           },
@@ -912,14 +913,14 @@ export async function sheetsApplyLibraryFormatting(): Promise<{ formatted: strin
     formatted.push("Content Library");
   }
 
-  /* ── Competitor Posts (6 cols: competitor,channel,content,post_url,fetched_at,engagement) */
+  /* ── Competitor Posts (7 cols: competitor,channel,content,post_url,fetched_at,engagement,qoyod_version) */
   if (idMap["Competitor Posts"] != null) {
     const id = idMap["Competitor Posts"];
-    const w = [140, 120, 400, 240, 145, 160];
+    const w = [140, 120, 400, 240, 145, 160, 400];
     requests.push(
       freezePane(id, 1, 0),
-      headerFormat(id, 6),
-      altRows(id, 6),
+      headerFormat(id, 7),
+      altRows(id, 7),
       ...w.map((px, i) => colWidth(id, i, px)),
       // Clear the stale data validation that was on col 2 (Content) before the column fix
       { setDataValidation: { range: { sheetId: id, startRowIndex: 1, endRowIndex: 2000, startColumnIndex: 2, endColumnIndex: 3 } } },

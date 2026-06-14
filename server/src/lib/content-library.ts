@@ -60,6 +60,7 @@ export interface CompetitorPost {
   post_url?: string;
   fetched_at: string;
   engagement_hint?: string;
+  mapped_content?: string;    // Qoyod-branded lookalike version (generated after scraping)
 }
 
 interface Library {
