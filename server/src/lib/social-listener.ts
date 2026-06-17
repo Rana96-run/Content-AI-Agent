@@ -10,25 +10,22 @@ import { sheetsAppendMentions, sheetsLogActivity } from "./sheets-client.js";
 
 const CACHE_PATH = path.resolve(process.cwd(), "data", "listening-cache.json");
 
-// Social-only listener — no blogs or news sites.
-// Platforms: X/Twitter, LinkedIn, TikTok, Threads, Instagram, Facebook, Snapchat, YouTube.
+// Twitter/X is the primary source — all groups are scraped on X first.
+// Web search is used only for zatca/market (regulatory news, not brand chatter).
 interface GroupConfig {
   terms: string[];
-  linkedIn: boolean;
-  tiktok: boolean;
-  threads: boolean;
-  instagram: boolean;
-  facebook: boolean;
-  snapchat: boolean;
-  youtube: boolean;
+  webSearch: boolean;
+  linkedIn: boolean; // professional content — good for brand + regulatory
+  tiktok: boolean;   // brand awareness only
+  threads: boolean;  // brand awareness only
 }
 
 const KEYWORDS: Record<"brand" | "zatca" | "market", GroupConfig> = {
-  brand: {
+  brand:  {
     terms: ["qoyod", "برنامج قيود", "@qoyod", "qoyod.com"],
-    linkedIn: true, tiktok: true, threads: true, instagram: true, facebook: true, snapchat: true, youtube: true,
+    webSearch: false, linkedIn: true, tiktok: true, threads: true,
   },
-  zatca: {
+  zatca:  {
     terms: [
       "هيئة الزكاة والضريبة",
       "هيئة الزكاة والضريبة والجمارك",
@@ -45,11 +42,11 @@ const KEYWORDS: Record<"brand" | "zatca" | "market", GroupConfig> = {
       "#فاتورة_الكترونية",
       "فوترة إلكترونية",
     ],
-    linkedIn: true, tiktok: true, threads: true, instagram: true, facebook: true, snapchat: false, youtube: true,
+    webSearch: true, linkedIn: true, tiktok: false, threads: false,
   },
   market: {
     terms: ["وزارة التجارة السعودية", "برنامج محاسبة", "نظام محاسبي", "فاتورة معتمدة", "#محاسبة_سعودية"],
-    linkedIn: true, tiktok: true, threads: true, instagram: true, facebook: true, snapchat: false, youtube: false,
+    webSearch: true, linkedIn: true, tiktok: false, threads: false,
   },
 };
 
@@ -203,37 +200,12 @@ async function scrapeThreads(keyword: string): Promise<Omit<ListeningMention, "g
   return results.map(r => ({ keyword, platform: "Threads", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 
-// ── Instagram — DDG search filtered to instagram.com/p/ (posts only) ─────────
-async function scrapeInstagram(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await ddgSearch(`${keyword} site:instagram.com/p/`);
-  return results
-    .filter(r => r.url.toLowerCase().includes("instagram.com/p/") || r.url.toLowerCase().includes("instagram.com/reel"))
-    .map(r => ({ keyword, platform: "Instagram", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
-}
-
-// ── Facebook — DDG search filtered to facebook.com posts ──────────────────────
-async function scrapeFacebook(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await ddgSearch(`${keyword} site:facebook.com/posts OR site:facebook.com/story`);
-  return results
-    .filter(r => {
-      const u = r.url.toLowerCase();
-      return u.includes("facebook.com/posts") || u.includes("facebook.com/story") || u.includes("facebook.com/permalink");
-    })
-    .map(r => ({ keyword, platform: "Facebook", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
-}
-
-// ── Snapchat — DDG search filtered to story.snapchat.com ─────────────────────
-async function scrapeSnapchat(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await ddgSearch(`${keyword} site:story.snapchat.com`);
-  return results.map(r => ({ keyword, platform: "Snapchat", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
-}
-
-// ── YouTube — DDG search filtered to youtube.com/watch (videos only) ─────────
-async function scrapeYouTube(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
-  const results = await ddgSearch(`${keyword} site:youtube.com/watch`);
-  return results
-    .filter(r => r.url.toLowerCase().includes("youtube.com/watch") || r.url.toLowerCase().includes("youtu.be"))
-    .map(r => ({ keyword, platform: "YouTube", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
+// ── Web (news/regulatory portals) ────────────────────────────────────────────
+async function searchWeb(keyword: string): Promise<Omit<ListeningMention, "group">[]> {
+  const results = await ddgSearch(
+    `${keyword} site:arabianbusiness.com OR site:argaam.com OR site:mubasher.info OR site:zatca.gov.sa`
+  );
+  return results.map(r => ({ keyword, platform: "Web", text: r.text, url: r.url, postedAt: new Date().toISOString() }));
 }
 
 async function summarise(mentions: ListeningMention[]): Promise<string> {
@@ -288,15 +260,11 @@ export async function runSocialListener(): Promise<ListeningResult> {
   for (const [group, cfg] of Object.entries(KEYWORDS) as ["brand" | "zatca" | "market", GroupConfig][]) {
     for (const kw of cfg.terms) {
       // All applicable platform scrapers run in parallel per keyword
-      const [xResults, liResults, ttResults, thResults, igResults, fbResults, scResults, ytResults] = await Promise.all([
-        token ? scrapeX(kw, token) : Promise.resolve([]),
-        cfg.linkedIn ? scrapeLinkedIn(kw) : Promise.resolve([]),
-        (token && cfg.tiktok) ? scrapeTikTok(kw, token) : Promise.resolve([]),
-        cfg.threads ? scrapeThreads(kw) : Promise.resolve([]),
-        cfg.instagram ? scrapeInstagram(kw) : Promise.resolve([]),
-        cfg.facebook ? scrapeFacebook(kw) : Promise.resolve([]),
-        cfg.snapchat ? scrapeSnapchat(kw) : Promise.resolve([]),
-        cfg.youtube ? scrapeYouTube(kw) : Promise.resolve([]),
+      const [xResults, liResults, ttResults, thResults] = await Promise.all([
+        token          ? scrapeX(kw, token)      : Promise.resolve([]),
+        cfg.linkedIn   ? scrapeLinkedIn(kw)      : Promise.resolve([]),
+        (token && cfg.tiktok)  ? scrapeTikTok(kw, token) : Promise.resolve([]),
+        cfg.threads    ? scrapeThreads(kw)       : Promise.resolve([]),
       ]);
 
       allMentions.push(
@@ -304,11 +272,14 @@ export async function runSocialListener(): Promise<ListeningResult> {
         ...liResults.map(m => ({ ...m, group })),
         ...ttResults.map(m => ({ ...m, group })),
         ...thResults.map(m => ({ ...m, group })),
-        ...igResults.map(m => ({ ...m, group })),
-        ...fbResults.map(m => ({ ...m, group })),
-        ...scResults.map(m => ({ ...m, group })),
-        ...ytResults.map(m => ({ ...m, group })),
       );
+
+      // Web search fallback: always for zatca/market; for brand if no social results
+      const hasSocial = xResults.length + liResults.length + ttResults.length + thResults.length > 0;
+      if (cfg.webSearch || !hasSocial) {
+        const webResults = await searchWeb(kw);
+        allMentions.push(...webResults.map(m => ({ ...m, group })));
+      }
     }
   }
 
