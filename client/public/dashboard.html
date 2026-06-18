@@ -875,12 +875,16 @@ const ON_DEMAND = [
 
 // ── Scheduled tasks ───────────────────────────────────
 const SCHEDULED = [
-  { name:'Monthly Content Calendar', agent:'social_media',  detail:'30 posts · 5 channels · saved to Drive + Slack',        cron:'1st of month 08:00 UTC', progress: computeMonthProgress() },
-  { name:'Daily Competitor Capture', agent:'social_media',  detail:'Scrapes last 24h → counter-creative → Drive',           cron:'Daily 07:00 UTC',        progress: computeDayProgress()   },
-  { name:'Daily Team Digest',        agent:'orchestrator',  detail:'Reviews all tasks → Drive Doc + Slack',                 cron:'Daily 08:00 UTC',        progress: computeDayProgress()   },
-  { name:'Social Listening',         agent:'social_media',  detail:'X + web — قيود / ZATCA / الفاتورة keywords',            cron:'Every 6h',               progress: computeListeningProgress() },
+  { name:'Competitor Poller',        agent:'social_media',  detail:'Daily data collection — all competitor channels',       cron:'Daily 06:00 UTC',        progress: computeDayProgress()   },
+  { name:'Customer Voice Refresh',   agent:'social_media',  detail:'App Store + Play Store + X reviews → brief',            cron:'Daily 06:00 UTC',        progress: computeDayProgress()   },
+  { name:'Daily Competitor Capture', agent:'social_media',  detail:'Scrapes last 24h → counter-creative → Drive',           cron:'Daily 06:00 UTC',        progress: computeDayProgress()   },
+  { name:'Social Listening',         agent:'social_media',  detail:'X + web — قيود / ZATCA / الفاتورة keywords',            cron:'Daily 06:00 UTC',        progress: computeDayProgress()   },
+  { name:'Daily Team Digest',        agent:'orchestrator',  detail:'Reviews all tasks → Drive Doc + Slack',                 cron:'Daily 11:00 UTC',        progress: computeDayProgress()   },
+  { name:'ZATCA Watcher',            agent:'social_media',  detail:'ZATCA news + regulatory tweets → brief',                cron:'Every 6h',               progress: computeListeningProgress() },
   { name:'Competitor Monitor',       agent:'social_media',  detail:'All channels → Slides + Doc + Knowledge Base',          cron:'Sunday 09:00 UTC',       progress: computeWeekProgress()  },
-  { name:'HubSpot Social Poller',    agent:'orchestrator',  detail:'Syncs post performance data into system',               cron:'Daily (periodic)',        progress: 0.5 },
+  { name:'Weekly Digest',            agent:'orchestrator',  detail:'7-day social summary → Drive + Slack',                  cron:'Sunday 12:00 UTC',       progress: computeWeekProgress()  },
+  { name:'Monthly Content Calendar', agent:'social_media',  detail:'30 posts · 5 channels · saved to Drive + Slack',        cron:'1st of month 11:00 UTC', progress: computeMonthProgress() },
+  { name:'HubSpot Social Poller',    agent:'orchestrator',  detail:'Syncs post performance data — n8n webhook triggered',   cron:'On publish',             progress: 0.5 },
 ];
 
 function computeMonthProgress() {
