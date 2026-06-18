@@ -2085,14 +2085,11 @@ router.post("/social/poll-now", async (_req, res) => {
 });
 
 /* ── Competitor poller: manual trigger ───────────────────────── */
-router.post("/competitor/poll-now", async (_req, res) => {
-  try {
-    const { pollCompetitorNow } = await import("../lib/competitor-poller.js");
-    await pollCompetitorNow();
-    res.json({ ok: true, message: "Competitor scrape completed" });
-  } catch (e) {
-    res.status(500).json({ error: String(e) });
-  }
+router.post("/competitor/poll-now", (_req, res) => {
+  res.status(202).json({ ok: true, message: "Competitor scrape started — check back in ~3 min" });
+  import("../lib/competitor-poller.js").then(({ pollCompetitorNow }) =>
+    pollCompetitorNow().catch(err => logger.error({ err: String(err) }, "competitor-poller: manual trigger error"))
+  );
 });
 
 /* ── Content library stats ────────────────────────────────────── */
