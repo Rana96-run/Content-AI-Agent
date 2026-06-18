@@ -2703,6 +2703,28 @@ router.get("/last-capture", async (_req, res) => {
   }
 });
 
+// ─── Customer Voice refresh endpoint ────────────────────────────────────────
+
+router.post("/voice/run-now", (_req, res) => {
+  res.status(202).json({ ok: true, message: "Customer voice refresh started — check back in ~3 min" });
+  import("../lib/customer-voice.js").then(({ refreshCustomerVoice }) => {
+    import("../lib/ai-call.js").then(({ callClaude }) =>
+      refreshCustomerVoice(callClaude).catch(err => logger.error({ err: String(err) }, "customer-voice: manual trigger error"))
+    );
+  });
+});
+
+// ─── ZATCA Watcher refresh endpoint ─────────────────────────────────────────
+
+router.post("/zatca/run-now", (_req, res) => {
+  res.status(202).json({ ok: true, message: "ZATCA refresh started — check back in ~2 min" });
+  import("../lib/zatca-watcher.js").then(({ refreshZatcaNews }) => {
+    import("../lib/ai-call.js").then(({ callClaude }) =>
+      refreshZatcaNews(callClaude).catch(err => logger.error({ err: String(err) }, "zatca-watcher: manual trigger error"))
+    );
+  });
+});
+
 // ── HubSpot Social API proxy ──────────────────────────────────────────────────
 // Workflows call these endpoints so HUBSPOT_ACCESS_TOKEN stays on Railway only.
 
