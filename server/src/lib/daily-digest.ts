@@ -14,6 +14,7 @@ import { loadTasks } from "./agent-store.js";
 import { PERSONAS } from "./agent-personas.js";
 import { upsertFact } from "./agent-memory.js";
 import { logger } from "./logger.js";
+import { sheetsLogActivity } from "./sheets-client.js";
 
 const SUMMARY_PATH = path.resolve(process.cwd(), "data", "daily-summary.json");
 
@@ -116,6 +117,7 @@ export async function runDailyDigest(): Promise<{ ok: boolean; summary?: string;
         text: `Daily Team Review — ${today}\nNo tasks recorded in the last 24h.`,
       };
       saveDigest(data);
+      sheetsLogActivity("daily_digest", "Daily digest: no tasks in last 24h", 0).catch(() => {});
       return { ok: true, summary: data.text };
     }
 
@@ -185,6 +187,7 @@ export async function runDailyDigest(): Promise<{ ok: boolean; summary?: string;
     };
 
     saveDigest(data);
+    sheetsLogActivity("daily_digest", `Daily digest: ${tasks.length} tasks, ${personaSummaries.length} personas`, tasks.length).catch(() => {});
     updateMemory(personaTaskCounts, today, erroredPersonas);
 
     logger.info({ tasks: tasks.length, personas: personaSummaries.length }, "daily-digest: saved");

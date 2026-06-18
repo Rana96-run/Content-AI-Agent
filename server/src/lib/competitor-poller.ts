@@ -11,6 +11,7 @@
 
 import { logger } from "./logger.js";
 import { saveCompetitorPosts, type CompetitorPost } from "./content-library.js";
+import { sheetsAppendCompetitorPosts, sheetsLogActivity } from "./sheets-client.js";
 
 const POLL_INTERVAL_MS = 6 * 60 * 60 * 1_000; // 6 hours
 
@@ -237,6 +238,8 @@ async function poll() {
       post.mapped_content = await generateMappedContent(post.competitor, post.channel, post.content_text);
     }
     saveCompetitorPosts(allPosts);
+    sheetsAppendCompetitorPosts(allPosts).catch(e => logger.warn({ err: String(e) }, "competitor-poller: sheets append failed"));
+    sheetsLogActivity("competitor_poller", `Scrape completed — ${allPosts.length} posts`, allPosts.length).catch(() => {});
     logger.info({ total: allPosts.length }, "competitor-poller: saved posts with Qoyod versions to library");
   } else {
     logger.info("competitor-poller: no new posts found");

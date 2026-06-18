@@ -21,6 +21,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { logger } from "./logger.js";
+import { sheetsLogActivity } from "./sheets-client.js";
 
 const VOICE_PATH = path.resolve(process.cwd(), "server/data/customer-voice.md");
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1_000; // 24h
@@ -214,6 +215,7 @@ export async function refreshCustomerVoice(
 
     const md = renderMarkdown(voice, new Date().toISOString());
     fs.writeFileSync(VOICE_PATH, md, "utf-8");
+    sheetsLogActivity("customer_voice", `Voice refreshed — ${all.length} items from ${3} sources`, all.length).catch(() => {});
     logger.info(
       { sources: 3, items: all.length, chars: md.length },
       "customer-voice: refreshed",
